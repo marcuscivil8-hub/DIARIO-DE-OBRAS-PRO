@@ -1,17 +1,41 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialTransacoes, initialObras, initialPontos, initialFuncionarios } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const FinanceiroPage: React.FC = () => {
-    const [transacoes] = useLocalStorage<TransacaoFinanceira[]>('transacoes', initialTransacoes);
-    const [obras] = useLocalStorage<Obra[]>('obras', initialObras);
-    const [pontos] = useLocalStorage<Ponto[]>('pontos', initialPontos);
-    const [funcionarios] = useLocalStorage<Funcionario[]>('funcionarios', initialFuncionarios);
+    const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [pontos, setPontos] = useState<Ponto[]>([]);
+    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [loading, setLoading] = useState(true);
+    
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [transacoesData, obrasData, pontosData, funcionariosData] = await Promise.all([
+                    apiService.transacoes.getAll(),
+                    apiService.obras.getAll(),
+                    apiService.pontos.getAll(),
+                    apiService.funcionarios.getAll(),
+                ]);
+                setTransacoes(transacoesData);
+                setObras(obrasData);
+                setPontos(pontosData);
+                setFuncionarios(funcionariosData);
+            } catch (error) {
+                console.error("Failed to fetch financial data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredTransacoes = selectedObraId === 'all' 
         ? transacoes 
@@ -72,6 +96,8 @@ const FinanceiroPage: React.FC = () => {
     }));
 
     const COLORS = ['#1e3a5f', '#facc15', '#3b82f6', '#fbbf24', '#6b7280', '#ef4444'];
+
+    if (loading) return <div className="text-center p-8">Carregando dados financeiros...</div>;
 
     return (
         <div className="space-y-6">

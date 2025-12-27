@@ -1,20 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialObras } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
 
-interface UsuariosPageProps {
-    users: User[];
-    setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-}
-
-const UsuariosPage: React.FC<UsuariosPageProps> = ({ users, setUsers }) => {
-    const [obras] = useLocalStorage<Obra[]>('obras', initialObras);
+const UsuariosPage: React.FC = () => {
+    const [users, setUsers] = useState<User[]>([]);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -28,6 +24,27 @@ const UsuariosPage: React.FC<UsuariosPageProps> = ({ users, setUsers }) => {
         obraIds: [] as string[],
     };
     const [currentUserForm, setCurrentUserForm] = useState(initialNewUserState);
+
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [usersData, obrasData] = await Promise.all([
+                apiService.users.getAll(),
+                apiService.obras.getAll()
+            ]);
+            setUsers(usersData);
+            setObras(obrasData);
+        } catch (error) {
+            console.error("Failed to fetch data for user management", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
 
     const handleOpenModal = (user: User | null = null) => {
         if (user) {
@@ -46,32 +63,34 @@ const UsuariosPage: React.FC<UsuariosPageProps> = ({ users, setUsers }) => {
         setIsModalOpen(true);
     };
     
-    const handleSaveUser = () => {
+    const handleSaveUser = async () => {
         if (!currentUserForm.name || !currentUserForm.username || (!editingUser && !currentUserForm.password)) {
             alert('Por favor, preencha nome, usuário e senha.');
             return;
         }
 
+        const userData = {
+            ...currentUserForm,
+            obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
+        };
+
         if (editingUser) {
-            setUsers(users.map(u => u.id === editingUser.id ? { 
-                ...u, 
-                name: currentUserForm.name,
-                username: currentUserForm.username,
-                role: currentUserForm.role,
-                obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
-                password: currentUserForm.password ? currentUserForm.password : u.password,
-            } : u));
-        } else {
-            const userToAdd: User = {
-                id: new Date().toISOString(),
-                ...currentUserForm,
-                password: currentUserForm.password!, // it is required for new users
-                obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
+            const updates: Partial<User> = {
+                name: userData.name,
+                username: userData.username,
+                role: userData.role,
+                obraIds: userData.obraIds,
             };
-            setUsers([...users, userToAdd]);
+            if(userData.password) {
+                updates.password = userData.password;
+            }
+            await apiService.users.update(editingUser.id, updates);
+        } else {
+            await apiService.users.create(userData);
         }
         
         setIsModalOpen(false);
+        await fetchData();
     };
 
     const triggerDeleteUser = (userId: string) => {
@@ -83,11 +102,12 @@ const UsuariosPage: React.FC<UsuariosPageProps> = ({ users, setUsers }) => {
         setIsConfirmModalOpen(true);
     };
 
-    const confirmDeleteUser = () => {
+    const confirmDeleteUser = async () => {
         if (!userToDeleteId) return;
-        setUsers(users.filter(u => u.id !== userToDeleteId));
+        await apiService.users.delete(userToDeleteId);
         setIsConfirmModalOpen(false);
         setUserToDeleteId(null);
+        await fetchData();
     };
     
     const handleObraIdChange = (obraId: string) => {
@@ -98,6 +118,8 @@ const UsuariosPage: React.FC<UsuariosPageProps> = ({ users, setUsers }) => {
             return { ...prev, obraIds: newObraIds };
         });
     };
+    
+    if(loading) return <div className="text-center p-8">Carregando usuários...</div>;
 
     return (
         <div className="space-y-6">

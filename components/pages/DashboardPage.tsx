@@ -1,8 +1,7 @@
 
-import React from 'react';
-import { User, Obra, UserRole, Page, Servico } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialObras, initialServicos, initialMateriais } from '../../services/dataService';
+import React, { useEffect, useState } from 'react';
+import { User, Obra, UserRole, Page, Servico, Material } from '../../types';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -12,9 +11,31 @@ interface DashboardPageProps {
 }
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
-    const [obras] = useLocalStorage<Obra[]>('obras', initialObras);
-    const [servicos] = useLocalStorage<Servico[]>('servicos', initialServicos);
-    const [materiais] = useLocalStorage('materiais', initialMateriais);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [servicos, setServicos] = useState<Servico[]>([]);
+    const [materiais, setMateriais] = useState<Material[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [obrasData, servicosData, materiaisData] = await Promise.all([
+                    apiService.obras.getAll(),
+                    apiService.servicos.getAll(),
+                    apiService.materiais.getAll(),
+                ]);
+                setObras(obrasData);
+                setServicos(servicosData);
+                setMateriais(materiaisData);
+            } catch (error) {
+                console.error("Failed to fetch dashboard data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const userObras = user.role === UserRole.Cliente 
         ? obras.filter(obra => user.obraIds?.includes(obra.id)) 
@@ -40,6 +61,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
       { name: 'Mai', Entradas: 4800, Saídas: 1890 },
       { name: 'Jun', Entradas: 3800, Saídas: 2390 },
     ];
+    
+    if (loading) {
+        return <div className="text-center p-8">Carregando dashboard...</div>;
+    }
 
     return (
         <div className="space-y-6">

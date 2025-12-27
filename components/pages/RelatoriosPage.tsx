@@ -1,10 +1,9 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialObras, initialDiarios, initialTransacoes, initialPontos, initialFuncionarios } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
@@ -99,17 +98,43 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
 
 // --- Main Page Component ---
 const RelatoriosPage: React.FC = () => {
-    const [obras] = useLocalStorage<Obra[]>('obras', initialObras);
-    const [diarios] = useLocalStorage<DiarioObra[]>('diarios', initialDiarios);
-    const [transacoes] = useLocalStorage<TransacaoFinanceira[]>('transacoes', initialTransacoes);
-    const [pontos] = useLocalStorage<Ponto[]>('pontos', initialPontos);
-    const [funcionarios] = useLocalStorage<Funcionario[]>('funcionarios', initialFuncionarios);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [diarios, setDiarios] = useState<DiarioObra[]>([]);
+    const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
+    const [pontos, setPontos] = useState<Ponto[]>([]);
+    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [pageLoading, setPageLoading] = useState(true);
     
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
     const [reportType, setReportType] = useState<'fotografico' | 'financeiro'>('fotografico');
-    const [loading, setLoading] = useState(false);
+    const [pdfLoading, setPdfLoading] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
     
+    useEffect(() => {
+        const fetchAllData = async () => {
+            setPageLoading(true);
+            try {
+                const [obrasData, diariosData, transacoesData, pontosData, funcionariosData] = await Promise.all([
+                    apiService.obras.getAll(),
+                    apiService.diarios.getAll(),
+                    apiService.transacoes.getAll(),
+                    apiService.pontos.getAll(),
+                    apiService.funcionarios.getAll(),
+                ]);
+                setObras(obrasData);
+                setDiarios(diariosData);
+                setTransacoes(transacoesData);
+                setPontos(pontosData);
+                setFuncionarios(funcionariosData);
+            } catch (error) {
+                console.error("Failed to load report data", error);
+            } finally {
+                setPageLoading(false);
+            }
+        };
+        fetchAllData();
+    }, []);
+
     const obraSelecionada = obras.find(o => o.id === selectedObraId);
     
     const { diariosFiltrados, transacoesFiltradas, custoMaoDeObra } = useMemo(() => {
@@ -134,7 +159,7 @@ const RelatoriosPage: React.FC = () => {
     
     const handleGeneratePdf = () => {
         if (!reportRef.current) return;
-        setLoading(true);
+        setPdfLoading(true);
         html2canvas(reportRef.current, { scale: 2 }).then((canvas) => {
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -155,9 +180,11 @@ const RelatoriosPage: React.FC = () => {
             }
             const obraName = obraSelecionada?.name || 'Geral';
             pdf.save(`relatorio_${reportType}_${obraName.replace(/\s/g, '_')}.pdf`);
-            setLoading(false);
+            setPdfLoading(false);
         });
     };
+
+    if (pageLoading) return <div className="text-center p-8">Carregando dados para relatórios...</div>;
 
     return (
         <div className="space-y-6">
@@ -180,8 +207,8 @@ const RelatoriosPage: React.FC = () => {
                         </select>
                     </div>
                     <div className="w-full md:w-auto self-end">
-                        <Button onClick={handleGeneratePdf} disabled={loading} className="w-full !py-3">
-                            {loading ? 'Gerando...' : 'Gerar PDF'}
+                        <Button onClick={handleGeneratePdf} disabled={pdfLoading} className="w-full !py-3">
+                            {pdfLoading ? 'Gerando...' : 'Gerar PDF'}
                         </Button>
                     </div>
                 </div>

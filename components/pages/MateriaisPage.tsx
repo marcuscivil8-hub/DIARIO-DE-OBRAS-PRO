@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Material, User, UserRole, MovimentacaoTipo } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialMateriais } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -13,7 +12,8 @@ interface MateriaisPageProps {
 }
 
 const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
-    const [materiais, setMateriais] = useLocalStorage<Material[]>('materiais', initialMateriais);
+    const [materiais, setMateriais] = useState<Material[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
     const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -26,6 +26,23 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
 
     const canEdit = user.role === UserRole.Admin;
 
+    const fetchMateriais = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await apiService.materiais.getAll();
+            setMateriais(data);
+        } catch (error) {
+            console.error("Failed to fetch materiais", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchMateriais();
+    }, [fetchMateriais]);
+
+
     const handleOpenModal = (material: Material | null = null) => {
         if (material) {
             setEditingMaterial(material);
@@ -37,13 +54,14 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         setIsModalOpen(true);
     };
 
-    const handleSaveMaterial = () => {
+    const handleSaveMaterial = async () => {
         if (editingMaterial) {
-            setMateriais(materiais.map(m => m.id === editingMaterial.id ? { ...editingMaterial, ...currentMaterial } : m));
+            await apiService.materiais.update(editingMaterial.id, currentMaterial);
         } else {
-            setMateriais([...materiais, { ...currentMaterial, id: new Date().toISOString() }]);
+            await apiService.materiais.create(currentMaterial);
         }
         setIsModalOpen(false);
+        await fetchMateriais();
     };
 
     const triggerDeleteMaterial = (id: string) => {
@@ -51,11 +69,12 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         setIsConfirmModalOpen(true);
     };
 
-    const confirmDeleteMaterial = () => {
+    const confirmDeleteMaterial = async () => {
         if (!materialToDeleteId) return;
-        setMateriais(materiais.filter(m => m.id !== materialToDeleteId));
+        await apiService.materiais.delete(materialToDeleteId);
         setIsConfirmModalOpen(false);
         setMaterialToDeleteId(null);
+        await fetchMateriais();
     };
     
     const handleOpenMovementModal = (materialId: string) => {
@@ -63,19 +82,22 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         setIsMovementModalOpen(true);
     };
 
-    const handleSaveMovement = () => {
+    const handleSaveMovement = async () => {
         const { materialId, tipo, quantidade } = movementData;
-        setMateriais(materiais.map(m => {
-            if (m.id === materialId) {
-                const newQuantity = tipo === MovimentacaoTipo.Entrada
-                    ? m.quantidade + quantidade
-                    : m.quantidade - quantidade;
-                return { ...m, quantidade: Math.max(0, newQuantity) }; // Prevent negative stock
-            }
-            return m;
-        }));
+        const material = materiais.find(m => m.id === materialId);
+        if (!material) return;
+        
+        const newQuantity = tipo === MovimentacaoTipo.Entrada
+            ? material.quantidade + quantidade
+            : material.quantidade - quantidade;
+        
+        await apiService.materiais.update(materialId, { quantidade: Math.max(0, newQuantity) });
+        
         setIsMovementModalOpen(false);
+        await fetchMateriais();
     };
+    
+    if (loading) return <div className="text-center p-8">Carregando materiais...</div>;
 
 
     return (

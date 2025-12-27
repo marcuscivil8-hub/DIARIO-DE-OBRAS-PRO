@@ -1,8 +1,7 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialObras, initialDiarios, initialServicos } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -10,7 +9,8 @@ import { ICONS } from '../../constants';
 
 // --- Sub-componente para Acompanhamento de Serviços ---
 const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obraId, user }) => {
-    const [servicos, setServicos] = useLocalStorage<Servico[]>('servicos', initialServicos);
+    const [servicos, setServicos] = useState<Servico[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingServico, setEditingServico] = useState<Servico | null>(null);
 
@@ -22,9 +22,19 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
     };
     const [currentServico, setCurrentServico] = useState(emptyServico);
 
-    const obraServicos = servicos
-        .filter(s => s.obraId === obraId)
-        .sort((a,b) => new Date(a.dataInicioPrevista).getTime() - new Date(b.dataInicioPrevista).getTime());
+    const fetchServicos = useCallback(async () => {
+        setLoading(true);
+        const allServicos = await apiService.servicos.getAll();
+        const obraServicos = allServicos
+            .filter(s => s.obraId === obraId)
+            .sort((a,b) => new Date(a.dataInicioPrevista).getTime() - new Date(b.dataInicioPrevista).getTime());
+        setServicos(obraServicos);
+        setLoading(false);
+    }, [obraId]);
+
+    useEffect(() => {
+        fetchServicos();
+    }, [fetchServicos]);
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
 
@@ -52,31 +62,33 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
         setIsModalOpen(true);
     };
 
-    const handleSaveServico = () => {
+    const handleSaveServico = async () => {
         if (editingServico) {
-            setServicos(servicos.map(s => s.id === editingServico.id ? { ...s, ...currentServico } : s));
+            await apiService.servicos.update(editingServico.id, currentServico);
         } else {
-            setServicos([...servicos, { ...currentServico, id: new Date().toISOString(), obraId }]);
+            await apiService.servicos.create({ ...currentServico, obraId });
         }
         setIsModalOpen(false);
+        await fetchServicos();
     };
 
-    const handleStatusChange = (servicoId: string, newStatus: StatusServico) => {
-        setServicos(servicos.map(s => {
-            if (s.id === servicoId) {
-                const updatedServico = { ...s, status: newStatus };
-                if (newStatus === 'Em Andamento' && !s.dataInicioReal) {
-                    updatedServico.dataInicioReal = new Date().toISOString().split('T')[0];
-                }
-                if (newStatus === 'Concluído') {
-                    updatedServico.dataFimReal = new Date().toISOString().split('T')[0];
-                }
-                return updatedServico;
-            }
-            return s;
-        }));
+    const handleStatusChange = async (servicoId: string, newStatus: StatusServico) => {
+        const servico = servicos.find(s => s.id === servicoId);
+        if (!servico) return;
+        
+        const updatedServico: Partial<Servico> = { status: newStatus };
+        if (newStatus === 'Em Andamento' && !servico.dataInicioReal) {
+            updatedServico.dataInicioReal = new Date().toISOString().split('T')[0];
+        }
+        if (newStatus === 'Concluído') {
+            updatedServico.dataFimReal = new Date().toISOString().split('T')[0];
+        }
+        await apiService.servicos.update(servicoId, updatedServico);
+        await fetchServicos();
     };
     
+    if (loading) return <div>Carregando serviços...</div>;
+
     return (
         <div className="space-y-4">
             {canEdit && (
@@ -100,7 +112,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
                             </tr>
                         </thead>
                         <tbody>
-                            {obraServicos.map(servico => {
+                            {servicos.map(servico => {
                                 const statusInfo = getStatusInfo(servico);
                                 return (
                                 <tr key={servico.id} className="border-b hover:bg-gray-50">
@@ -145,8 +157,10 @@ interface ObraDetailPageProps {
 }
 
 const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateTo }) => {
-    const [obras] = useLocalStorage<Obra[]>('obras', initialObras);
-    const [diarios, setDiarios] = useLocalStorage<DiarioObra[]>('diarios', initialDiarios);
+    const [obra, setObra] = useState<Obra | null>(null);
+    const [diarios, setDiarios] = useState<DiarioObra[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'diario' | 'servicos'>('diario');
     const [newDiario, setNewDiario] = useState<Omit<DiarioObra, 'id' | 'obraId' | 'fotos'>>({
@@ -159,10 +173,30 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState<{ diarioId: string; photoIndex: number } | null>(null);
 
-    const obra = obras.find(o => o.id === obraId);
-    const obraDiarios = diarios
-        .filter(d => d.obraId === obraId)
-        .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    const fetchPageData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const allObras = await apiService.obras.getAll();
+            const allDiarios = await apiService.diarios.getAll();
+            
+            const currentObra = allObras.find(o => o.id === obraId) || null;
+            const obraDiarios = allDiarios
+                .filter(d => d.obraId === obraId)
+                .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+            
+            setObra(currentObra);
+            setDiarios(obraDiarios);
+        } catch (error) {
+            console.error("Failed to fetch obra details", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [obraId]);
+
+    useEffect(() => {
+        fetchPageData();
+    }, [fetchPageData]);
+
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -180,19 +214,16 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setIsConfirmModalOpen(true);
     };
 
-    const confirmDeleteExistingPhoto = () => {
+    const confirmDeleteExistingPhoto = async () => {
         if (!photoToDelete) return;
-
         const { diarioId, photoIndex } = photoToDelete;
-        setDiarios(currentDiarios =>
-            currentDiarios.map(diario => {
-                if (diario.id === diarioId) {
-                    const updatedFotos = diario.fotos.filter((_, index) => index !== photoIndex);
-                    return { ...diario, fotos: updatedFotos };
-                }
-                return diario;
-            })
-        );
+        
+        const diarioToUpdate = diarios.find(d => d.id === diarioId);
+        if (diarioToUpdate) {
+            const updatedFotos = diarioToUpdate.fotos.filter((_, index) => index !== photoIndex);
+            await apiService.diarios.update(diarioId, { fotos: updatedFotos });
+            await fetchPageData();
+        }
         
         setIsConfirmModalOpen(false);
         setPhotoToDelete(null);
@@ -209,20 +240,21 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
             });
         }));
 
-        const diarioToAdd: DiarioObra = {
-            id: new Date().toISOString(),
+        const diarioToAdd: Omit<DiarioObra, 'id'> = {
             obraId,
             ...newDiario,
             data: new Date().toLocaleString('sv-SE'),
             fotos: photoData,
         };
 
-        setDiarios([diarioToAdd, ...diarios]);
+        await apiService.diarios.create(diarioToAdd);
         setIsModalOpen(false);
         setNewDiario({ data: '', clima: Clima.Ensolarado, observacoes: '' });
         setPhotos([]);
+        await fetchPageData();
     };
     
+    if (loading) return <div>Carregando detalhes da obra...</div>;
     if (!obra) return <div>Obra não encontrada. <button onClick={() => navigateTo('Obras')} className="text-blue-600">Voltar</button></div>;
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
@@ -256,7 +288,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                             </Button>
                         )}
                     </div>
-                    {obraDiarios.map(diario => (
+                    {diarios.map(diario => (
                         <Card key={diario.id}>
                             <div className="flex justify-between items-center mb-4 pb-4 border-b">
                                 <p className="font-semibold text-brand-blue text-lg">{new Date(diario.data).toLocaleString('pt-BR')}</p>

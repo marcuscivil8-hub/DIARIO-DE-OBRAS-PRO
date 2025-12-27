@@ -3,23 +3,26 @@ import React, { useState } from 'react';
 import Button from '../ui/Button';
 
 interface LoginPageProps {
-    onLogin: (username: string, password: string) => boolean;
+    onLogin: (username: string, password: string) => Promise<boolean>;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const isAdminLogin = username.toLowerCase() === 'admin';
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        const success = onLogin(username, isAdminLogin ? '' : password);
+        setLoading(true);
+        const success = await onLogin(username, isAdminLogin ? '' : password);
         if (!success) {
             setError('Usuário ou senha inválidos.');
         }
+        setLoading(false);
     };
 
     return (
@@ -41,6 +44,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             onChange={(e) => setUsername(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
                             required
+                            disabled={loading}
                         />
                     </div>
 
@@ -56,14 +60,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
                                 required
+                                disabled={loading}
                             />
                         </div>
                     )}
                     
                     {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
-                    <Button type="submit" className="w-full !py-4 text-lg">
-                        Entrar
+                    <Button type="submit" className="w-full !py-4 text-lg" disabled={loading}>
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </form>
             </div>

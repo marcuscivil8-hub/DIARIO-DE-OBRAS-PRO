@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Ferramenta, Funcionario, StatusFerramenta, User, UserRole } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialFerramentas, initialFuncionarios } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -13,8 +12,9 @@ interface FerramentasPageProps {
 }
 
 const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
-    const [ferramentas, setFerramentas] = useLocalStorage<Ferramenta[]>('ferramentas', initialFerramentas);
-    const [funcionarios] = useLocalStorage<Funcionario[]>('funcionarios', initialFuncionarios);
+    const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
+    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFerramenta, setEditingFerramenta] = useState<Ferramenta | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -29,6 +29,27 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
 
     const canEdit = user.role === UserRole.Admin;
+
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [ferramentasData, funcionariosData] = await Promise.all([
+                apiService.ferramentas.getAll(),
+                apiService.funcionarios.getAll(),
+            ]);
+            setFerramentas(ferramentasData);
+            setFuncionarios(funcionariosData);
+        } catch (error) {
+            console.error("Failed to fetch data", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
 
     const getResponsavelName = (id: string | null) => {
         if (!id) return 'Ninguém';
@@ -46,13 +67,14 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         setIsModalOpen(true);
     };
 
-    const handleSaveFerramenta = () => {
+    const handleSaveFerramenta = async () => {
         if (editingFerramenta) {
-            setFerramentas(ferramentas.map(f => f.id === editingFerramenta.id ? { ...editingFerramenta, ...currentFerramenta } : f));
+            await apiService.ferramentas.update(editingFerramenta.id, currentFerramenta);
         } else {
-            setFerramentas([...ferramentas, { ...currentFerramenta, id: new Date().toISOString() }]);
+            await apiService.ferramentas.create(currentFerramenta);
         }
         setIsModalOpen(false);
+        await fetchData();
     };
 
     const triggerDeleteFerramenta = (id: string) => {
@@ -60,13 +82,15 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         setIsConfirmModalOpen(true);
     };
 
-    const confirmDeleteFerramenta = () => {
+    const confirmDeleteFerramenta = async () => {
         if (!ferramentaToDeleteId) return;
-        setFerramentas(ferramentas.filter(f => f.id !== ferramentaToDeleteId));
+        await apiService.ferramentas.delete(ferramentaToDeleteId);
         setIsConfirmModalOpen(false);
         setFerramentaToDeleteId(null);
+        await fetchData();
     };
-
+    
+    if (loading) return <div className="text-center p-8">Carregando ferramentas...</div>;
 
     return (
         <div className="space-y-6">

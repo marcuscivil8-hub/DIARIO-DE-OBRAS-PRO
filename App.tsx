@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Page } from './types';
-import { initialUsers } from './services/dataService';
 import Layout from './components/layout/Layout';
 import LoginPage from './components/pages/LoginPage';
 import DashboardPage from './components/pages/DashboardPage';
@@ -13,28 +12,28 @@ import MateriaisPage from './components/pages/MateriaisPage';
 import FerramentasPage from './components/pages/FerramentasPage';
 import RelatoriosPage from './components/pages/RelatoriosPage';
 import UsuariosPage from './components/pages/UsuariosPage';
-import useLocalStorage from './hooks/useLocalStorage';
+import { apiService } from './services/apiService';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
-    const [users, setUsers] = useLocalStorage<User[]>('users', initialUsers);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // This effect can be used for initialization if needed
+        // Check for a logged-in user in session storage on startup
+        const checkSession = async () => {
+            const user = await apiService.checkSession();
+            if (user) {
+                setCurrentUser(user);
+            }
+            setLoading(false);
+        };
+        checkSession();
     }, []);
 
-    const handleLogin = (username: string, password: string): boolean => {
-        let user;
-        if (username.toLowerCase() === 'admin') {
-            // Special case for admin login without password
-            user = users.find(u => u.username.toLowerCase() === 'admin');
-        } else {
-            // Standard login for other users
-            user = users.find(u => u.username === username && u.password === password);
-        }
-
+    const handleLogin = async (username: string, password: string): Promise<boolean> => {
+        const user = await apiService.login(username, password);
         if (user) {
             setCurrentUser(user);
             setCurrentPage('Dashboard');
@@ -43,9 +42,10 @@ const App: React.FC = () => {
         return false;
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await apiService.logout();
         setCurrentUser(null);
-        setCurrentPage('Dashboard');
+        setCurrentPage('Dashboard'); // Should be handled by the component logic
     };
 
     const navigateTo = (page: Page, obraId?: string) => {
@@ -56,6 +56,10 @@ const App: React.FC = () => {
             setSelectedObraId(null);
         }
     };
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    }
 
     const renderPage = () => {
         if (!currentUser) return <LoginPage onLogin={handleLogin} />;
@@ -78,7 +82,7 @@ const App: React.FC = () => {
             case 'Relatorios':
                 return <RelatoriosPage />;
             case 'Usuarios':
-                 return currentUser.role === UserRole.Admin ? <UsuariosPage users={users} setUsers={setUsers} /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
+                 return currentUser.role === UserRole.Admin ? <UsuariosPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             default:
                 return <DashboardPage user={currentUser} navigateTo={navigateTo} />;
         }

@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
-import { Obra, User, UserRole, Page, DiarioObra, Servico, TransacaoFinanceira, Funcionario } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialObras, initialDiarios, initialServicos, initialTransacoes, initialFuncionarios, initialUsers } from '../../services/dataService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Obra, User, UserRole, Page } from '../../types';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -14,19 +13,13 @@ interface ObrasPageProps {
 }
 
 const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
-    const [obras, setObras] = useLocalStorage<Obra[]>('obras', initialObras);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingObra, setEditingObra] = useState<Obra | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [obraToDeleteId, setObraToDeleteId] = useState<string | null>(null);
     
-    // Hooks for cascading delete
-    const [, setDiarios] = useLocalStorage<DiarioObra[]>('diarios', initialDiarios);
-    const [, setServicos] = useLocalStorage<Servico[]>('servicos', initialServicos);
-    const [, setTransacoes] = useLocalStorage<TransacaoFinanceira[]>('transacoes', initialTransacoes);
-    const [, setFuncionarios] = useLocalStorage<Funcionario[]>('funcionarios', initialFuncionarios);
-    const [, setUsers] = useLocalStorage<User[]>('users', initialUsers);
-
     const emptyObra: Omit<Obra, 'id'> = {
         name: '',
         cliente: '',
@@ -39,6 +32,23 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     };
 
     const [currentObra, setCurrentObra] = useState<Omit<Obra, 'id'>>(emptyObra);
+    
+    const fetchObras = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await apiService.obras.getAll();
+            setObras(data);
+        } catch (error) {
+            console.error("Failed to fetch obras", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchObras();
+    }, [fetchObras]);
+
 
     const handleOpenModal = (obra: Obra | null = null) => {
         if (obra) {
@@ -51,19 +61,20 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         setIsModalOpen(true);
     };
 
-    const handleSaveObra = () => {
-        if (editingObra) {
-            setObras(obras.map(o => o.id === editingObra.id ? { ...o, ...currentObra } : o));
-        } else {
-            const obraToAdd: Obra = {
-                id: new Date().toISOString(),
-                ...currentObra,
-            };
-            setObras([...obras, obraToAdd]);
+    const handleSaveObra = async () => {
+        try {
+            if (editingObra) {
+                await apiService.obras.update(editingObra.id, currentObra);
+            } else {
+                await apiService.obras.create(currentObra);
+            }
+            setIsModalOpen(false);
+            setEditingObra(null);
+            setCurrentObra(emptyObra);
+            await fetchObras(); // Refresh data
+        } catch (error) {
+            console.error("Failed to save obra", error);
         }
-        setIsModalOpen(false);
-        setEditingObra(null);
-        setCurrentObra(emptyObra);
     };
     
     const triggerDeleteObra = (obraId: string) => {
@@ -71,40 +82,27 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         setIsConfirmModalOpen(true);
     };
 
-    const confirmDeleteObra = () => {
+    const confirmDeleteObra = async () => {
         if (!obraToDeleteId) return;
-
-        // 1. Delete the obra itself
-        setObras(currentObras => currentObras.filter(o => o.id !== obraToDeleteId));
-
-        // 2. Delete associated data
-        setDiarios(currentDiarios => currentDiarios.filter(d => d.obraId !== obraToDeleteId));
-        setServicos(currentServicos => currentServicos.filter(s => s.obraId !== obraToDeleteId));
-        setTransacoes(currentTransacoes => currentTransacoes.filter(t => t.obraId !== obraToDeleteId));
-
-        // 3. Disassociate funcionarios
-        setFuncionarios(currentFuncionarios =>
-            currentFuncionarios.map(f =>
-                f.obraId === obraToDeleteId ? { ...f, obraId: null } : f
-            )
-        );
-
-        // 4. Disassociate client users
-        setUsers(currentUsers =>
-            currentUsers.map(u =>
-                u.obraIds?.includes(obraToDeleteId)
-                    ? { ...u, obraIds: u.obraIds.filter(id => id !== obraToDeleteId) }
-                    : u
-            )
-        );
-        
-        setIsConfirmModalOpen(false);
-        setObraToDeleteId(null);
+        try {
+            await apiService.obras.delete(obraToDeleteId);
+            // Cascading delete simulation - in a real API this would be handled by the backend
+            // For now, we assume related data is not deleted, just the obra.
+            // In a full implementation, you'd call apiService.diarios.deleteByObraId(obraToDeleteId), etc.
+        } catch (error) {
+            console.error("Failed to delete obra", error);
+        } finally {
+            setIsConfirmModalOpen(false);
+            setObraToDeleteId(null);
+            await fetchObras();
+        }
     };
 
     const userObras = user.role === UserRole.Cliente
         ? obras.filter(obra => user.obraIds?.includes(obra.id))
         : obras;
+        
+    if (loading) return <div className="text-center p-8">Carregando obras...</div>;
 
     return (
         <div className="space-y-6">
@@ -174,7 +172,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={confirmDeleteObra}
                 title="Confirmar Exclusão"
-                message={<>Tem certeza que deseja excluir esta obra? <strong className="font-bold">Todos os dados associados</strong> (diários, serviços, finanças, etc.) serão perdidos permanentemente.</>}
+                message={<>Tem certeza que deseja excluir esta obra? Esta ação removerá a obra principal, mas os dados associados (como diários e finanças) precisarão ser gerenciados separadamente.</>}
                 confirmText="Excluir Obra"
             />
         </div>

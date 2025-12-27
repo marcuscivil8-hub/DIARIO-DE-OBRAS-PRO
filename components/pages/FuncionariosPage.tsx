@@ -1,8 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Funcionario, Ponto, User, UserRole, PagamentoTipo, Obra } from '../../types';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { initialFuncionarios, initialPontos, initialObras } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -32,9 +31,11 @@ interface FuncionariosPageProps {
 }
 
 const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
-    const [funcionarios, setFuncionarios] = useLocalStorage<Funcionario[]>('funcionarios', initialFuncionarios);
-    const [pontos, setPontos] = useLocalStorage<Ponto[]>('pontos', initialPontos);
-    const [obras] = useLocalStorage<Obra[]>('obras', initialObras);
+    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [pontos, setPontos] = useState<Ponto[]>([]);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [loading, setLoading] = useState(true);
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFuncionario, setEditingFuncionario] = useState<Funcionario | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -44,6 +45,28 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const [currentFuncionario, setCurrentFuncionario] = useState(emptyFuncionario);
     
     const [currentDate, setCurrentDate] = useState(new Date());
+
+    const fetchAllData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [funcData, pontosData, obrasData] = await Promise.all([
+                apiService.funcionarios.getAll(),
+                apiService.pontos.getAll(),
+                apiService.obras.getAll()
+            ]);
+            setFuncionarios(funcData);
+            setPontos(pontosData);
+            setObras(obrasData);
+        } catch (error) {
+            console.error("Failed to fetch data", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchAllData();
+    }, [fetchAllData]);
 
     const startOfWeek = getStartOfWeek(currentDate);
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(startOfWeek, i));
@@ -60,13 +83,14 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
         setIsModalOpen(true);
     };
 
-    const handleSaveFuncionario = () => {
+    const handleSaveFuncionario = async () => {
         if (editingFuncionario) {
-            setFuncionarios(funcionarios.map(f => f.id === editingFuncionario.id ? { ...f, ...currentFuncionario } : f));
+            await apiService.funcionarios.update(editingFuncionario.id, currentFuncionario);
         } else {
-            setFuncionarios([...funcionarios, { ...currentFuncionario, id: new Date().toISOString() }]);
+            await apiService.funcionarios.create(currentFuncionario);
         }
         setIsModalOpen(false);
+        await fetchAllData();
     };
 
     const triggerDeactivateFuncionario = (id: string) => {
@@ -74,33 +98,33 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
         setIsConfirmModalOpen(true);
     };
 
-    const confirmDeactivateFuncionario = () => {
+    const confirmDeactivateFuncionario = async () => {
         if (!funcionarioToDeactivateId) return;
-        setFuncionarios(funcionarios.map(f => f.id === funcionarioToDeactivateId ? { ...f, ativo: false } : f));
+        await apiService.funcionarios.update(funcionarioToDeactivateId, { ativo: false });
         setIsConfirmModalOpen(false);
         setFuncionarioToDeactivateId(null);
+        await fetchAllData();
     };
 
-
-    const handlePontoClick = (funcionarioId: string, data: string) => {
+    const handlePontoClick = async (funcionarioId: string, data: string) => {
         const pontoIndex = pontos.findIndex(p => p.funcionarioId === funcionarioId && p.data === data);
+        let updatedPontos = [...pontos];
+
         if (pontoIndex > -1) {
             const currentStatus = pontos[pontoIndex].status;
             if (currentStatus === 'presente') {
-                // presente -> falta
-                const newPontos = [...pontos];
-                newPontos[pontoIndex] = { ...newPontos[pontoIndex], status: 'falta' };
-                setPontos(newPontos);
+                updatedPontos[pontoIndex] = { ...updatedPontos[pontoIndex], status: 'falta' };
             } else {
-                // falta -> remove
-                const newPontos = pontos.filter((_, index) => index !== pontoIndex);
-                setPontos(newPontos);
+                updatedPontos.splice(pontoIndex, 1);
             }
         } else {
-            // no record -> presente
             const newPonto: Ponto = { id: new Date().toISOString(), funcionarioId, data, status: 'presente' };
-            setPontos([...pontos, newPonto]);
+            updatedPontos.push(newPonto);
         }
+        // In a real API, you would create/update/delete a single record.
+        // Here we replace all, as our simulation is simple.
+        await apiService.pontos.replaceAll(updatedPontos);
+        setPontos(updatedPontos); // Optimistic update
     };
     
     const sortedFuncionarios = useMemo(() => 
@@ -117,7 +141,6 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                     if (func.tipoPagamento === PagamentoTipo.Diaria) {
                         return dailyTotal + func.valor;
                     }
-                    // Approx daily cost for monthly salary
                     if (func.tipoPagamento === PagamentoTipo.Salario) {
                         return dailyTotal + (func.valor / 22);
                     }
@@ -129,6 +152,8 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     }, [pontos, sortedFuncionarios, weekDayStrings]);
 
     const canEdit = user.role === UserRole.Admin;
+    
+    if (loading) return <div className="text-center p-8">Carregando funcionários...</div>;
 
     return (
         <div className="space-y-6">
