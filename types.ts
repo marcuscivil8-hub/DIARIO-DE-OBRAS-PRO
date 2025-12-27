@@ -9,8 +9,7 @@ export interface User {
     id: string;
     name: string;
     username: string;
-    // FIX: Made password optional as it's not stored in the database and not always present on User objects.
-    password?: string;
+    password: string;
     role: UserRole;
     obraIds?: string[]; // For clients, to link them to specific projects
 }
@@ -48,7 +47,7 @@ export interface Funcionario {
 export interface Ponto {
     id: string;
     funcionarioId: string;
-    data: string; // YYYY-MM-DD
+    data: string; // YYY-MM-DD
     status: 'presente' | 'falta';
 }
 
@@ -64,7 +63,7 @@ export interface TransacaoFinanceira {
     valor: number;
     tipo: TransacaoTipo;
     categoria: string;
-    data: string; // YYYY-MM-DD
+    data: string; // YYY-MM-DD
 }
 
 export interface Material {
@@ -85,7 +84,7 @@ export interface MovimentacaoMaterial {
     materialId: string;
     tipo: MovimentacaoTipo;
     quantidade: number;
-    data: string; // YYYY-MM-DD
+    data: string; // YYY-MM-DD
     responsavel: string;
 }
 

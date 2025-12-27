@@ -2,8 +2,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico } from '../../types';
 import { apiService } from '../../services/apiService';
-import { storage } from '../../services/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -222,7 +220,6 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         
         const diarioToUpdate = diarios.find(d => d.id === diarioId);
         if (diarioToUpdate) {
-            // TODO: Delete photo from Firebase Storage as well
             const updatedFotos = diarioToUpdate.fotos.filter((_, index) => index !== photoIndex);
             await apiService.diarios.update(diarioId, { fotos: updatedFotos });
             await fetchPageData();
@@ -232,12 +229,19 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setPhotoToDelete(null);
     };
 
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
+
     const handleAddDiario = async () => {
         const photoDataPromises = photos.map(async (p) => {
-            const storageRef = ref(storage, `obras/${obraId}/${new Date().getTime()}_${p.file.name}`);
-            await uploadBytes(storageRef, p.file);
-            const downloadURL = await getDownloadURL(storageRef);
-            return { url: downloadURL, legenda: p.legenda };
+            const base64Url = await fileToBase64(p.file);
+            return { url: base64Url, legenda: p.legenda };
         });
 
         const photoData = await Promise.all(photoDataPromises);
