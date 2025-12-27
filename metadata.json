@@ -1,0 +1,8 @@
+{
+  "name": "Diário de Obra Pro",
+  "description": "Uma plataforma completa para gerenciamento de obras, incluindo diário de obra, controle financeiro, gestão de funcionários, materiais e ferramentas. Facilita a comunicação e o acompanhamento do projeto para todos os envolvidos.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
