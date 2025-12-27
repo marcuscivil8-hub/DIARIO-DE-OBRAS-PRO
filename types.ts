@@ -9,7 +9,8 @@ export interface User {
     id: string;
     name: string;
     username: string;
-    password: string;
+    // FIX: Made password optional as it's not stored in the database and not always present on User objects.
+    password?: string;
     role: UserRole;
     obraIds?: string[]; // For clients, to link them to specific projects
 }

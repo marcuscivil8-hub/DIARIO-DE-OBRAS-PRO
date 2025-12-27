@@ -2,6 +2,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico } from '../../types';
 import { apiService } from '../../services/apiService';
+import { storage } from '../../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -220,6 +222,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         
         const diarioToUpdate = diarios.find(d => d.id === diarioId);
         if (diarioToUpdate) {
+            // TODO: Delete photo from Firebase Storage as well
             const updatedFotos = diarioToUpdate.fotos.filter((_, index) => index !== photoIndex);
             await apiService.diarios.update(diarioId, { fotos: updatedFotos });
             await fetchPageData();
@@ -230,15 +233,14 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     };
 
     const handleAddDiario = async () => {
-        const photoData = await Promise.all(photos.map(p => {
-            return new Promise<{ url: string, legenda: string }>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    resolve({ url: reader.result as string, legenda: p.legenda });
-                };
-                reader.readAsDataURL(p.file);
-            });
-        }));
+        const photoDataPromises = photos.map(async (p) => {
+            const storageRef = ref(storage, `obras/${obraId}/${new Date().getTime()}_${p.file.name}`);
+            await uploadBytes(storageRef, p.file);
+            const downloadURL = await getDownloadURL(storageRef);
+            return { url: downloadURL, legenda: p.legenda };
+        });
+
+        const photoData = await Promise.all(photoDataPromises);
 
         const diarioToAdd: Omit<DiarioObra, 'id'> = {
             obraId,
