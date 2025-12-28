@@ -106,7 +106,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             finalSaidasPorCategoria['Mão de Obra (Folha + Ponto)'] = custoTotalMaoDeObra;
         }
 
-        const totalSaidas = Object.values(finalSaidasPorCategoria).reduce((sum, val) => sum + val, 0);
+        // FIX: Cast `val` to Number to prevent type error when summing unknown values.
+        const totalSaidas = Object.values(finalSaidasPorCategoria).reduce((sum, val) => sum + Number(val), 0);
         const balanco = totalEntradas - totalSaidas;
 
         return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: finalSaidasPorCategoria };

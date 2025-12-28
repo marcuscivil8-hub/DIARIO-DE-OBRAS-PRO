@@ -61,6 +61,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
 
     const lowStockMaterials = materiais.filter(m => m.quantidade <= m.estoqueMinimo).length;
     
+    const funcionariosHoje = useMemo(() => {
+        const todayString = new Date().toISOString().split('T')[0];
+        const pontosHoje = pontos.filter(p => p.data === todayString && p.status === 'presente');
+        
+        if (user.role === UserRole.Admin || user.role === UserRole.Encarregado) {
+            return pontosHoje.length;
+        }
+    
+        if (user.role === UserRole.Cliente) {
+            const funcionariosDasObrasDoCliente = funcionarios.filter(f => f.obraId && userObraIds.includes(f.obraId));
+            const funcionarioIds = new Set(funcionariosDasObrasDoCliente.map(f => f.id));
+            return pontosHoje.filter(p => funcionarioIds.has(p.funcionarioId)).length;
+        }
+        
+        return 0;
+    }, [pontos, funcionarios, userObraIds, user.role]);
+
     const financialSummaryData = useMemo(() => {
         const months = [];
         const today = new Date();
@@ -136,8 +153,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                 </Card>
                  <Card>
                     <h3 className="text-lg font-semibold text-brand-blue">Funcionários Hoje</h3>
-                    <p className="text-5xl font-bold">12</p>
-                    <p className="text-brand-gray">Presentes em todas as obras</p>
+                    <p className="text-5xl font-bold">{funcionariosHoje}</p>
+                    <p className="text-brand-gray">Presentes nas obras</p>
                 </Card>
             </div>
 
