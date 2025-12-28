@@ -1,11 +1,15 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida } from '../../types';
+import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
-const FinanceiroPage: React.FC = () => {
+interface FinanceiroPageProps {
+    user: User;
+}
+
+const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
     const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
     const [obras, setObras] = useState<Obra[]>([]);
     const [pontos, setPontos] = useState<Ponto[]>([]);
@@ -37,10 +41,17 @@ const FinanceiroPage: React.FC = () => {
         fetchData();
     }, []);
 
-    const filteredTransacoes = useMemo(() => selectedObraId === 'all' 
-        ? transacoes 
-        : transacoes.filter(t => t.obraId === selectedObraId),
-    [transacoes, selectedObraId]);
+    const filteredTransacoes = useMemo(() => {
+        let baseTransacoes = selectedObraId === 'all'
+            ? transacoes
+            : transacoes.filter(t => t.obraId === selectedObraId);
+        
+        if (user.role === UserRole.Encarregado) {
+            return baseTransacoes.filter(t => t.tipo === TransacaoTipo.Saida);
+        }
+
+        return baseTransacoes;
+    }, [transacoes, selectedObraId, user.role]);
         
     const custoMaoDeObraPontos = useMemo(() => {
         const funcionariosDaObra = selectedObraId === 'all'
@@ -124,16 +135,20 @@ const FinanceiroPage: React.FC = () => {
                 </div>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card title="Entradas" className="text-green-600">
-                    <p className="text-3xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </Card>
+            <div className={`grid grid-cols-1 ${user.role === UserRole.Admin ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-6`}>
+                {user.role === UserRole.Admin && (
+                    <Card title="Entradas" className="text-green-600">
+                        <p className="text-3xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    </Card>
+                )}
                 <Card title="Saídas (Transações + Ponto)" className="text-red-600">
                     <p className="text-3xl font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </Card>
-                <Card title="Balanço" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                    <p className="text-3xl font-bold">R$ {balanco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </Card>
+                {user.role === UserRole.Admin && (
+                    <Card title="Balanço" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                        <p className="text-3xl font-bold">R$ {balanco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    </Card>
+                )}
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

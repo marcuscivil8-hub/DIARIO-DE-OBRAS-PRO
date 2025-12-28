@@ -78,7 +78,7 @@ const App: React.FC = () => {
             case 'Funcionarios':
                 return <FuncionariosPage user={currentUser} />;
             case 'Financeiro':
-                return currentUser.role === UserRole.Admin ? <FinanceiroPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
+                return (currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado) ? <FinanceiroPage user={currentUser} /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Almoxarifado':
                 return currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado ? <AlmoxarifadoPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Materiais':
