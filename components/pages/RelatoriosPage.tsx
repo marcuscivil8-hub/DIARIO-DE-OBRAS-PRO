@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta } from '../../types';
+import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta, Documento } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -257,6 +257,48 @@ const RelatorioAlmoxarifado: React.FC<{
     );
 };
 
+// --- Relatório de Documentos ---
+const RelatorioDocumentos: React.FC<{ obra: Obra | null, documentos: Documento[] }> = ({ obra, documentos }) => {
+    const groupedDocs = documentos.reduce((acc, doc) => {
+        (acc[doc.tipo] = acc[doc.tipo] || []).push(doc);
+        return acc;
+    }, {} as Record<string, Documento[]>);
+    
+    const groupOrder: Documento['tipo'][] = ['Contrato', 'Comprovante de Pagamento', 'Projeto', 'Outro'];
+
+    return (
+        <div className="p-8 bg-white text-gray-800 font-sans">
+            <header className="text-right border-b-2 border-black pb-4 mb-8">
+                <h1 className="text-3xl font-bold text-brand-blue">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
+                <p className="text-gray-600">Relatório de Documentos da Obra</p>
+            </header>
+            <main>
+                <div className="mb-8 p-4 border border-gray-300 rounded">
+                    <h2 className="text-xl font-bold mb-2 text-brand-blue">{obra?.name || 'Todas as Obras'}</h2>
+                    {obra && <p><strong>Cliente:</strong> {obra.cliente}</p>}
+                    <p><strong>Data de Emissão:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+                
+                {groupOrder.map(group => groupedDocs[group] && (
+                    <div key={group} className="mb-6 break-inside-avoid">
+                        <h3 className="text-lg font-bold mb-2 text-brand-blue border-b pb-1">{group}</h3>
+                        <table className="w-full text-sm border-collapse">
+                            <tbody>
+                                {groupedDocs[group].map(doc => (
+                                    <tr key={doc.id} className="text-gray-800 border-b">
+                                        <td className="p-2">{doc.nome}</td>
+                                        <td className="p-2 text-right">{new Date(doc.dataUpload).toLocaleDateString('pt-BR')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ))}
+            </main>
+        </div>
+    );
+};
+
 
 // --- Main Page Component ---
 const RelatoriosPage: React.FC = () => {
@@ -268,11 +310,12 @@ const RelatoriosPage: React.FC = () => {
     const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
     const [materiais, setMateriais] = useState<Material[]>([]);
     const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
+    const [documentos, setDocumentos] = useState<Documento[]>([]);
 
     const [pageLoading, setPageLoading] = useState(true);
     
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
-    const [reportType, setReportType] = useState<'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado'>('fotografico');
+    const [reportType, setReportType] = useState<'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado' | 'documentos'>('fotografico');
     const [periodoFolha, setPeriodoFolha] = useState<'semanal' | 'quinzenal' | 'mensal'>('semanal');
     const [pdfLoading, setPdfLoading] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
@@ -281,7 +324,7 @@ const RelatoriosPage: React.FC = () => {
         const fetchAllData = async () => {
             setPageLoading(true);
             try {
-                const [obrasData, diariosData, transacoesData, pontosData, funcionariosData, movsData, materiaisData, ferramentasData] = await Promise.all([
+                const [obrasData, diariosData, transacoesData, pontosData, funcionariosData, movsData, materiaisData, ferramentasData, documentosData] = await Promise.all([
                     apiService.obras.getAll(),
                     apiService.diarios.getAll(),
                     apiService.transacoes.getAll(),
@@ -289,7 +332,8 @@ const RelatoriosPage: React.FC = () => {
                     apiService.funcionarios.getAll(),
                     apiService.movimentacoesAlmoxarifado.getAll(),
                     apiService.materiais.getAll(),
-                    apiService.ferramentas.getAll()
+                    apiService.ferramentas.getAll(),
+                    apiService.documentos.getAll()
                 ]);
                 setObras(obrasData);
                 setDiarios(diariosData);
@@ -299,6 +343,7 @@ const RelatoriosPage: React.FC = () => {
                 setMovimentacoes(movsData);
                 setMateriais(materiaisData);
                 setFerramentas(ferramentasData);
+                setDocumentos(documentosData);
             } catch (error) {
                 console.error("Failed to load report data", error);
             } finally {
@@ -310,10 +355,11 @@ const RelatoriosPage: React.FC = () => {
 
     const obraSelecionada = obras.find(o => o.id === selectedObraId);
     
-    const { diariosFiltrados, transacoesFiltradas, custoMaoDeObra } = useMemo(() => {
+    const { diariosFiltrados, transacoesFiltradas, custoMaoDeObra, documentosFiltrados } = useMemo(() => {
         const isAll = selectedObraId === 'all';
         const diariosFiltrados = isAll ? diarios : diarios.filter(d => d.obraId === selectedObraId);
         const transacoesFiltradas = isAll ? transacoes : transacoes.filter(t => t.obraId === selectedObraId);
+        const documentosFiltrados = isAll ? documentos : documentos.filter(d => d.obraId === selectedObraId);
 
         const funcionariosDaObra = isAll ? funcionarios : funcionarios.filter(f => f.obraId === selectedObraId);
         const pontosRelevantes = pontos.filter(p => funcionariosDaObra.some(f => f.id === p.funcionarioId) && p.status === 'presente');
@@ -327,8 +373,8 @@ const RelatoriosPage: React.FC = () => {
             return total;
         }, 0);
 
-        return { diariosFiltrados, transacoesFiltradas, custoMaoDeObra };
-    }, [selectedObraId, diarios, transacoes, pontos, funcionarios]);
+        return { diariosFiltrados, transacoesFiltradas, custoMaoDeObra, documentosFiltrados };
+    }, [selectedObraId, diarios, transacoes, pontos, funcionarios, documentos]);
     
     const handleGeneratePdf = () => {
         if (!reportRef.current) return;
@@ -359,6 +405,8 @@ const RelatoriosPage: React.FC = () => {
 
     if (pageLoading) return <div className="text-center p-8">Carregando dados para relatórios...</div>;
 
+    const needsObraSelection = ['fotografico', 'financeiro', 'folhaPagamento', 'documentos'].includes(reportType) && selectedObraId === 'all' && reportType !== 'financeiro';
+
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-brand-blue">Gerar Relatórios</h2>
@@ -372,9 +420,10 @@ const RelatoriosPage: React.FC = () => {
                             <option value="financeiro">Financeiro</option>
                             <option value="folhaPagamento">Folha de Pagamento</option>
                             <option value="almoxarifado">Almoxarifado</option>
+                            <option value="documentos">Documentos da Obra</option>
                         </select>
                     </div>
-                    { (reportType === 'fotografico' || reportType === 'financeiro' || reportType === 'folhaPagamento') &&
+                    { (reportType !== 'almoxarifado') &&
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Filtrar por Obra</label>
                         <select value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="w-full p-3 border rounded-lg">
@@ -394,7 +443,7 @@ const RelatoriosPage: React.FC = () => {
                         </div>
                     )}
                     <div className="w-full md:col-start-4">
-                        <Button onClick={handleGeneratePdf} disabled={pdfLoading} className="w-full !py-3">
+                        <Button onClick={handleGeneratePdf} disabled={pdfLoading || needsObraSelection} className="w-full !py-3">
                             {pdfLoading ? 'Gerando...' : 'Gerar PDF'}
                         </Button>
                     </div>
@@ -406,9 +455,15 @@ const RelatoriosPage: React.FC = () => {
                     <div ref={reportRef}>
                         {reportType === 'fotografico' && obraSelecionada && <RelatorioFotografico obra={obraSelecionada} diarios={diariosFiltrados} />}
                         {reportType === 'fotografico' && !obraSelecionada && <div className="p-8 text-center text-brand-gray">Selecione uma obra para gerar o relatório fotográfico.</div>}
+                        
                         {reportType === 'financeiro' && <RelatorioFinanceiro obra={obraSelecionada || null} transacoes={transacoesFiltradas} custoMaoDeObra={custoMaoDeObra}/>}
+                        
                         {reportType === 'folhaPagamento' && <RelatorioFolhaPagamento obra={obraSelecionada || null} funcionarios={funcionarios} pontos={pontos} periodo={periodoFolha} />}
+                        
                         {reportType === 'almoxarifado' && <RelatorioAlmoxarifado movimentacoes={movimentacoes} materiais={materiais} ferramentas={ferramentas} obras={obras} funcionarios={funcionarios} />}
+                        
+                        {reportType === 'documentos' && obraSelecionada && <RelatorioDocumentos obra={obraSelecionada} documentos={documentosFiltrados} />}
+                        {reportType === 'documentos' && !obraSelecionada && <div className="p-8 text-center text-brand-gray">Selecione uma obra para listar os documentos.</div>}
                     </div>
                 </div>
             </Card>

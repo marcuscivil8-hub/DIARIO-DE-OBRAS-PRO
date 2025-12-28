@@ -1,6 +1,6 @@
 
-import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado } from '../types';
-import { initialUsers, initialObras, initialFuncionarios, initialPontos, initialTransacoes, initialMateriais, initialFerramentas, initialDiarios, initialServicos, initialMovimentacoesAlmoxarifado } from './dataService';
+import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
+import { initialUsers, initialObras, initialFuncionarios, initialPontos, initialTransacoes, initialMateriais, initialFerramentas, initialDiarios, initialServicos, initialMovimentacoesAlmoxarifado, initialLembretes, initialDocumentos } from './dataService';
 
 // Helper to get data from localStorage or initial data
 const getStorageData = <T>(key: string, initialData: T): T => {
@@ -102,6 +102,16 @@ export const apiService = {
         return userJson ? JSON.parse(userJson) : null;
     },
 
+    async getLembretes(): Promise<string[]> {
+        await apiDelay(100);
+        return getStorageData<string[]>('lembretes_encarregado', initialLembretes);
+    },
+
+    async updateLembretes(lembretes: string[]): Promise<void> {
+        await apiDelay(200);
+        setStorageData('lembretes_encarregado', lembretes);
+    },
+
     get users() { return createCrudService<User>('users', initialUsers); },
     get obras() { return createCrudService<Obra>('obras', initialObras); },
     get funcionarios() { return createCrudService<Funcionario>('funcionarios', initialFuncionarios); },
@@ -112,4 +122,5 @@ export const apiService = {
     get diarios() { return createCrudService<DiarioObra>('diarios', initialDiarios); },
     get servicos() { return createCrudService<Servico>('servicos', initialServicos); },
     get movimentacoesAlmoxarifado() { return createCrudService<MovimentacaoAlmoxarifado>('movimentacoesAlmoxarifado', initialMovimentacoesAlmoxarifado); },
+    get documentos() { return createCrudService<Documento>('documentos', initialDocumentos); },
 };

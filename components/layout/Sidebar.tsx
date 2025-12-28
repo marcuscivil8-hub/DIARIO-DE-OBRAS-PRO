@@ -56,7 +56,11 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
     if (user.role === UserRole.Admin) {
         links.push(...adminLinks);
     }
-    // Client only has common links
+    
+    // Add Documentos link for Admin and Cliente
+    if (user.role === UserRole.Admin || user.role === UserRole.Cliente) {
+        links.push({ icon: React.cloneElement(ICONS.relatorios, {key: "documentos-icon"}), label: 'Documentos', page: 'Documentos' });
+    }
 
     const handleNavigation = (page: Page) => {
         navigateTo(page);

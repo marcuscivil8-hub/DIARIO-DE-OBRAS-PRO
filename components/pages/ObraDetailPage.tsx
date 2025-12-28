@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico, TransacaoFinanceira, TransacaoTipo, CategoriaSaida } from '../../types';
+import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico, TransacaoFinanceira, TransacaoTipo, CategoriaSaida, Documento } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -42,6 +42,54 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
         </main>
     </div>
 );
+
+// --- Sub-componente Documentos ---
+const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
+    const [documentos, setDocumentos] = useState<Documento[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDocumentos = async () => {
+            setLoading(true);
+            const allDocs = await apiService.documentos.getAll();
+            setDocumentos(allDocs.filter(d => d.obraId === obraId));
+            setLoading(false);
+        };
+        fetchDocumentos();
+    }, [obraId]);
+
+    const handleDownload = (doc: Documento) => {
+        const link = document.createElement('a');
+        link.href = doc.url;
+        link.download = doc.nome;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    if (loading) return <div>Carregando documentos...</div>;
+
+    return (
+        <Card title="Documentos da Obra">
+            {documentos.length === 0 ? (
+                <p className="text-brand-gray">Nenhum documento encontrado para esta obra.</p>
+            ) : (
+                <ul className="space-y-3">
+                    {documentos.map(doc => (
+                        <li key={doc.id} className="flex items-center justify-between p-3 bg-brand-light-gray rounded-lg">
+                            <div className="flex flex-col">
+                                <span className="font-semibold text-brand-blue">{doc.nome}</span>
+                                <span className="text-sm text-brand-gray">{doc.tipo} - {new Date(doc.dataUpload).toLocaleDateString()}</span>
+                            </div>
+                            <Button size="sm" onClick={() => handleDownload(doc)}>Baixar</Button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Card>
+    );
+};
+
 
 // --- Sub-componente Financeiro ---
 const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ obraId, user }) => {
@@ -355,7 +403,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const reportRef = useRef<HTMLDivElement>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'diario' | 'servicos' | 'financeiro'>('diario');
+    const [activeTab, setActiveTab] = useState<'diario' | 'servicos' | 'financeiro' | 'documentos'>('diario');
     const [newDiario, setNewDiario] = useState<Omit<DiarioObra, 'id' | 'obraId' | 'fotos'>>({
         data: '',
         clima: Clima.Ensolarado,
@@ -497,6 +545,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
             <div className="border-b border-gray-300">
                 <TabButton label="Diário de Obra" isActive={activeTab === 'diario'} onClick={() => setActiveTab('diario')} />
                 <TabButton label="Acompanhamento de Serviços" isActive={activeTab === 'servicos'} onClick={() => setActiveTab('servicos')} />
+                <TabButton label="Documentos" isActive={activeTab === 'documentos'} onClick={() => setActiveTab('documentos')} />
                 {user.role !== UserRole.Cliente && (
                     <TabButton label="Financeiro" isActive={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} />
                 )}
@@ -550,7 +599,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
             )}
             
             {activeTab === 'servicos' && <AcompanhamentoServicos obraId={obraId} user={user} />}
-            
+            {activeTab === 'documentos' && <AcompanhamentoDocumentos obraId={obraId} />}
             {activeTab === 'financeiro' && user.role !== UserRole.Cliente && <AcompanhamentoFinanceiro obraId={obraId} user={user} />}
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Novo Registro no Diário">

@@ -1,5 +1,5 @@
 
-import { User, UserRole, Obra, Funcionario, PagamentoTipo, TransacaoFinanceira, TransacaoTipo, Material, Ferramenta, StatusFerramenta, DiarioObra, Clima, Ponto, Servico, CategoriaSaida, MovimentacaoAlmoxarifado } from '../types';
+import { User, UserRole, Obra, Funcionario, PagamentoTipo, TransacaoFinanceira, TransacaoTipo, Material, Ferramenta, StatusFerramenta, DiarioObra, Clima, Ponto, Servico, CategoriaSaida, MovimentacaoAlmoxarifado, Documento } from '../types';
 
 export const initialUsers: User[] = [
     { id: '1', name: 'Admin Geral', username: 'admin', password: '', role: UserRole.Admin },
@@ -40,7 +40,6 @@ export const initialFuncionarios: Funcionario[] = [
 ];
 
 export const initialPontos: Ponto[] = [];
-
 
 export const initialTransacoes: TransacaoFinanceira[] = [];
 
@@ -105,3 +104,11 @@ export const initialServicos: Servico[] = [
 ];
 
 export const initialMovimentacoesAlmoxarifado: MovimentacaoAlmoxarifado[] = [];
+
+export const initialLembretes: string[] = [
+    "Verificar estoque de cimento.",
+    "Confirmar entrega de areia para amanhã.",
+    "Registrar ponto de todos os funcionários.",
+];
+
+export const initialDocumentos: Documento[] = [];

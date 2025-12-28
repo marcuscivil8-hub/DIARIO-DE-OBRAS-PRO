@@ -14,7 +14,7 @@ export interface User {
     obraIds?: string[]; // For clients, to link them to specific projects
 }
 
-export type Page = 'Dashboard' | 'Obras' | 'ObraDetail' | 'Funcionarios' | 'Financeiro' | 'Materiais' | 'Ferramentas' | 'Relatorios' | 'Usuarios' | 'Almoxarifado' | 'CadastroFuncionarios';
+export type Page = 'Dashboard' | 'Obras' | 'ObraDetail' | 'Funcionarios' | 'Financeiro' | 'Materiais' | 'Ferramentas' | 'Relatorios' | 'Usuarios' | 'Almoxarifado' | 'CadastroFuncionarios' | 'Documentos';
 
 export interface Obra {
     id: string;
@@ -143,4 +143,13 @@ export interface Servico {
     dataInicioReal?: string;
     dataFimReal?: string;
     status: StatusServico;
+}
+
+export interface Documento {
+    id: string;
+    obraId: string;
+    nome: string;
+    tipo: 'Contrato' | 'Comprovante de Pagamento' | 'Projeto' | 'Outro';
+    url: string; // base64 data URL
+    dataUpload: string; // YYYY-MM-DD
 }

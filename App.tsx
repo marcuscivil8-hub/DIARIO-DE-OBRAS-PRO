@@ -14,6 +14,7 @@ import FerramentasPage from './components/pages/FerramentasPage';
 import RelatoriosPage from './components/pages/RelatoriosPage';
 import UsuariosPage from './components/pages/UsuariosPage';
 import AlmoxarifadoPage from './components/pages/AlmoxarifadoPage';
+import DocumentosPage from './components/pages/DocumentosPage';
 import { apiService } from './services/apiService';
 
 const App: React.FC = () => {
@@ -89,6 +90,8 @@ const App: React.FC = () => {
                 return currentUser.role === UserRole.Admin ? <RelatoriosPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Usuarios':
                  return currentUser.role === UserRole.Admin ? <UsuariosPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
+            case 'Documentos':
+                return (currentUser.role === UserRole.Admin || currentUser.role === UserRole.Cliente) ? <DocumentosPage user={currentUser} /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             default:
                 return <DashboardPage user={currentUser} navigateTo={navigateTo} />;
         }
