@@ -91,13 +91,14 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         const custoTotalMaoDeObra = custoMaoDeObraPontos + transacoesFolhaPagamento;
 
         // Process other expense categories
+        // FIX: Explicitly type the accumulator in the reduce function to ensure correct type inference.
         const saidasPorOutrasCategorias = filteredTransacoes
             .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
-            .reduce((acc, t) => {
+            .reduce((acc: Record<string, number>, t) => {
                 const categoria = t.categoria as CategoriaSaida;
                 acc[categoria] = (acc[categoria] || 0) + t.valor;
                 return acc;
-            }, {} as Record<string, number>);
+            }, {});
 
         // Create the final category map
         const finalSaidasPorCategoria = { ...saidasPorOutrasCategorias };
@@ -169,10 +170,11 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => b - a).map(([categoria, valor]) => (
+                         {/* FIX: Cast values to number for sorting and formatting to prevent type errors. */}
+                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => Number(b) - Number(a)).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {(valor as number).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </li>
                          ))}
                     </ul>
