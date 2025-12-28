@@ -1,5 +1,6 @@
 // FIX: Corrected the type definition URL to use a specific version, which resolves issues with locating the type file and subsequent Deno runtime errors.
-/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
+// FIX: Corrected the URL for the Supabase functions type definitions to point to the correct path (`/deno/` instead of `/src/`), resolving errors with Deno runtime types.
+/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/deno/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -11,6 +12,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Verifica se as variáveis de ambiente essenciais estão configuradas
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('As variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
+    }
+
     // Extrai o ID do usuário do corpo da requisição
     const { user_id } = await req.json()
     if (!user_id) {
@@ -18,10 +27,7 @@ Deno.serve(async (req) => {
     }
 
     // Cria um cliente admin do Supabase que tem permissões elevadas
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Usa o cliente admin para deletar o usuário do sistema de autenticação
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id)

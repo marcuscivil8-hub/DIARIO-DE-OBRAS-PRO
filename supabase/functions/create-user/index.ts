@@ -1,5 +1,6 @@
 // FIX: Corrected the type definition URL to use a specific version, which resolves issues with locating the type file and subsequent Deno runtime errors.
-/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
+// FIX: Corrected the URL for the Supabase functions type definitions to point to the correct path (`/deno/` instead of `/src/`), resolving errors with Deno runtime types.
+/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/deno/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -9,7 +10,20 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  let newUser: any = null
+  // Verificar variáveis de ambiente no início para falhar rápido e com clareza
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return new Response(JSON.stringify({ error: 'As variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configuradas na Edge Function.' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, // Erro interno do servidor
+    })
+  }
+  
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  let newUser: any = null;
+
   try {
     const { name, email, password, username, role, obraIds } = await req.json()
 
@@ -17,13 +31,7 @@ Deno.serve(async (req) => {
       throw new Error('Campos obrigatórios ausentes (email, password, name, role, username).')
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
     // 1. Criar o usuário na autenticação, passando os dados do perfil nos metadados.
-    // O gatilho 'handle_new_user' no banco de dados usará esses dados para criar o perfil.
     const { data, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
@@ -37,25 +45,24 @@ Deno.serve(async (req) => {
     })
 
     if (authError) {
+       // Melhora a mensagem de erro para o usuário
+      if (authError.message.includes('User already exists')) {
+        throw new Error('Este email já está cadastrado.');
+      }
       throw new Error(`Erro de autenticação: ${authError.message}`)
     }
 
     newUser = data.user
 
-    // 2. A criação manual do perfil foi removida, pois o gatilho do DB agora cuida disso.
+    // 2. O gatilho do banco de dados irá criar o perfil correspondente automaticamente.
 
     return new Response(JSON.stringify({ message: 'Usuário criado com sucesso!', user: newUser }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,
     })
   } catch (error) {
-    // Rollback: se ocorrer um erro, deleta o usuário da autenticação.
-    // O perfil será removido em cascata pela chave estrangeira.
+    // Rollback: se ocorrer um erro após a criação do usuário, deleta o registro da autenticação.
     if (newUser?.id) {
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
       await supabaseAdmin.auth.admin.deleteUser(newUser.id)
     }
 
