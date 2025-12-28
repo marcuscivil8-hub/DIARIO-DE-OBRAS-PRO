@@ -1,6 +1,6 @@
-// FIX: Corrected the type definition URL to use a specific version, which resolves issues with locating the type file and subsequent Deno runtime errors.
-// FIX: Corrected the URL for the Supabase functions type definitions to point to the correct path (`/deno/` instead of `/src/`), resolving errors with Deno runtime types.
-/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/deno/edge-runtime.d.ts" />
+// FIX: Using a more specific esm.sh URL with a build version to prevent potential type resolution issues.
+// This ensures that the Deno global object and its methods like `serve` and `env` are correctly typed.
+/// <reference types="https://esm.sh/v135/@supabase/functions-js@2.4.1/deno/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
