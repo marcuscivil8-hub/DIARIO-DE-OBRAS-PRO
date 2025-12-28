@@ -63,8 +63,9 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
     return (
         <>
             <div className={`fixed inset-0 bg-black/60 z-30 md:hidden transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsOpen(false)}></div>
-            <aside className={`bg-brand-blue text-white w-64 min-h-screen flex-col justify-between p-4 fixed md:relative z-40 transform transition-transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex`}>
-                <div>
+            <aside className={`bg-brand-blue text-white w-64 min-h-screen flex flex-col p-4 fixed md:relative z-40 transform transition-transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+                {/* Header (non-scrolling) */}
+                <div className="flex-shrink-0">
                     <div className="flex items-center justify-between mb-8">
                          <div className="flex flex-col">
                             <h1 className="text-2xl font-bold text-white">Engetch</h1>
@@ -74,13 +75,17 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
                              {ICONS.close}
                          </button>
                     </div>
-                    <nav className="flex flex-col space-y-2">
-                        {links.map(link => (
-                            <NavLink key={link.label} icon={link.icon} label={link.label} onClick={() => handleNavigation(link.page)} />
-                        ))}
-                    </nav>
                 </div>
-                <div className="mt-auto">
+                
+                {/* Navigation (scrollable) */}
+                <nav className="flex-1 flex flex-col space-y-2 overflow-y-auto">
+                    {links.map(link => (
+                        <NavLink key={link.label} icon={link.icon} label={link.label} onClick={() => handleNavigation(link.page)} />
+                    ))}
+                </nav>
+
+                {/* Footer (non-scrolling) */}
+                <div className="mt-4 flex-shrink-0">
                     <NavLink icon={ICONS.logout} label={'Logout'} onClick={onLogout} />
                 </div>
             </aside>

@@ -30,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ user, navigateTo, onLogout, currentPage
                     user={user}
                     onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-brand-light-gray">
+                <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto bg-brand-light-gray">
                     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                         {children}
                     </div>
