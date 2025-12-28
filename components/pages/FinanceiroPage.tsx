@@ -81,32 +81,25 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             .filter(t => t.tipo === TransacaoTipo.Entrada)
             .reduce((acc, t) => acc + t.valor, 0);
 
-        // Calculate labor costs from transactions explicitly
-        const transacoesFolhaPagamento = filteredTransacoes
-            .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria === CategoriaSaida.FolhaPagamento)
-            .reduce((acc, t) => acc + t.valor, 0);
+        // Custo de Mão de Obra agora vem EXCLUSIVAMENTE da folha de ponto
+        const custoTotalMaoDeObra = custoMaoDeObraPontos;
 
-        // Combine with labor cost from attendance records
-        const custoTotalMaoDeObra = custoMaoDeObraPontos + transacoesFolhaPagamento;
-
-        // Process other expense categories
-        // FIX: Explicitly type the accumulator in the reduce function to ensure correct type inference.
-        const saidasPorOutrasCategorias = filteredTransacoes
+        // Processa as saídas manuais, ignorando a categoria 'Folha de Pagamento' que não deve mais ser usada
+        const saidasManuaisPorCategoria = filteredTransacoes
             .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
-            // FIX: Cast the initial value to Record<string, number> to ensure correct type inference for the reduce operation.
             .reduce((acc, t) => {
                 const categoria = t.categoria as CategoriaSaida;
                 acc[categoria] = (acc[categoria] || 0) + t.valor;
                 return acc;
             }, {} as Record<string, number>);
 
-        // Create the final category map
-        const finalSaidasPorCategoria = { ...saidasPorOutrasCategorias };
+        // Junta os custos para o resumo final
+        // FIX: Add explicit type to prevent type inference issues where object values become `unknown`.
+        const finalSaidasPorCategoria: Record<string, number> = { ...saidasManuaisPorCategoria };
         if (custoTotalMaoDeObra > 0) {
-            finalSaidasPorCategoria['Mão de Obra (Folha + Ponto)'] = custoTotalMaoDeObra;
+            finalSaidasPorCategoria['Mão de Obra (Folha de Ponto)'] = custoTotalMaoDeObra;
         }
 
-        // FIX: Cast `val` to Number to prevent type error when summing unknown values.
         const totalSaidas = Object.values(finalSaidasPorCategoria).reduce((sum, val) => sum + Number(val), 0);
         const balanco = totalEntradas - totalSaidas;
 
@@ -171,7 +164,6 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {/* FIX: Cast values to number for sorting and formatting to prevent type errors. */}
                          {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => Number(b) - Number(a)).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>

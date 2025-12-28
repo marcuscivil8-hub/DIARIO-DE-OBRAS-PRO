@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo } from '../../types';
+import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo, CategoriaSaida } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -107,7 +107,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                 .reduce((sum, t) => sum + t.valor, 0);
 
             const saidasFromTransactions = monthlyTransactions
-                .filter(t => t.tipo === TransacaoTipo.Saida)
+                .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
                 .reduce((sum, t) => sum + t.valor, 0);
             
             const saidasFromPontos = monthlyPontos.reduce((total, ponto) => {

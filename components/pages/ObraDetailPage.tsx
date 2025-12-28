@@ -179,7 +179,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
 
                     {currentTransacao.tipo === TransacaoTipo.Saida && (
                          <select value={currentTransacao.categoria} onChange={e => setCurrentTransacao({...currentTransacao, categoria: e.target.value as CategoriaSaida})} className="w-full p-2 border rounded">
-                           {Object.values(CategoriaSaida).map(c => <option key={c} value={c}>{c}</option>)}
+                           {Object.values(CategoriaSaida).filter(c => c !== CategoriaSaida.FolhaPagamento).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     )}
                     <Button type="submit" className="w-full">Salvar Transação</Button>
