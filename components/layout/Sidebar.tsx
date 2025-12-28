@@ -46,10 +46,15 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
     
     let links: NavItem[] = [...commonLinks];
     
+    // Add links for roles that can manage day-to-day operations
+    if (user.role === UserRole.Admin || user.role === UserRole.Encarregado) {
+        links.push(...userLinks);
+        links.push({ icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' });
+    }
+
+    // Add links exclusive to Admin
     if (user.role === UserRole.Admin) {
-        links.push(...userLinks, { icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' }, ...adminLinks);
-    } else if (user.role === UserRole.Encarregado) {
-        links.push(...userLinks, { icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' });
+        links.push(...adminLinks);
     }
     // Client only has common links
 
