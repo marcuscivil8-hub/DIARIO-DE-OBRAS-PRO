@@ -1,5 +1,5 @@
 
-import { User, UserRole, Obra, Funcionario, PagamentoTipo, TransacaoFinanceira, TransacaoTipo, Material, Ferramenta, StatusFerramenta, DiarioObra, Clima, Ponto, Servico } from '../types';
+import { User, UserRole, Obra, Funcionario, PagamentoTipo, TransacaoFinanceira, TransacaoTipo, Material, Ferramenta, StatusFerramenta, DiarioObra, Clima, Ponto, Servico, CategoriaSaida, MovimentacaoAlmoxarifado } from '../types';
 
 export const initialUsers: User[] = [
     { id: '1', name: 'Admin Geral', username: 'admin', password: '', role: UserRole.Admin },
@@ -11,7 +11,7 @@ export const initialObras: Obra[] = [
     {
         id: '101',
         name: 'Residencial Bela Vista',
-        cliente: 'Maria Cliente',
+        cliente: 'Maria da Silva',
         endereco: 'Rua das Flores, 123, São Paulo, SP',
         construtora: 'Engetch Engenharia e Projetos',
         logoConstrutora: '',
@@ -50,19 +50,22 @@ export const initialPontos: Ponto[] = [
 
 
 export const initialTransacoes: TransacaoFinanceira[] = [
-    { id: '301', obraId: '101', descricao: 'Compra de cimento', valor: 2500, tipo: TransacaoTipo.Saida, categoria: 'Material', data: '2024-07-20' },
+    { id: '301', obraId: '101', descricao: 'Compra de cimento', valor: 2500, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Material, data: '2024-07-20' },
     { id: '302', obraId: '101', descricao: 'Primeira parcela do cliente', valor: 50000, tipo: TransacaoTipo.Entrada, categoria: 'Receita', data: '2024-07-15' },
-    { id: '303', obraId: '102', descricao: 'Pagamento de fiação', valor: 8000, tipo: TransacaoTipo.Saida, categoria: 'Material', data: '2024-07-22' },
+    { id: '303', obraId: '102', descricao: 'Pagamento de fiação', valor: 8000, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Material, data: '2024-07-22' },
+    { id: '304', obraId: '101', descricao: 'Aluguel de betoneira', valor: 500, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Aluguel, data: '2024-07-18' },
+    { id: '305', obraId: '102', descricao: 'Adiantamento quinzenal', valor: 2000, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.FolhaPagamento, data: '2024-07-15' },
 ];
 
+// NOTE: `quantidade` is now calculated from movements. This is just the catalog.
 export const initialMateriais: Material[] = [
-    { id: '401', nome: 'Cimento (saco 50kg)', unidade: 'un', quantidade: 15, estoqueMinimo: 20 },
-    { id: '402', nome: 'Areia (m³)', unidade: 'm³', quantidade: 15, estoqueMinimo: 5 },
-    { id: '403', nome: 'Tijolo (unidade)', unidade: 'un', quantidade: 5000, estoqueMinimo: 1000 },
+    { id: '401', nome: 'Cimento (saco 50kg)', unidade: 'un', quantidade: 0, estoqueMinimo: 20 },
+    { id: '402', nome: 'Areia (m³)', unidade: 'm³', quantidade: 0, estoqueMinimo: 5 },
+    { id: '403', nome: 'Tijolo (unidade)', unidade: 'un', quantidade: 0, estoqueMinimo: 1000 },
 ];
 
 export const initialFerramentas: Ferramenta[] = [
-    { id: '501', nome: 'Furadeira de Impacto', codigo: 'FI-001', status: StatusFerramenta.Funcionando, responsavelId: '202' },
+    { id: '501', nome: 'Furadeira de Impacto', codigo: 'FI-001', status: StatusFerramenta.Funcionando, responsavelId: null },
     { id: '502', nome: 'Betoneira', codigo: 'BT-001', status: StatusFerramenta.Funcionando, responsavelId: null },
     { id: '503', nome: 'Serra Circular', codigo: 'SC-001', status: StatusFerramenta.Parada, responsavelId: null },
 ];
@@ -113,3 +116,5 @@ export const initialServicos: Servico[] = [
         status: 'Não Iniciado',
     }
 ];
+
+export const initialMovimentacoesAlmoxarifado: MovimentacaoAlmoxarifado[] = [];

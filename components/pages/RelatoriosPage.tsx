@@ -2,21 +2,54 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo } from '../../types';
+import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
+// --- Date Helpers for Payroll ---
+const getPeriodDates = (periodo: 'semanal' | 'quinzenal' | 'mensal') => {
+    const today = new Date();
+    let startDate = new Date();
+    let endDate = new Date();
+
+    switch (periodo) {
+        case 'semanal':
+            const firstDayOfWeek = today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1);
+            startDate = new Date(today.setDate(firstDayOfWeek));
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            break;
+        case 'quinzenal':
+            const day = today.getDate();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            if (day <= 15) {
+                startDate = new Date(year, month, 1);
+                endDate = new Date(year, month, 15);
+            } else {
+                startDate = new Date(year, month, 16);
+                endDate = new Date(year, month + 1, 0);
+            }
+            break;
+        case 'mensal':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+    }
+    return { startDate, endDate };
+};
+
 // --- Relatório Fotográfico Component ---
 const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({ obra, diarios }) => (
-    <div className="p-8 bg-white text-black font-sans">
+    <div className="p-8 bg-white text-gray-800 font-sans">
         <header className="text-right border-b-2 border-black pb-4 mb-8">
-            <h1 className="text-3xl font-bold">{obra.construtora}</h1>
-            <p>Relatório Fotográfico de Obra</p>
+            <h1 className="text-3xl font-bold text-brand-blue">{obra.construtora}</h1>
+            <p className="text-gray-600">Relatório Fotográfico de Obra</p>
         </header>
         <main>
-            <div className="mb-8 p-4 border">
-                <h2 className="text-xl font-bold mb-2">{obra.name}</h2>
+            <div className="mb-8 p-4 border border-gray-300 rounded">
+                <h2 className="text-xl font-bold mb-2 text-brand-blue">{obra.name}</h2>
                 <p><strong>Cliente:</strong> {obra.cliente}</p>
                 <p><strong>Endereço:</strong> {obra.endereco}</p>
                 <p><strong>Data de Emissão:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
@@ -24,16 +57,18 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
             
             {diarios.map(diario => (
                  <div key={diario.id} className="mb-8 break-inside-avoid">
-                    <h3 className="text-lg font-semibold bg-gray-200 p-2">Data: {new Date(diario.data).toLocaleString('pt-BR')}</h3>
-                    <p className="p-2"><strong>Clima:</strong> {diario.clima}</p>
-                    <p className="p-2"><strong>Observações:</strong> {diario.observacoes}</p>
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                        {diario.fotos.map((foto, index) => (
-                             <div key={index} className="border p-2">
-                                <img src={foto.url} alt={foto.legenda} className="w-full" />
-                                <p className="text-center text-sm mt-1">{foto.legenda}</p>
-                            </div>
-                        ))}
+                    <h3 className="text-lg font-semibold bg-gray-200 p-2 text-brand-blue rounded-t">Data: {new Date(diario.data).toLocaleString('pt-BR')}</h3>
+                    <div className="border border-t-0 p-2 rounded-b">
+                        <p><strong>Clima:</strong> {diario.clima}</p>
+                        <p><strong>Observações:</strong> {diario.observacoes}</p>
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                            {diario.fotos.map((foto, index) => (
+                                 <div key={index} className="border p-2 rounded">
+                                    <img src={foto.url} alt={foto.legenda} className="w-full rounded" />
+                                    <p className="text-center text-sm mt-1 text-gray-600">{foto.legenda}</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             ))}
@@ -48,14 +83,14 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
     const balanco = totalEntradas - totalSaidas;
 
     return (
-        <div className="p-8 bg-white text-black font-sans">
+        <div className="p-8 bg-white text-gray-800 font-sans">
             <header className="text-right border-b-2 border-black pb-4 mb-8">
-                <h1 className="text-3xl font-bold">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
-                <p>Relatório Financeiro de Obra</p>
+                <h1 className="text-3xl font-bold text-brand-blue">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
+                <p className="text-gray-600">Relatório Financeiro de Obra</p>
             </header>
             <main>
-                <div className="mb-8 p-4 border">
-                    <h2 className="text-xl font-bold mb-2">{obra?.name || 'Todas as Obras'}</h2>
+                <div className="mb-8 p-4 border border-gray-300 rounded">
+                    <h2 className="text-xl font-bold mb-2 text-brand-blue">{obra?.name || 'Todas as Obras'}</h2>
                     {obra && <p><strong>Cliente:</strong> {obra.cliente}</p>}
                     {obra && <p><strong>Endereço:</strong> {obra.endereco}</p>}
                     <p><strong>Data de Emissão:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
@@ -76,18 +111,145 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
                     </div>
                 </div>
 
-                <h3 className="text-lg font-bold mb-2">Detalhamento das Saídas</h3>
-                <table className="w-full text-sm border-collapse border">
+                <h3 className="text-lg font-bold mb-2 text-brand-blue">Detalhamento das Saídas</h3>
+                <table className="w-full text-sm border-collapse border border-gray-300">
                     <thead className="bg-gray-200">
                         <tr>
-                            <th className="p-2 border">Data</th><th className="p-2 border text-left">Descrição</th><th className="p-2 border text-left">Categoria</th><th className="p-2 border text-right">Valor</th>
+                            <th className="p-2 border border-gray-300 text-brand-blue font-bold">Data</th>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Descrição</th>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Categoria</th>
+                            <th className="p-2 border border-gray-300 text-right text-brand-blue font-bold">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
                         {transacoes.filter(t => t.tipo === TransacaoTipo.Saida).map(t => (
-                            <tr key={t.id}><td className="p-2 border">{new Date(t.data).toLocaleDateString('pt-BR')}</td><td className="p-2 border">{t.descricao}</td><td className="p-2 border">{t.categoria}</td><td className="p-2 border text-right">- R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>
+                            <tr key={t.id} className="text-gray-800"><td className="p-2 border border-gray-300">{new Date(t.data).toLocaleDateString('pt-BR')}</td><td className="p-2 border border-gray-300">{t.descricao}</td><td className="p-2 border border-gray-300">{t.categoria}</td><td className="p-2 border border-gray-300 text-right">- R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>
                         ))}
-                        {custoMaoDeObra > 0 && <tr className="font-bold bg-gray-100"><td className="p-2 border" colSpan={3}>Custo com Mão de Obra (do Ponto)</td><td className="p-2 border text-right">- R$ {custoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>}
+                        {custoMaoDeObra > 0 && <tr className="font-bold bg-gray-100 text-gray-800"><td className="p-2 border border-gray-300" colSpan={3}>Custo com Mão de Obra (do Ponto)</td><td className="p-2 border border-gray-300 text-right">- R$ {custoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>}
+                    </tbody>
+                </table>
+            </main>
+        </div>
+    );
+};
+
+// --- Relatório Folha de Pagamento ---
+const RelatorioFolhaPagamento: React.FC<{ obra: Obra | null, funcionarios: Funcionario[], pontos: Ponto[], periodo: 'semanal' | 'quinzenal' | 'mensal' }> = ({ obra, funcionarios, pontos, periodo }) => {
+    const { startDate, endDate } = getPeriodDates(periodo);
+    const funcionariosDaObra = (obra ? funcionarios.filter(f => f.obraId === obra.id) : funcionarios).sort((a,b) => a.name.localeCompare(b.name));
+    
+    const payrollData = funcionariosDaObra.map(func => {
+        const pontosNoPeriodo = pontos.filter(p => {
+            const pontoDate = new Date(p.data + 'T00:00:00'); // Ensure correct date parsing
+            return p.funcionarioId === func.id && pontoDate >= startDate && pontoDate <= endDate;
+        });
+
+        const diasTrabalhados = pontosNoPeriodo.filter(p => p.status === 'presente').length;
+        const faltas = pontosNoPeriodo.filter(p => p.status === 'falta').length;
+        
+        let valorAPagar = 0;
+        if (func.tipoPagamento === PagamentoTipo.Diaria) {
+            valorAPagar = diasTrabalhados * func.valor;
+        } else { // Salario Mensal
+            valorAPagar = (func.valor / 22) * diasTrabalhados; // Pro-rata
+        }
+        return { ...func, diasTrabalhados, faltas, valorAPagar };
+    });
+
+    const totalFolha = payrollData.reduce((sum, data) => sum + data.valorAPagar, 0);
+
+    return (
+        <div className="p-8 bg-white text-gray-800 font-sans">
+            <header className="text-right border-b-2 border-black pb-4 mb-8">
+                 <h1 className="text-3xl font-bold text-brand-blue">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
+                <p className="text-gray-600">Relatório de Folha de Pagamento</p>
+            </header>
+             <main>
+                <div className="mb-8 p-4 border border-gray-300 rounded">
+                    <h2 className="text-xl font-bold mb-2 text-brand-blue">{obra?.name || 'Todas as Obras'}</h2>
+                     <p><strong>Período:</strong> {startDate.toLocaleDateString('pt-BR')} a {endDate.toLocaleDateString('pt-BR')}</p>
+                    <p><strong>Data de Emissão:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+                <table className="w-full text-sm border-collapse border border-gray-300">
+                    <thead className="bg-gray-200">
+                        <tr>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Funcionário</th>
+                            <th className="p-2 border border-gray-300 text-brand-blue font-bold">Dias Trabalhados</th>
+                            <th className="p-2 border border-gray-300 text-brand-blue font-bold">Faltas</th>
+                            <th className="p-2 border border-gray-300 text-right text-brand-blue font-bold">Valor a Pagar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {payrollData.map(data => (
+                            <tr key={data.id} className="text-gray-800">
+                                <td className="p-2 border border-gray-300">{data.name}</td>
+                                <td className="p-2 border border-gray-300 text-center">{data.diasTrabalhados}</td>
+                                <td className="p-2 border border-gray-300 text-center">{data.faltas}</td>
+                                <td className="p-2 border border-gray-300 text-right">R$ {data.valorAPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                    <tfoot className="bg-gray-200 font-bold text-gray-800">
+                        <tr>
+                            <td className="p-2 border border-gray-300 text-right" colSpan={3}>Total da Folha</td>
+                            <td className="p-2 border border-gray-300 text-right">R$ {totalFolha.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </main>
+        </div>
+    );
+};
+
+// --- Relatório Almoxarifado ---
+const RelatorioAlmoxarifado: React.FC<{ 
+    movimentacoes: MovimentacaoAlmoxarifado[],
+    materiais: Material[],
+    ferramentas: Ferramenta[],
+    obras: Obra[],
+    funcionarios: Funcionario[],
+}> = ({ movimentacoes, materiais, ferramentas, obras, funcionarios }) => {
+    
+    const getNomeItem = (mov: MovimentacaoAlmoxarifado) => {
+        if (mov.itemType === 'material') {
+            return materiais.find(m => m.id === mov.itemId)?.nome || 'Item não encontrado';
+        }
+        return ferramentas.find(f => f.id === mov.itemId)?.nome || 'Item não encontrado';
+    };
+
+    const saidas = movimentacoes.filter(m => m.tipo === 'Saída').sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+    return (
+        <div className="p-8 bg-white text-gray-800 font-sans">
+            <header className="text-right border-b-2 border-black pb-4 mb-8">
+                 <h1 className="text-3xl font-bold text-brand-blue">Engetch Engenharia e Projetos</h1>
+                <p className="text-gray-600">Relatório de Saídas do Almoxarifado</p>
+            </header>
+             <main>
+                <div className="mb-8 p-4 border border-gray-300 rounded">
+                    <h2 className="text-xl font-bold mb-2 text-brand-blue">Controle de Retiradas</h2>
+                    <p><strong>Data de Emissão:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+                <table className="w-full text-sm border-collapse border border-gray-300">
+                    <thead className="bg-gray-200">
+                        <tr>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Data</th>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Item</th>
+                            <th className="p-2 border border-gray-300 text-center text-brand-blue font-bold">Qtd.</th>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Obra de Destino</th>
+                            <th className="p-2 border border-gray-300 text-left text-brand-blue font-bold">Responsável</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {saidas.map(mov => (
+                            <tr key={mov.id} className="text-gray-800">
+                                <td className="p-2 border border-gray-300">{new Date(mov.data).toLocaleDateString('pt-BR')}</td>
+                                <td className="p-2 border border-gray-300">{getNomeItem(mov)}</td>
+                                <td className="p-2 border border-gray-300 text-center">{mov.quantidade}</td>
+                                <td className="p-2 border border-gray-300">{obras.find(o => o.id === mov.obraDestinoId)?.name || '-'}</td>
+                                <td className="p-2 border border-gray-300">{funcionarios.find(f => f.id === mov.responsavelRetiradaId)?.name || '-'}</td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </main>
@@ -103,10 +265,15 @@ const RelatoriosPage: React.FC = () => {
     const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
     const [pontos, setPontos] = useState<Ponto[]>([]);
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
+    const [materiais, setMateriais] = useState<Material[]>([]);
+    const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
+
     const [pageLoading, setPageLoading] = useState(true);
     
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
-    const [reportType, setReportType] = useState<'fotografico' | 'financeiro'>('fotografico');
+    const [reportType, setReportType] = useState<'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado'>('fotografico');
+    const [periodoFolha, setPeriodoFolha] = useState<'semanal' | 'quinzenal' | 'mensal'>('semanal');
     const [pdfLoading, setPdfLoading] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
     
@@ -114,18 +281,24 @@ const RelatoriosPage: React.FC = () => {
         const fetchAllData = async () => {
             setPageLoading(true);
             try {
-                const [obrasData, diariosData, transacoesData, pontosData, funcionariosData] = await Promise.all([
+                const [obrasData, diariosData, transacoesData, pontosData, funcionariosData, movsData, materiaisData, ferramentasData] = await Promise.all([
                     apiService.obras.getAll(),
                     apiService.diarios.getAll(),
                     apiService.transacoes.getAll(),
                     apiService.pontos.getAll(),
                     apiService.funcionarios.getAll(),
+                    apiService.movimentacoesAlmoxarifado.getAll(),
+                    apiService.materiais.getAll(),
+                    apiService.ferramentas.getAll()
                 ]);
                 setObras(obrasData);
                 setDiarios(diariosData);
                 setTransacoes(transacoesData);
                 setPontos(pontosData);
                 setFuncionarios(funcionariosData);
+                setMovimentacoes(movsData);
+                setMateriais(materiaisData);
+                setFerramentas(ferramentasData);
             } catch (error) {
                 console.error("Failed to load report data", error);
             } finally {
@@ -191,22 +364,36 @@ const RelatoriosPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-brand-blue">Gerar Relatórios</h2>
             
             <Card>
-                <div className="flex flex-col md:flex-row items-center gap-4">
-                    <div className="flex-grow w-full">
+                <div className="grid grid-cols-1 md:grid-cols-4 items-end gap-4">
+                    <div className="md:col-span-1">
+                        <label className="text-sm font-medium text-brand-gray">Tipo de Relatório</label>
+                        <select value={reportType} onChange={e => setReportType(e.target.value as any)} className="w-full p-3 border rounded-lg">
+                            <option value="fotografico">Fotográfico</option>
+                            <option value="financeiro">Financeiro</option>
+                            <option value="folhaPagamento">Folha de Pagamento</option>
+                            <option value="almoxarifado">Almoxarifado</option>
+                        </select>
+                    </div>
+                    { (reportType === 'fotografico' || reportType === 'financeiro' || reportType === 'folhaPagamento') &&
+                    <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Filtrar por Obra</label>
                         <select value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="w-full p-3 border rounded-lg">
                              <option value="all">Todas as Obras</option>
                             {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                         </select>
                     </div>
-                     <div className="flex-grow w-full">
-                        <label className="text-sm font-medium text-brand-gray">Tipo de Relatório</label>
-                        <select value={reportType} onChange={e => setReportType(e.target.value as any)} className="w-full p-3 border rounded-lg">
-                            <option value="fotografico">Fotográfico</option>
-                            <option value="financeiro">Financeiro</option>
-                        </select>
-                    </div>
-                    <div className="w-full md:w-auto self-end">
+                    }
+                    {reportType === 'folhaPagamento' && (
+                        <div className="md:col-span-1">
+                            <label className="text-sm font-medium text-brand-gray">Período da Folha</label>
+                            <select value={periodoFolha} onChange={e => setPeriodoFolha(e.target.value as any)} className="w-full p-3 border rounded-lg">
+                                <option value="semanal">Semanal</option>
+                                <option value="quinzenal">Quinzenal</option>
+                                <option value="mensal">Mensal</option>
+                            </select>
+                        </div>
+                    )}
+                    <div className="w-full md:col-start-4">
                         <Button onClick={handleGeneratePdf} disabled={pdfLoading} className="w-full !py-3">
                             {pdfLoading ? 'Gerando...' : 'Gerar PDF'}
                         </Button>
@@ -220,6 +407,8 @@ const RelatoriosPage: React.FC = () => {
                         {reportType === 'fotografico' && obraSelecionada && <RelatorioFotografico obra={obraSelecionada} diarios={diariosFiltrados} />}
                         {reportType === 'fotografico' && !obraSelecionada && <div className="p-8 text-center text-brand-gray">Selecione uma obra para gerar o relatório fotográfico.</div>}
                         {reportType === 'financeiro' && <RelatorioFinanceiro obra={obraSelecionada || null} transacoes={transacoesFiltradas} custoMaoDeObra={custoMaoDeObra}/>}
+                        {reportType === 'folhaPagamento' && <RelatorioFolhaPagamento obra={obraSelecionada || null} funcionarios={funcionarios} pontos={pontos} periodo={periodoFolha} />}
+                        {reportType === 'almoxarifado' && <RelatorioAlmoxarifado movimentacoes={movimentacoes} materiais={materiais} ferramentas={ferramentas} obras={obras} funcionarios={funcionarios} />}
                     </div>
                 </div>
             </Card>

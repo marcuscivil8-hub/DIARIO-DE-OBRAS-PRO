@@ -1,6 +1,6 @@
 
-import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico } from '../types';
-import { initialUsers, initialObras, initialFuncionarios, initialPontos, initialTransacoes, initialMateriais, initialFerramentas, initialDiarios, initialServicos } from './dataService';
+import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado } from '../types';
+import { initialUsers, initialObras, initialFuncionarios, initialPontos, initialTransacoes, initialMateriais, initialFerramentas, initialDiarios, initialServicos, initialMovimentacoesAlmoxarifado } from './dataService';
 
 // Helper to get data from localStorage or initial data
 const getStorageData = <T>(key: string, initialData: T): T => {
@@ -39,7 +39,7 @@ const createCrudService = <T extends { id: string }>(storageKey: string, initial
         async create(itemData: Omit<T, 'id'>): Promise<T> {
             await apiDelay(300);
             const items = getStorageData<T[]>(storageKey, initialData);
-            const newItem = { ...itemData, id: new Date().toISOString() } as T;
+            const newItem = { ...itemData, id: new Date().toISOString() + Math.random() } as T;
             const updatedItems = [...items, newItem];
             setStorageData(storageKey, updatedItems);
             return newItem;
@@ -111,4 +111,5 @@ export const apiService = {
     get ferramentas() { return createCrudService<Ferramenta>('ferramentas', initialFerramentas); },
     get diarios() { return createCrudService<DiarioObra>('diarios', initialDiarios); },
     get servicos() { return createCrudService<Servico>('servicos', initialServicos); },
+    get movimentacoesAlmoxarifado() { return createCrudService<MovimentacaoAlmoxarifado>('movimentacoesAlmoxarifado', initialMovimentacoesAlmoxarifado); },
 };

@@ -144,8 +144,8 @@ const UsuariosPage: React.FC = () => {
                         <tbody>
                             {users.map(user => (
                                 <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
-                                    <td className="p-4 font-medium text-gray-800">{user.name}</td>
-                                    <td className="p-4 text-brand-gray">{user.username}</td>
+                                    <td className="p-4 font-bold text-brand-blue">{user.name}</td>
+                                    <td className="p-4 text-gray-700">{user.username}</td>
                                     <td className="p-4">
                                         <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
                                             user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :

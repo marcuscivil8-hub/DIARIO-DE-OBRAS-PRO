@@ -11,7 +11,7 @@ interface SidebarProps {
     setIsOpen: (isOpen: boolean) => void;
 }
 
-const NavLink: React.FC<{ icon: React.ReactNode; label: Page; onClick: () => void; }> = ({ icon, label, onClick }) => (
+const NavLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; }> = ({ icon, label, onClick }) => (
     <button onClick={onClick} className="w-full flex items-center space-x-3 text-white/90 hover:bg-brand-yellow hover:text-brand-blue rounded-lg p-3 transition-colors duration-200">
         {icon}
         <span className="font-medium">{label}</span>
@@ -19,28 +19,37 @@ const NavLink: React.FC<{ icon: React.ReactNode; label: Page; onClick: () => voi
 );
 
 const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, setIsOpen }) => {
-    const commonLinks = [
-        { icon: ICONS.dashboard, label: 'Dashboard' as Page },
-        { icon: ICONS.obras, label: 'Obras' as Page },
+    
+    interface NavItem {
+        icon: React.ReactNode;
+        label: string;
+        page: Page;
+    }
+
+    const commonLinks: NavItem[] = [
+        { icon: ICONS.dashboard, label: 'Dashboard', page: 'Dashboard' },
+        { icon: ICONS.obras, label: 'Obras', page: 'Obras' },
     ];
 
-    const userLinks = [
-        { icon: ICONS.funcionarios, label: 'Funcionarios' as Page },
-        { icon: ICONS.materiais, label: 'Materiais' as Page },
-        { icon: ICONS.ferramentas, label: 'Ferramentas' as Page },
+    const userLinks: NavItem[] = [
+        { icon: ICONS.usuarios, label: 'Funcionários', page: 'CadastroFuncionarios' },
+        { icon: ICONS.folhaPonto, label: 'Folha de Pontos', page: 'Funcionarios' },
+        { icon: ICONS.materiais, label: 'Materiais', page: 'Materiais' },
+        { icon: ICONS.ferramentas, label: 'Ferramentas', page: 'Ferramentas' },
+        { icon: ICONS.almoxarifado, label: 'Almoxarifado', page: 'Almoxarifado' },
     ];
     
-    const adminLinks = [
-        { icon: ICONS.financeiro, label: 'Financeiro' as Page },
-        { icon: ICONS.relatorios, label: 'Relatorios' as Page },
-        { icon: ICONS.usuarios, label: 'Usuarios' as Page },
+    const adminLinks: NavItem[] = [
+        { icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' },
+        { icon: ICONS.relatorios, label: 'Relatórios', page: 'Relatorios' },
+        { icon: ICONS.usuarios, label: 'Usuários', page: 'Usuarios' },
     ];
     
-    let links = [...commonLinks];
+    let links: NavItem[] = [...commonLinks];
     if (user.role === UserRole.Admin) {
         links = [...commonLinks, ...userLinks, ...adminLinks];
     } else if (user.role === UserRole.Encarregado) {
-        links = [...commonLinks, ...userLinks, { icon: ICONS.relatorios, label: 'Relatorios' as Page }];
+        links = [...commonLinks, ...userLinks];
     }
     // Client only has common links
 
@@ -67,12 +76,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
                     </div>
                     <nav className="flex flex-col space-y-2">
                         {links.map(link => (
-                            <NavLink key={link.label} icon={link.icon} label={link.label} onClick={() => handleNavigation(link.label)} />
+                            <NavLink key={link.label} icon={link.icon} label={link.label} onClick={() => handleNavigation(link.page)} />
                         ))}
                     </nav>
                 </div>
                 <div className="mt-auto">
-                    <NavLink icon={ICONS.logout} label={'Logout' as Page} onClick={onLogout} />
+                    <NavLink icon={ICONS.logout} label={'Logout'} onClick={onLogout} />
                 </div>
             </aside>
         </>

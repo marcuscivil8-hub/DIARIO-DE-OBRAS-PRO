@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo } from '../../types';
+import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -37,11 +37,12 @@ const FinanceiroPage: React.FC = () => {
         fetchData();
     }, []);
 
-    const filteredTransacoes = selectedObraId === 'all' 
+    const filteredTransacoes = useMemo(() => selectedObraId === 'all' 
         ? transacoes 
-        : transacoes.filter(t => t.obraId === selectedObraId);
+        : transacoes.filter(t => t.obraId === selectedObraId),
+    [transacoes, selectedObraId]);
         
-    const custoMaoDeObra = useMemo(() => {
+    const custoMaoDeObraPontos = useMemo(() => {
         const funcionariosDaObra = selectedObraId === 'all'
             ? funcionarios
             : funcionarios.filter(f => f.obraId === selectedObraId);
@@ -65,37 +66,47 @@ const FinanceiroPage: React.FC = () => {
 
     }, [pontos, funcionarios, selectedObraId]);
 
-    const totalEntradas = filteredTransacoes
-        .filter(t => t.tipo === TransacaoTipo.Entrada)
-        .reduce((acc, t) => acc + t.valor, 0);
+    const { totalEntradas, totalSaidas, balanco, saidasPorCategoria } = useMemo(() => {
+        const totalEntradas = filteredTransacoes
+            .filter(t => t.tipo === TransacaoTipo.Entrada)
+            .reduce((acc, t) => acc + t.valor, 0);
 
-    const totalSaidasTransacoes = filteredTransacoes
-        .filter(t => t.tipo === TransacaoTipo.Saida)
-        .reduce((acc, t) => acc + t.valor, 0);
+        // Calculate labor costs from transactions explicitly
+        const transacoesFolhaPagamento = filteredTransacoes
+            .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria === CategoriaSaida.FolhaPagamento)
+            .reduce((acc, t) => acc + t.valor, 0);
 
-    const totalSaidas = totalSaidasTransacoes + custoMaoDeObra;
-    const balanco = totalEntradas - totalSaidas;
+        // Combine with labor cost from attendance records
+        const custoTotalMaoDeObra = custoMaoDeObraPontos + transacoesFolhaPagamento;
 
-    const saidasPorCategoria = filteredTransacoes
-        .filter(t => t.tipo === TransacaoTipo.Saida)
-        .reduce((acc, t) => {
-            if (!acc[t.categoria]) {
-                acc[t.categoria] = 0;
-            }
-            acc[t.categoria] += t.valor;
-            return acc;
-        }, {} as Record<string, number>);
+        // Process other expense categories
+        const saidasPorOutrasCategorias = filteredTransacoes
+            .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
+            .reduce((acc, t) => {
+                const categoria = t.categoria as CategoriaSaida;
+                acc[categoria] = (acc[categoria] || 0) + t.valor;
+                return acc;
+            }, {} as Record<string, number>);
 
-    if (custoMaoDeObra > 0) {
-        saidasPorCategoria['Mão de Obra (Ponto)'] = custoMaoDeObra;
-    }
+        // Create the final category map
+        const finalSaidasPorCategoria = { ...saidasPorOutrasCategorias };
+        if (custoTotalMaoDeObra > 0) {
+            finalSaidasPorCategoria['Mão de Obra (Folha + Ponto)'] = custoTotalMaoDeObra;
+        }
 
-    const pieData = Object.keys(saidasPorCategoria).map(key => ({
-        name: key,
-        value: saidasPorCategoria[key]
-    }));
+        const totalSaidas = Object.values(finalSaidasPorCategoria).reduce((sum, val) => sum + val, 0);
+        const balanco = totalEntradas - totalSaidas;
 
-    const COLORS = ['#1e3a5f', '#facc15', '#3b82f6', '#fbbf24', '#6b7280', '#ef4444'];
+        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: finalSaidasPorCategoria };
+    }, [filteredTransacoes, custoMaoDeObraPontos]);
+
+
+    const pieData = useMemo(() => {
+        return Object.entries(saidasPorCategoria).map(([name, value]) => ({ name, value }));
+    }, [saidasPorCategoria]);
+
+
+    const COLORS = ['#1e3a5f', '#facc15', '#3b82f6', '#fbbf24', '#6b7280', '#ef4444', '#8b5cf6'];
 
     if (loading) return <div className="text-center p-8">Carregando dados financeiros...</div>;
 
@@ -125,12 +136,12 @@ const FinanceiroPage: React.FC = () => {
                 </Card>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <Card title="Despesas por Categoria">
-                    <div className="h-80">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                 <Card title="Despesas por Categoria" className="lg:col-span-3">
+                    <div className="h-96">
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" label>
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {pieData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
@@ -141,19 +152,14 @@ const FinanceiroPage: React.FC = () => {
                         </ResponsiveContainer>
                     </div>
                 </Card>
-                <Card title="Últimas Transações">
-                     <ul className="space-y-3 max-h-80 overflow-y-auto">
-                        {filteredTransacoes.slice(0, 10).map(t => (
-                            <li key={t.id} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
-                                <div>
-                                    <p className="font-semibold text-brand-blue">{t.descricao}</p>
-                                    <p className="text-sm text-brand-gray">{new Date(t.data).toLocaleDateString('pt-BR')} - {obras.find(o => o.id === t.obraId)?.name}</p>
-                                </div>
-                                <p className={`font-bold ${t.tipo === TransacaoTipo.Entrada ? 'text-green-600' : 'text-red-600'}`}>
-                                    {t.tipo === TransacaoTipo.Entrada ? '+' : '-'} R$ {t.valor.toLocaleString('pt-BR')}
-                                </p>
+                <Card title="Detalhamento de Saídas" className="lg:col-span-2">
+                    <ul className="space-y-2 max-h-96 overflow-y-auto">
+                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => b - a).map(([categoria, valor]) => (
+                            <li key={categoria} className="flex justify-between text-gray-700">
+                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
+                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </li>
-                        ))}
+                         ))}
                     </ul>
                 </Card>
             </div>

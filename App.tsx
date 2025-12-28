@@ -7,11 +7,13 @@ import DashboardPage from './components/pages/DashboardPage';
 import ObrasPage from './components/pages/ObrasPage';
 import ObraDetailPage from './components/pages/ObraDetailPage';
 import FuncionariosPage from './components/pages/FuncionariosPage';
+import CadastroFuncionariosPage from './components/pages/CadastroFuncionariosPage';
 import FinanceiroPage from './components/pages/FinanceiroPage';
 import MateriaisPage from './components/pages/MateriaisPage';
 import FerramentasPage from './components/pages/FerramentasPage';
 import RelatoriosPage from './components/pages/RelatoriosPage';
 import UsuariosPage from './components/pages/UsuariosPage';
+import AlmoxarifadoPage from './components/pages/AlmoxarifadoPage';
 import { apiService } from './services/apiService';
 
 const App: React.FC = () => {
@@ -71,16 +73,20 @@ const App: React.FC = () => {
                 return <ObrasPage user={currentUser} navigateTo={navigateTo} />;
             case 'ObraDetail':
                  return selectedObraId ? <ObraDetailPage user={currentUser} obraId={selectedObraId} navigateTo={navigateTo} /> : <ObrasPage user={currentUser} navigateTo={navigateTo} />;
+            case 'CadastroFuncionarios':
+                return <CadastroFuncionariosPage user={currentUser} />;
             case 'Funcionarios':
                 return <FuncionariosPage user={currentUser} />;
             case 'Financeiro':
                 return currentUser.role === UserRole.Admin ? <FinanceiroPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
+            case 'Almoxarifado':
+                return currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado ? <AlmoxarifadoPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Materiais':
                 return <MateriaisPage user={currentUser} />;
             case 'Ferramentas':
                 return <FerramentasPage user={currentUser} />;
             case 'Relatorios':
-                return <RelatoriosPage />;
+                return currentUser.role === UserRole.Admin ? <RelatoriosPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Usuarios':
                  return currentUser.role === UserRole.Admin ? <UsuariosPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             default:

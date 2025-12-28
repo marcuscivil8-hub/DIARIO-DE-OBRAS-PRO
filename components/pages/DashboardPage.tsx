@@ -109,6 +109,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                     </div>
                  </Card>
             )}
+            
+            {user.role === UserRole.Encarregado && (
+                <Card title="Lembretes e Inspiração">
+                    <ul className="list-disc list-inside space-y-2 text-brand-gray mb-4">
+                        <li>Verificar estoque de cimento.</li>
+                        <li>Confirmar entrega de areia para amanhã.</li>
+                        <li>Registrar ponto de todos os funcionários.</li>
+                    </ul>
+                    <p className="text-center font-semibold text-brand-blue italic mt-6 p-4 bg-yellow-50 rounded-lg">
+                        "Você é incrível! Os desafios da vida colaboram para o nosso crescimento."
+                    </p>
+                </Card>
+            )}
+
 
             <Card title="Acesso Rápido">
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

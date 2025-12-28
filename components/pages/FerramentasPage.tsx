@@ -28,7 +28,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     };
     const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
 
-    const canEdit = user.role === UserRole.Admin;
+    const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -119,8 +119,8 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                         <tbody>
                             {ferramentas.map(ferramenta => (
                                 <tr key={ferramenta.id} className="border-b border-brand-light-gray hover:bg-gray-50">
-                                    <td className="p-4 font-medium text-gray-800">{ferramenta.nome}</td>
-                                    <td className="p-4 text-brand-gray">{ferramenta.codigo}</td>
+                                    <td className="p-4 font-bold text-brand-blue">{ferramenta.nome}</td>
+                                    <td className="p-4 text-gray-700">{ferramenta.codigo}</td>
                                     <td className="p-4">
                                         <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
                                             ferramenta.status === StatusFerramenta.Funcionando ? 'bg-green-100 text-green-800' :
@@ -130,7 +130,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                                             {ferramenta.status}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-brand-gray">{getResponsavelName(ferramenta.responsavelId)}</td>
+                                    <td className="p-4 text-gray-700">{getResponsavelName(ferramenta.responsavelId)}</td>
                                     {canEdit && (
                                         <td className="p-4">
                                             <div className="flex space-x-2">

@@ -128,13 +128,13 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
                                     'bg-yellow-100 text-yellow-800'
                                 }`}>{obra.status}</span>
                             </div>
-                            <p className="text-brand-gray mt-2">{obra.endereco}</p>
-                            <p className="text-sm text-gray-500 mt-1">Cliente: {obra.cliente}</p>
+                            <p className="text-gray-700 mt-2">{obra.endereco}</p>
+                            <p className="text-sm text-gray-600 mt-1">Cliente: {obra.cliente}</p>
                         </div>
                         <div className="mt-4 pt-4 border-t flex justify-between items-center">
                              <div>
-                                <p className="text-sm text-gray-600">Início: {new Date(obra.dataInicio).toLocaleDateString()}</p>
-                                <p className="text-sm text-gray-600">Previsão: {new Date(obra.dataFimPrevista).toLocaleDateString()}</p>
+                                <p className="text-sm text-gray-700">Início: {new Date(obra.dataInicio).toLocaleDateString()}</p>
+                                <p className="text-sm text-gray-700">Previsão: {new Date(obra.dataFimPrevista).toLocaleDateString()}</p>
                              </div>
                              {user.role === UserRole.Admin && (
                                 <div className="flex items-center space-x-2">

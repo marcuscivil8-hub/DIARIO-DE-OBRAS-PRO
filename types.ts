@@ -14,7 +14,7 @@ export interface User {
     obraIds?: string[]; // For clients, to link them to specific projects
 }
 
-export type Page = 'Dashboard' | 'Obras' | 'ObraDetail' | 'Funcionarios' | 'Financeiro' | 'Materiais' | 'Ferramentas' | 'Relatorios' | 'Usuarios';
+export type Page = 'Dashboard' | 'Obras' | 'ObraDetail' | 'Funcionarios' | 'Financeiro' | 'Materiais' | 'Ferramentas' | 'Relatorios' | 'Usuarios' | 'Almoxarifado' | 'CadastroFuncionarios';
 
 export interface Obra {
     id: string;
@@ -56,21 +56,30 @@ export enum TransacaoTipo {
     Saida = 'Saída',
 }
 
+export enum CategoriaSaida {
+    FolhaPagamento = 'Folha de Pagamento',
+    Material = 'Material de Construção',
+    Ferramenta = 'Compra de Ferramenta',
+    Aluguel = 'Aluguel de Equipamento',
+    Indiretos = 'Gastos Indiretos',
+    Outros = 'Outros',
+}
+
 export interface TransacaoFinanceira {
     id: string;
     obraId: string;
     descricao: string;
     valor: number;
     tipo: TransacaoTipo;
-    categoria: string;
-    data: string; // YYY-MM-DD
+    categoria: CategoriaSaida | 'Receita';
+    data: string; // YYYY-MM-DD
 }
 
 export interface Material {
     id: string;
     nome: string;
     unidade: string;
-    quantidade: number;
+    quantidade: number; // This will now represent CENTRAL STOCK
     estoqueMinimo: number;
 }
 
@@ -79,14 +88,19 @@ export enum MovimentacaoTipo {
     Saida = 'Saída'
 }
 
-export interface MovimentacaoMaterial {
+// This type is for CENTRAL WAREHOUSE movements
+export interface MovimentacaoAlmoxarifado {
     id: string;
-    materialId: string;
+    itemId: string; // Can be material or ferramenta id
+    itemType: 'material' | 'ferramenta';
     tipo: MovimentacaoTipo;
-    quantidade: number;
-    data: string; // YYY-MM-DD
-    responsavel: string;
+    quantidade: number; // For materials, 1 for tools
+    data: string; // YYYY-MM-DD
+    obraDestinoId?: string;
+    responsavelRetiradaId?: string;
+    descricao?: string; // e.g., "Nota fiscal 123" for entry
 }
+
 
 export enum StatusFerramenta {
     Funcionando = 'Funcionando',
