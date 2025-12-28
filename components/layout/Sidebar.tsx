@@ -40,16 +40,16 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
     ];
     
     const adminLinks: NavItem[] = [
-        { icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' },
         { icon: ICONS.relatorios, label: 'Relatórios', page: 'Relatorios' },
         { icon: ICONS.usuarios, label: 'Usuários', page: 'Usuarios' },
     ];
     
     let links: NavItem[] = [...commonLinks];
+    
     if (user.role === UserRole.Admin) {
-        links = [...commonLinks, ...userLinks, ...adminLinks];
+        links.push(...userLinks, { icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' }, ...adminLinks);
     } else if (user.role === UserRole.Encarregado) {
-        links = [...commonLinks, ...userLinks];
+        links.push(...userLinks, { icon: ICONS.financeiro, label: 'Financeiro', page: 'Financeiro' });
     }
     // Client only has common links
 
