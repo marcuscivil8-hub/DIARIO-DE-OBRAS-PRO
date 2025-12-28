@@ -8,8 +8,9 @@ export enum UserRole {
 export interface User {
     id: string;
     name: string;
+    email: string;
     username: string;
-    password: string;
+    password?: string;
     role: UserRole;
     obraIds?: string[]; // For clients, to link them to specific projects
 }

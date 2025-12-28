@@ -16,8 +16,10 @@ const UsuariosPage: React.FC = () => {
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
     
+    // FIX: Added 'email' property to satisfy the User type.
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
+        email: '',
         username: '',
         password: '',
         role: UserRole.Encarregado,
@@ -49,8 +51,10 @@ const UsuariosPage: React.FC = () => {
     const handleOpenModal = (user: User | null = null) => {
         if (user) {
             setEditingUser(user);
+            // FIX: Added 'email' property when setting form state for an existing user.
             setCurrentUserForm({
                 name: user.name,
+                email: user.email,
                 username: user.username,
                 password: '', // Password field is cleared for editing for security
                 role: user.role,
@@ -64,8 +68,8 @@ const UsuariosPage: React.FC = () => {
     };
     
     const handleSaveUser = async () => {
-        if (!currentUserForm.name || !currentUserForm.username || (!editingUser && !currentUserForm.password)) {
-            alert('Por favor, preencha nome, usuário e senha.');
+        if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
+            alert('Por favor, preencha nome, email, usuário e senha.');
             return;
         }
 
@@ -77,6 +81,7 @@ const UsuariosPage: React.FC = () => {
         if (editingUser) {
             const updates: Partial<User> = {
                 name: userData.name,
+                email: userData.email,
                 username: userData.username,
                 role: userData.role,
                 obraIds: userData.obraIds,
@@ -171,7 +176,9 @@ const UsuariosPage: React.FC = () => {
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? "Editar Usuário" : "Criar Novo Usuário"}>
                  <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
                     <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({...currentUserForm, name: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Nome de Usuário (para login)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: e.target.value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Added email input and changed username placeholder. */}
+                    <input type="email" placeholder="Email (para login)" value={currentUserForm.email} onChange={e => setCurrentUserForm({...currentUserForm, email: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Nome de Usuário (ex: joaosilva)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: e.target.value})} className="w-full p-2 border rounded" required/>
                     <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para manter)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: e.target.value})} className="w-full p-2 border rounded" required={!editingUser}/>
                     <select value={currentUserForm.role} onChange={e => setCurrentUserForm({...currentUserForm, role: e.target.value as UserRole})} className="w-full p-2 border rounded">
                         <option value={UserRole.Admin}>Admin</option>

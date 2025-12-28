@@ -3,24 +3,22 @@ import React, { useState } from 'react';
 import Button from '../ui/Button';
 
 interface LoginPageProps {
-    onLogin: (username: string, password: string) => Promise<boolean>;
+    onLogin: (email: string, password: string) => Promise<boolean>;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-
-    const isAdminLogin = username.toLowerCase() === 'admin';
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        const success = await onLogin(username, isAdminLogin ? '' : password);
+        const success = await onLogin(email, password);
         if (!success) {
-            setError('Usuário ou senha inválidos.');
+            setError('Email ou senha inválidos.');
         }
         setLoading(false);
     };
@@ -34,36 +32,33 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </div>
                 <form onSubmit={handleLogin} className="bg-white rounded-xl shadow-2xl p-8 space-y-6">
                     <div>
-                        <label htmlFor="username" className="block text-sm font-medium text-brand-gray mb-2">
-                            Usuário
+                        <label htmlFor="email" className="block text-sm font-medium text-brand-gray mb-2">
+                            Email
                         </label>
                         <input
-                            id="username"
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
                             required
                             disabled={loading}
                         />
                     </div>
-
-                    {!isAdminLogin && (
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-brand-gray mb-2">
-                                Senha
-                            </label>
-                            <input
-                                id="password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
-                                required
-                                disabled={loading}
-                            />
-                        </div>
-                    )}
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-brand-gray mb-2">
+                            Senha
+                        </label>
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
+                            required
+                            disabled={loading}
+                        />
+                    </div>
                     
                     {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 

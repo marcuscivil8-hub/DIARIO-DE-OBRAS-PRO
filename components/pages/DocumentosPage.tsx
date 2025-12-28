@@ -22,8 +22,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [docToDelete, setDocToDelete] = useState<Documento | null>(null);
 
-    const initialFormState: Omit<Documento, 'id' | 'obraId' | 'url'> = {
-        nome: '',
+    const initialFormState: Omit<Documento, 'id' | 'obraId' | 'url' | 'nome'> = {
         tipo: 'Outro',
         dataUpload: new Date().toISOString().split('T')[0]
     };
@@ -45,7 +44,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
             setObras(userObras);
             setDocumentos(docsData);
             
-            if (userObras.length > 0) {
+            if (userObras.length > 0 && !selectedObraId) {
                 setSelectedObraId(userObras[0].id);
             }
         } catch (error) {
@@ -53,7 +52,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
         } finally {
             setLoading(false);
         }
-    }, [user.role, user.obraIds]);
+    }, [user.role, user.obraIds, selectedObraId]);
 
     useEffect(() => {
         fetchData();
@@ -71,34 +70,22 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
         setFile(null);
         setIsModalOpen(true);
     };
-    
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
-    };
 
     const handleSaveDocument = async () => {
-        if (!file || !formData.nome || !selectedObraId) {
-            alert("Por favor, preencha o nome do arquivo, selecione um arquivo e uma obra.");
+        if (!file || !selectedObraId) {
+            alert("Por favor, selecione um arquivo e uma obra.");
             return;
         }
 
-        const fileUrl = await fileToBase64(file);
-        
-        const newDoc: Omit<Documento, 'id'> = {
-            ...formData,
-            obraId: selectedObraId,
-            url: fileUrl,
-            nome: file.name // Use the actual file name
-        };
-
-        await apiService.documentos.create(newDoc);
-        setIsModalOpen(false);
-        await fetchData();
+        try {
+            await apiService.documentos.create(formData, selectedObraId, file);
+        } catch(error) {
+            console.error(error);
+            alert("Falha no upload do documento.");
+        } finally {
+            setIsModalOpen(false);
+            await fetchData();
+        }
     };
     
     const triggerDelete = (doc: Documento) => {
@@ -115,12 +102,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     };
     
     const handleDownload = (doc: Documento) => {
-        const link = document.createElement('a');
-        link.href = doc.url;
-        link.download = doc.nome;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        window.open(doc.url, '_blank');
     };
 
     if (loading) return <div className="text-center p-8">Carregando documentos...</div>;

@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico, TransacaoFinanceira, TransacaoTipo, CategoriaSaida, Documento } from '../../types';
 import { apiService } from '../../services/apiService';
+import { supabase } from '../../services/supabaseClient';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -59,12 +60,7 @@ const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
     }, [obraId]);
 
     const handleDownload = (doc: Documento) => {
-        const link = document.createElement('a');
-        link.href = doc.url;
-        link.download = doc.nome;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        window.open(doc.url, '_blank');
     };
 
     if (loading) return <div>Carregando documentos...</div>;
@@ -412,19 +408,15 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const [photos, setPhotos] = useState<{ file: File; legenda: string }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const [photoToDelete, setPhotoToDelete] = useState<{ diarioId: string; photoIndex: number } | null>(null);
+    const [photoToDelete, setPhotoToDelete] = useState<{ diarioId: string; photoIndex: number; url: string } | null>(null);
 
     const fetchPageData = useCallback(async () => {
         setLoading(true);
         try {
-            const allObras = await apiService.obras.getAll();
-            const allDiarios = await apiService.diarios.getAll();
-            
-            const currentObra = allObras.find(o => o.id === obraId) || null;
-            const obraDiarios = allDiarios
-                .filter(d => d.obraId === obraId)
-                .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-            
+            const [currentObra, obraDiarios] = await Promise.all([
+                 apiService.obras.getAll().then(obras => obras.find(o => o.id === obraId) || null),
+                 apiService.diarios.getAll().then(diarios => diarios.filter(d => d.obraId === obraId).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()))
+            ]);
             setObra(currentObra);
             setDiarios(obraDiarios);
         } catch (error) {
@@ -450,17 +442,22 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setPhotos(photos.filter((_, index) => index !== indexToRemove));
     };
 
-    const triggerDeleteExistingPhoto = (diarioId: string, photoIndex: number) => {
-        setPhotoToDelete({ diarioId, photoIndex });
+    const triggerDeleteExistingPhoto = (diarioId: string, photoIndex: number, url: string) => {
+        setPhotoToDelete({ diarioId, photoIndex, url });
         setIsConfirmModalOpen(true);
     };
 
     const confirmDeleteExistingPhoto = async () => {
         if (!photoToDelete) return;
-        const { diarioId, photoIndex } = photoToDelete;
+        const { diarioId, photoIndex, url } = photoToDelete;
         
         const diarioToUpdate = diarios.find(d => d.id === diarioId);
         if (diarioToUpdate) {
+            // Remove from Supabase storage
+            const filePath = new URL(url).pathname.split('/fotos-diario/')[1];
+            await supabase.storage.from('fotos-diario').remove([filePath]);
+
+            // Update DB
             const updatedFotos = diarioToUpdate.fotos.filter((_, index) => index !== photoIndex);
             await apiService.diarios.update(diarioId, { fotos: updatedFotos });
             await fetchPageData();
@@ -470,19 +467,13 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setPhotoToDelete(null);
     };
 
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
-    };
-
     const handleAddDiario = async () => {
         const photoDataPromises = photos.map(async (p) => {
-            const base64Url = await fileToBase64(p.file);
-            return { url: base64Url, legenda: p.legenda };
+            const filePath = `${obraId}/${Date.now()}-${p.file.name}`;
+            const { error } = await supabase.storage.from('fotos-diario').upload(filePath, p.file);
+            if (error) throw error;
+            const { data } = supabase.storage.from('fotos-diario').getPublicUrl(filePath);
+            return { url: data.publicUrl, legenda: p.legenda };
         });
 
         const photoData = await Promise.all(photoDataPromises);
@@ -504,7 +495,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const handleGeneratePdf = () => {
         if (!reportRef.current) return;
         setPdfLoading(true);
-        html2canvas(reportRef.current, { scale: 2 }).then((canvas) => {
+        html2canvas(reportRef.current, { scale: 2, useCORS: true }).then((canvas) => {
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const imgData = canvas.toDataURL('image/png');
@@ -580,7 +571,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                                                 <img src={foto.url} alt={foto.legenda || `Foto ${index + 1}`} className="rounded-lg object-cover w-full h-40" />
                                                 {canEdit && (
                                                     <button
-                                                        onClick={() => triggerDeleteExistingPhoto(diario.id, index)}
+                                                        onClick={() => triggerDeleteExistingPhoto(diario.id, index, foto.url)}
                                                         className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
                                                         aria-label="Excluir foto"
                                                     >
