@@ -35,14 +35,10 @@ const App: React.FC = () => {
         checkSession();
     }, []);
 
-    const handleLogin = async (username: string, password: string): Promise<boolean> => {
-        const user = await apiService.login(username, password);
-        if (user) {
-            setCurrentUser(user);
-            setCurrentPage('Dashboard');
-            return true;
-        }
-        return false;
+    const handleLogin = async (username: string, password: string): Promise<void> => {
+        const user = await apiService.login(username, password); // Lançará um erro em caso de falha
+        setCurrentUser(user);
+        setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
@@ -81,7 +77,7 @@ const App: React.FC = () => {
             case 'Financeiro':
                 return (currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado) ? <FinanceiroPage user={currentUser} /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Almoxarifado':
-                return currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado ? <AlmoxarifadoPage /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
+                return currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado ? <AlmoxarifadoPage navigateTo={navigateTo} /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Materiais':
                 return <MateriaisPage user={currentUser} />;
             case 'Ferramentas':

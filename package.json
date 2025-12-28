@@ -14,7 +14,8 @@
     "recharts": "^3.6.0",
     "jspdf": "^3.0.4",
     "html2canvas": "^1.4.1",
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "deno.ns": "^0.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -141,7 +141,10 @@ const RelatorioFolhaPagamento: React.FC<{ obra: Obra | null, funcionarios: Funci
     const payrollData = funcionariosDaObra.map(func => {
         const pontosNoPeriodo = pontos.filter(p => {
             const pontoDate = new Date(p.data + 'T00:00:00'); // Ensure correct date parsing
-            return p.funcionarioId === func.id && pontoDate >= startDate && pontoDate <= endDate;
+            return p.funcionarioId === func.id && 
+                   pontoDate >= startDate && 
+                   pontoDate <= endDate &&
+                   (obra ? p.obraId === obra.id : true);
         });
 
         const diasTrabalhados = pontosNoPeriodo.filter(p => p.status === 'presente').length;
@@ -361,8 +364,7 @@ const RelatoriosPage: React.FC = () => {
         const transacoesFiltradas = isAll ? transacoes : transacoes.filter(t => t.obraId === selectedObraId);
         const documentosFiltrados = isAll ? documentos : documentos.filter(d => d.obraId === selectedObraId);
 
-        const funcionariosDaObra = isAll ? funcionarios : funcionarios.filter(f => f.obraId === selectedObraId);
-        const pontosRelevantes = pontos.filter(p => funcionariosDaObra.some(f => f.id === p.funcionarioId) && p.status === 'presente');
+        const pontosRelevantes = pontos.filter(p => p.status === 'presente' && (isAll || p.obraId === selectedObraId));
         
         const custoMaoDeObra = pontosRelevantes.reduce((total, ponto) => {
             const func = funcionarios.find(f => f.id === ponto.funcionarioId);

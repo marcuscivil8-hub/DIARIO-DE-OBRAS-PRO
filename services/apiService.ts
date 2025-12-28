@@ -9,42 +9,49 @@ const handleSupabaseError = (error: any, context: string) => {
     }
 };
 
-const createCrudService = <T extends { id: string }>(tableName: string) => {
-    // Mapeia nomes de campos JS para nomes de colunas do banco (convenção snake_case)
-    const toSnakeCase = (data: Record<string, any>) => {
-        const snakeCaseData: Record<string, any> = {};
-        for (const key in data) {
+// FIX: Moved toSnakeCase and toCamelCase to the top level to be reusable.
+// Mapeia nomes de campos JS para nomes de colunas do banco (convenção snake_case)
+const toSnakeCase = (data: Record<string, any>) => {
+    const snakeCaseData: Record<string, any> = {};
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
             const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
             snakeCaseData[snakeKey] = data[key];
         }
-        return snakeCaseData;
-    };
-    
-    // Mapeia nomes de colunas do banco para nomes de campos JS
-    const toCamelCase = (data: Record<string, any>): T => {
-        const camelCaseData: Record<string, any> = {};
-        for (const key in data) {
+    }
+    return snakeCaseData;
+};
+
+// Mapeia nomes de colunas do banco para nomes de campos JS
+const toCamelCase = <T>(data: Record<string, any>): T => {
+    if (!data) return data as T;
+    const camelCaseData: Record<string, any> = {};
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
             const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
             camelCaseData[camelKey] = data[key];
         }
-        return camelCaseData as T;
-    };
-    
+    }
+    return camelCaseData as T;
+};
+
+
+const createCrudService = <T extends { id: string }>(tableName: string) => {
     return {
         async getAll(): Promise<T[]> {
             const { data, error } = await supabase.from(tableName).select('*');
             handleSupabaseError(error, `getAll ${tableName}`);
-            return data ? data.map(toCamelCase) : [];
+            return data ? data.map(item => toCamelCase<T>(item)) : [];
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
             const { data, error } = await supabase.from(tableName).insert(toSnakeCase(itemData)).select().single();
             handleSupabaseError(error, `create ${tableName}`);
-            return toCamelCase(data);
+            return toCamelCase<T>(data);
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
             const { data, error } = await supabase.from(tableName).update(toSnakeCase(updates)).eq('id', itemId).select().single();
             handleSupabaseError(error, `update ${tableName}`);
-            return toCamelCase(data);
+            return toCamelCase<T>(data);
         },
         async delete(itemId: string): Promise<void> {
             const { error } = await supabase.from(tableName).delete().eq('id', itemId);
@@ -54,11 +61,13 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
 };
 
 export const apiService = {
-    async login(email: string, password: string): Promise<User | null> {
+    async login(email: string, password: string): Promise<User> {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-        if (authError || !authData.user) {
-            console.error('Login error:', authError?.message);
-            return null;
+        if (authError) {
+            throw new Error('Email ou senha inválidos.');
+        }
+        if (!authData.user) {
+            throw new Error("Login falhou: Nenhum usuário retornado após a autenticação.");
         }
 
         const { data: profileData, error: profileError } = await supabase
@@ -70,7 +79,11 @@ export const apiService = {
         if (profileError || !profileData) {
             console.error('Error fetching profile:', profileError?.message);
             await supabase.auth.signOut();
-            return null;
+            
+            const detailedError = profileError?.message.includes('recursion')
+                ? "Erro de configuração no banco (recursão de RLS). Contacte o administrador."
+                : `Falha ao buscar perfil do usuário: ${profileError?.message}`;
+            throw new Error(detailedError);
         }
 
         const user: User = {
@@ -101,7 +114,6 @@ export const apiService = {
         const userJson = sessionStorage.getItem('currentUser');
         if (userJson) return JSON.parse(userJson);
         
-        // Se a sessão existe mas não há nada no sessionStorage, busca o perfil
         const { data: profileData, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         if (error || !profileData) return null;
 
@@ -131,19 +143,20 @@ export const apiService = {
     pontos: {
         ...createCrudService<Ponto>('pontos'),
         async replaceAll(newItems: Ponto[]): Promise<void> {
-            // This is inefficient but necessary to replicate the localStorage logic.
-            // A better backend approach would be a single bulk upsert endpoint.
-            // FIX: Explicitly type the result of the select call to avoid 'any' type issues downstream.
-            const { data: existing } = await supabase.from('pontos').select('id, funcionario_id, data').returns<{ id: string; funcionario_id: string; data: string }[]>();
-            const existingMap = new Map(existing?.map(p => [`${p.funcionario_id}-${p.data}`, p.id]));
-            const newMap = new Map(newItems.map(p => [`${p.funcionarioId}-${p.data}`, p]));
+            const { data: existing } = await supabase.from('pontos').select('id, funcionario_id, data, obra_id').returns<{ id: string; funcionario_id: string; data: string; obra_id: string }[]>();
+            // FIX: Explicitly type the Map to prevent type inference issues when `existing` is null.
+            const existingMap = new Map<string, string>(existing?.map(p => [`${p.funcionario_id}-${p.data}-${p.obra_id}`, p.id]));
+            const newMap = new Map(newItems.map(p => [`${p.funcionarioId}-${p.data}-${p.obraId}`, p]));
 
             const toDelete = Array.from(existingMap.keys()).filter(key => !newMap.has(key));
-            const toUpsert = newItems.map(p => ({
-                id: existingMap.get(`${p.funcionarioId}-${p.data}`), // may be undefined for new items
+            
+            // FIX: Explicitly type the array for upsert to handle potential type inference issues.
+            const toUpsert: Array<{ id?: string; funcionario_id: string; data: string; status: 'presente' | 'falta'; obra_id: string; }> = newItems.map(p => ({
+                id: existingMap.get(`${p.funcionarioId}-${p.data}-${p.obraId}`),
                 funcionario_id: p.funcionarioId,
                 data: p.data,
                 status: p.status,
+                obra_id: p.obraId,
             }));
 
             if(toDelete.length > 0) {
@@ -160,7 +173,6 @@ export const apiService = {
     
     documentos: {
         ...createCrudService<Documento>('documentos'),
-        // FIX: Adjusted type to Omit 'nome' as it's derived from the file object inside the function.
         async create(docData: Omit<Documento, 'id' | 'obraId' | 'url' | 'nome'>, obraId: string, file: File): Promise<Documento> {
             const filePath = `${obraId}/${Date.now()}-${file.name}`;
             const { error: uploadError } = await supabase.storage.from('documentos').upload(filePath, file);
@@ -171,10 +183,10 @@ export const apiService = {
             const newDocForDb = { ...docData, obra_id: obraId, nome: file.name, url: urlData.publicUrl };
             const { data, error } = await supabase.from('documentos').insert(newDocForDb).select().single();
             handleSupabaseError(error, 'create document db entry');
-            return data as Documento;
+            return toCamelCase<Documento>(data);
         },
          async delete(docId: string): Promise<void> {
-            const { data: doc } = await supabase.from('documentos').select('url').eq('id', docId).single();
+            const { data: doc } = await supabase.from('documentos').select('url').eq('id', docId).single<{ url: string }>();
             if (doc?.url) {
                 const filePath = new URL(doc.url).pathname.split('/documentos/')[1];
                 await supabase.storage.from('documentos').remove([filePath]);
@@ -183,7 +195,31 @@ export const apiService = {
         }
     },
 
-    get users() { return createCrudService<User>('profiles'); },
+    users: {
+        ...createCrudService<User>('profiles'),
+        // SECURITY FIX: User creation is moved to a secure Edge Function.
+        async createUser(userData: Omit<User, 'id'>): Promise<any> {
+            const { data, error } = await supabase.functions.invoke('create-user', {
+                body: userData,
+            });
+            handleSupabaseError(error, 'createUser Edge Function');
+            return data;
+        },
+        // SECURITY FIX: User updates should also be handled securely.
+        async updateUser(userId: string, updates: Partial<User>): Promise<any> {
+             const { data, error } = await supabase.from('profiles').update(toSnakeCase(updates)).eq('id', userId).select().single();
+             handleSupabaseError(error, `updateUser`);
+             return toCamelCase<User>(data);
+        },
+        // SECURITY FIX: User deletion is now handled by a secure Edge Function.
+        async deleteUser(userId: string): Promise<any> {
+            const { data, error } = await supabase.functions.invoke('delete-user', {
+                body: { user_id: userId },
+            });
+            handleSupabaseError(error, 'deleteUser Edge Function');
+            return data;
+        },
+    },
     get obras() { return createCrudService<Obra>('obras'); },
     get funcionarios() { return createCrudService<Funcionario>('funcionarios'); },
     get transacoes() { return createCrudService<TransacaoFinanceira>('transacoes_financeiras'); },

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Button from '../ui/Button';
 
 interface LoginPageProps {
-    onLogin: (email: string, password: string) => Promise<boolean>;
+    onLogin: (email: string, password: string) => Promise<void>;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
@@ -16,11 +16,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        const success = await onLogin(email, password);
-        if (!success) {
-            setError('Email ou senha inválidos.');
+        try {
+            await onLogin(email, password);
+            // O sucesso é implícito; a navegação é tratada pelo App.tsx
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (

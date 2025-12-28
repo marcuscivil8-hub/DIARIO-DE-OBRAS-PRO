@@ -48,6 +48,7 @@ export interface Funcionario {
 export interface Ponto {
     id: string;
     funcionarioId: string;
+    obraId: string;
     data: string; // YYY-MM-DD
     status: 'presente' | 'falta';
 }

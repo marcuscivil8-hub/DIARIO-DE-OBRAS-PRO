@@ -82,19 +82,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
     const funcionariosHoje = useMemo(() => {
         const todayString = new Date().toISOString().split('T')[0];
         const pontosHoje = pontos.filter(p => p.data === todayString && p.status === 'presente');
-        
-        if (user.role === UserRole.Admin || user.role === UserRole.Encarregado) {
-            return pontosHoje.length;
-        }
-    
+
         if (user.role === UserRole.Cliente) {
-            const funcionariosDasObrasDoCliente = funcionarios.filter(f => f.obraId && userObraIds.includes(f.obraId));
-            const funcionarioIds = new Set(funcionariosDasObrasDoCliente.map(f => f.id));
-            return pontosHoje.filter(p => funcionarioIds.has(p.funcionarioId)).length;
+            // Correctly counts workers present only in the client's projects.
+            return pontosHoje.filter(p => userObraIds.includes(p.obraId)).length;
         }
         
-        return 0;
-    }, [pontos, funcionarios, userObraIds, user.role]);
+        // For Admin and Encarregado, count all present workers.
+        return pontosHoje.length;
+    }, [pontos, userObraIds, user.role]);
 
     const financialSummaryData = useMemo(() => {
         const months = [];
@@ -230,7 +226,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                         <p className="font-semibold mt-2 text-brand-blue">Ver Obras</p>
                     </button>
                     {user.role !== UserRole.Cliente && (
-                        <button onClick={() => navigateTo('Funcionarios')} className="p-4 bg-brand-light-gray rounded-lg text-center hover:bg-gray-200 transition">
+                        <button onClick={() => navigateTo('CadastroFuncionarios')} className="p-4 bg-brand-light-gray rounded-lg text-center hover:bg-gray-200 transition">
                             <span className="text-3xl">👷</span>
                             <p className="font-semibold mt-2 text-brand-blue">Funcionários</p>
                         </button>

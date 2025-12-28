@@ -1,9 +1,30 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://azhwzzwrbakxmfvrfmkp.supabase.co';
-// A chave fornecida no prompt parece ser a signature de um JWT, mas a chave anônima completa é necessária. 
-// A parte pública de um JWT é segura para ser exposta no lado do cliente.
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6aHd6endhemJha3htZnZyZm1rcCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzE2NDg2Mjc5LCJleHAiOjIwMzIwNjIyNzl9.sb_publishable_peo9DgLnEZE15qZVM2GwPw_W0kunFMf';
+
+// INTEGRAÇÃO: A chave anônima (public) do Supabase foi inserida diretamente
+// conforme solicitado, substituindo a leitura da variável de ambiente.
+// Isso garante a conexão com o banco de dados especificado pelo usuário.
+const supabaseAnonKey = 'sb_publishable_Yb7yjhSVEP81-NIV1CYgzA_2odDOm0l';
+
+// O bloco de verificação da variável de ambiente não é mais necessário,
+// pois a chave foi fornecida e está definida diretamente no código.
+if (!supabaseAnonKey) {
+    const errorMessage = "ERRO: A chave de API do Supabase não foi configurada. A aplicação não pode ser inicializada.";
+    console.error(errorMessage);
+    
+    // Exibe um erro amigável na UI para o usuário em vez de uma tela em branco.
+    const rootElement = document.getElementById('root');
+    if (rootElement) {
+        rootElement.innerHTML = `
+            <div style="font-family: sans-serif; padding: 2rem; text-align: center; background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 0.5rem; margin: 2rem auto; max-width: 600px;">
+                <h1 style="font-size: 1.25rem; font-weight: bold;">Erro de Configuração</h1>
+                <p>A aplicação não pôde se conectar ao banco de dados. A chave de API não foi encontrada.</p>
+            </div>
+        `;
+    }
+    // Lança um erro para interromper a execução do script.
+    throw new Error(errorMessage);
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

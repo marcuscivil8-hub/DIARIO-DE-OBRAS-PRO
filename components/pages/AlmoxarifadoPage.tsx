@@ -1,13 +1,17 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo } from '../../types';
+import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo, Page } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import { ICONS } from '../../constants';
 
-const AlmoxarifadoPage: React.FC = () => {
+interface AlmoxarifadoPageProps {
+    navigateTo: (page: Page) => void;
+}
+
+const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
     const [materiais, setMateriais] = useState<Material[]>([]);
     const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
     const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
@@ -119,12 +123,18 @@ const AlmoxarifadoPage: React.FC = () => {
     
     return (
         <div className="space-y-6">
-             <div className="flex justify-between items-center">
+             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <h2 className="text-2xl font-bold text-brand-blue">Almoxarifado Central</h2>
-                <Button onClick={() => setIsNewMaterialModalOpen(true)} className="flex items-center space-x-2">
-                    {ICONS.add}
-                    <span>Cadastrar Novo Material</span>
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={() => navigateTo('Ferramentas')} variant="secondary" className="flex items-center space-x-2">
+                        {ICONS.ferramentas}
+                        <span>Cadastrar Ferramenta</span>
+                    </Button>
+                    <Button onClick={() => setIsNewMaterialModalOpen(true)} className="flex items-center space-x-2">
+                        {ICONS.add}
+                        <span>Cadastrar Material</span>
+                    </Button>
+                </div>
             </div>
             
             <Card title="Materiais em Estoque">

@@ -74,7 +74,12 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const weekDayStrings = weekDays.map(formatDate);
     
     const handlePontoClick = async (funcionarioId: string, data: string) => {
-        const pontoIndex = pontos.findIndex(p => p.funcionarioId === funcionarioId && p.data === data);
+        if (selectedObraId === 'all') {
+            alert('Por favor, selecione uma obra específica para registrar o ponto.');
+            return;
+        }
+
+        const pontoIndex = pontos.findIndex(p => p.funcionarioId === funcionarioId && p.data === data && p.obraId === selectedObraId);
         let updatedPontos = [...pontos];
 
         if (pontoIndex > -1) {
@@ -85,7 +90,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                 updatedPontos.splice(pontoIndex, 1);
             }
         } else {
-            const newPonto: Ponto = { id: new Date().toISOString(), funcionarioId, data, status: 'presente' };
+            const newPonto: Ponto = { id: new Date().toISOString(), funcionarioId, data, status: 'presente', obraId: selectedObraId };
             updatedPontos.push(newPonto);
         }
         await apiService.pontos.replaceAll(updatedPontos);
@@ -101,7 +106,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const custoSemanal = useMemo(() => {
         return weekDayStrings.reduce((total, date) => {
             const dailyCost = visibleFuncionarios.reduce((dailyTotal, func) => {
-                const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date && p.status === 'presente');
+                const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date && p.status === 'presente' && (selectedObraId === 'all' || p.obraId === selectedObraId));
                 if (ponto) {
                     if (func.tipoPagamento === PagamentoTipo.Diaria) {
                         return dailyTotal + func.valor;
@@ -114,9 +119,11 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
             }, 0);
             return total + dailyCost;
         }, 0);
-    }, [pontos, visibleFuncionarios, weekDayStrings]);
+    }, [pontos, visibleFuncionarios, weekDayStrings, selectedObraId]);
     
     if (loading) return <div className="text-center p-8">Carregando folha de pontos...</div>;
+
+    const isPontoDisabled = selectedObraId === 'all';
 
     return (
         <div className="space-y-6">
@@ -139,6 +146,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                     </h3>
                     <Button variant="secondary" onClick={() => setCurrentDate(changeWeek(currentDate, 'next'))}>Próxima Semana &rarr;</Button>
                 </div>
+                 {isPontoDisabled && <p className="text-center text-brand-yellow bg-yellow-50 p-2 rounded-md mb-4">Selecione uma obra para registrar presenças ou faltas.</p>}
                 <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                         <thead>
@@ -158,12 +166,12 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                                 <tr key={func.id} className="hover:bg-gray-50">
                                     <td className="p-3 font-bold text-brand-blue border sticky left-0 bg-white/75 backdrop-blur-sm">{func.name}</td>
                                     {weekDayStrings.map(date => {
-                                        const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date);
+                                        const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date && (selectedObraId === 'all' || p.obraId === selectedObraId));
                                         const status = ponto?.status;
                                         const bgColor = status === 'presente' ? 'bg-green-500' : status === 'falta' ? 'bg-red-500' : 'bg-gray-200';
                                         return (
                                             <td key={date} className="p-0 border text-center align-middle">
-                                                <button onClick={() => handlePontoClick(func.id, date)} className={`w-full h-12 transition-colors duration-200 ${bgColor} hover:opacity-80`}></button>
+                                                <button onClick={() => handlePontoClick(func.id, date)} className={`w-full h-12 transition-colors duration-200 ${bgColor} ${isPontoDisabled ? 'cursor-not-allowed' : 'hover:opacity-80'}`} disabled={isPontoDisabled}></button>
                                             </td>
                                         );
                                     })}

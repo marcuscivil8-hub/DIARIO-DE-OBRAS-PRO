@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -53,12 +54,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
     }, [transacoes, selectedObraId, user.role]);
         
     const custoMaoDeObraPontos = useMemo(() => {
-        const funcionariosDaObra = selectedObraId === 'all'
-            ? funcionarios
-            : funcionarios.filter(f => f.obraId === selectedObraId);
-
         const pontosRelevantes = pontos.filter(p => 
-            funcionariosDaObra.some(f => f.id === p.funcionarioId) && p.status === 'presente'
+            p.status === 'presente' && (selectedObraId === 'all' || p.obraId === selectedObraId)
         );
 
         return pontosRelevantes.reduce((total, ponto) => {
