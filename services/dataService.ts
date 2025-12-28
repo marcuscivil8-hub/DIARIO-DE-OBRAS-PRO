@@ -39,23 +39,10 @@ export const initialFuncionarios: Funcionario[] = [
     { id: '204', name: 'Mariano Azulejista', funcao: 'Azulejista', tipoPagamento: PagamentoTipo.Diaria, valor: 180, ativo: false, telefone: '11911112222', obraId: null },
 ];
 
-export const initialPontos: Ponto[] = [
-    { id: 'p1', funcionarioId: '201', data: '2024-07-22', status: 'presente'},
-    { id: 'p2', funcionarioId: '202', data: '2024-07-22', status: 'presente'},
-    { id: 'p3', funcionarioId: '203', data: '2024-07-22', status: 'falta'},
-    { id: 'p4', funcionarioId: '201', data: '2024-07-23', status: 'presente'},
-    { id: 'p5', funcionarioId: '202', data: '2024-07-23', status: 'presente'},
-    { id: 'p6', funcionarioId: '203', data: '2024-07-23', status: 'presente'},
-];
+export const initialPontos: Ponto[] = [];
 
 
-export const initialTransacoes: TransacaoFinanceira[] = [
-    { id: '301', obraId: '101', descricao: 'Compra de cimento', valor: 2500, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Material, data: '2024-07-20' },
-    { id: '302', obraId: '101', descricao: 'Primeira parcela do cliente', valor: 50000, tipo: TransacaoTipo.Entrada, categoria: 'Receita', data: '2024-07-15' },
-    { id: '303', obraId: '102', descricao: 'Pagamento de fiação', valor: 8000, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Material, data: '2024-07-22' },
-    { id: '304', obraId: '101', descricao: 'Aluguel de betoneira', valor: 500, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Aluguel, data: '2024-07-18' },
-    { id: '305', obraId: '102', descricao: 'Adiantamento quinzenal', valor: 2000, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.FolhaPagamento, data: '2024-07-15' },
-];
+export const initialTransacoes: TransacaoFinanceira[] = [];
 
 // NOTE: `quantidade` is now calculated from movements. This is just the catalog.
 export const initialMateriais: Material[] = [
