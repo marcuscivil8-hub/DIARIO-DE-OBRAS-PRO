@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -94,11 +93,12 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         // FIX: Explicitly type the accumulator in the reduce function to ensure correct type inference.
         const saidasPorOutrasCategorias = filteredTransacoes
             .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
-            .reduce((acc: Record<string, number>, t) => {
+            // FIX: Cast the initial value to Record<string, number> to ensure correct type inference for the reduce operation.
+            .reduce((acc, t) => {
                 const categoria = t.categoria as CategoriaSaida;
                 acc[categoria] = (acc[categoria] || 0) + t.valor;
                 return acc;
-            }, {});
+            }, {} as Record<string, number>);
 
         // Create the final category map
         const finalSaidasPorCategoria = { ...saidasPorOutrasCategorias };

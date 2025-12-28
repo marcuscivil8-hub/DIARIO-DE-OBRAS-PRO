@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { User, Obra, UserRole, Page, Servico, Material } from '../../types';
+import React, { useEffect, useState, useMemo } from 'react';
+import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -14,20 +14,29 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
     const [obras, setObras] = useState<Obra[]>([]);
     const [servicos, setServicos] = useState<Servico[]>([]);
     const [materiais, setMateriais] = useState<Material[]>([]);
+    const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
+    const [pontos, setPontos] = useState<Ponto[]>([]);
+    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [obrasData, servicosData, materiaisData] = await Promise.all([
+                const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData] = await Promise.all([
                     apiService.obras.getAll(),
                     apiService.servicos.getAll(),
                     apiService.materiais.getAll(),
+                    apiService.transacoes.getAll(),
+                    apiService.pontos.getAll(),
+                    apiService.funcionarios.getAll(),
                 ]);
                 setObras(obrasData);
                 setServicos(servicosData);
                 setMateriais(materiaisData);
+                setTransacoes(transacoesData);
+                setPontos(pontosData);
+                setFuncionarios(funcionariosData);
             } catch (error) {
                 console.error("Failed to fetch dashboard data", error);
             } finally {
@@ -52,15 +61,54 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
 
     const lowStockMaterials = materiais.filter(m => m.quantidade <= m.estoqueMinimo).length;
     
-    // Mock data for chart
-    const data = [
-      { name: 'Jan', Entradas: 4000, Saídas: 2400 },
-      { name: 'Fev', Entradas: 3000, Saídas: 1398 },
-      { name: 'Mar', Entradas: 9800, Saídas: 2000 },
-      { name: 'Abr', Entradas: 3908, Saídas: 2780 },
-      { name: 'Mai', Entradas: 4800, Saídas: 1890 },
-      { name: 'Jun', Entradas: 3800, Saídas: 2390 },
-    ];
+    const financialSummaryData = useMemo(() => {
+        const months = [];
+        const today = new Date();
+        today.setDate(1);
+
+        for (let i = 5; i >= 0; i--) {
+            const monthDate = new Date(today);
+            monthDate.setMonth(today.getMonth() - i);
+            const monthName = monthDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '').charAt(0).toUpperCase() + monthDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '').slice(1);
+            
+            const year = monthDate.getFullYear();
+            const month = monthDate.getMonth();
+            const startOfMonth = new Date(year, month, 1);
+            const endOfMonth = new Date(year, month + 1, 0);
+
+            const monthlyTransactions = transacoes.filter(t => {
+                const transacDate = new Date(t.data + 'T00:00:00');
+                return transacDate >= startOfMonth && transacDate <= endOfMonth;
+            });
+            const monthlyPontos = pontos.filter(p => {
+                const pontoDate = new Date(p.data + 'T00:00:00');
+                return pontoDate >= startOfMonth && pontoDate <= endOfMonth && p.status === 'presente';
+            });
+
+            const entradas = monthlyTransactions
+                .filter(t => t.tipo === TransacaoTipo.Entrada)
+                .reduce((sum, t) => sum + t.valor, 0);
+
+            const saidasFromTransactions = monthlyTransactions
+                .filter(t => t.tipo === TransacaoTipo.Saida)
+                .reduce((sum, t) => sum + t.valor, 0);
+            
+            const saidasFromPontos = monthlyPontos.reduce((total, ponto) => {
+                const func = funcionarios.find(f => f.id === ponto.funcionarioId);
+                if (func) {
+                    if (func.tipoPagamento === PagamentoTipo.Diaria) return total + func.valor;
+                    if (func.tipoPagamento === PagamentoTipo.Salario) return total + (func.valor / 22);
+                }
+                return total;
+            }, 0);
+
+            const saidas = saidasFromTransactions + saidasFromPontos;
+
+            months.push({ name: monthName, Entradas: entradas, Saídas: saidas });
+        }
+
+        return months;
+    }, [transacoes, pontos, funcionarios]);
     
     if (loading) {
         return <div className="text-center p-8">Carregando dashboard...</div>;
@@ -97,10 +145,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                  <Card title="Resumo Financeiro (Últimos 6 meses)">
                     <div className="h-80">
                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data}>
+                            <BarChart data={financialSummaryData}>
                                 <XAxis dataKey="name" stroke="#6b7280" />
                                 <YAxis stroke="#6b7280" />
-                                <Tooltip wrapperClassName="!bg-white !border !border-gray-300 !rounded-lg" />
+                                <Tooltip wrapperClassName="!bg-white !border !border-gray-300 !rounded-lg" formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} />
                                 <Legend />
                                 <Bar dataKey="Entradas" fill="#1e3a5f" radius={[4, 4, 0, 0]} />
                                 <Bar dataKey="Saídas" fill="#facc15" radius={[4, 4, 0, 0]} />
