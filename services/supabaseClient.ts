@@ -12,22 +12,9 @@ const supabaseUrl = 'https://yaaqffcvpghdamtkzvea.supabase.co';
 // 4. Cole a chave aqui, substituindo todo este texto entre as aspas.
 const supabaseAnonKey = 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V';
 
-if (!supabaseUrl || !supabaseAnonKey || supabaseAnonKey === 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V') {
-    const errorMessage = "ERRO DE CONFIGURAÇÃO: A URL ou a chave de API do Supabase não foram definidas corretamente.";
-    console.error(errorMessage);
-    
-    // Exibe um erro amigável na UI
-    const rootElement = document.getElementById('root');
-    if (rootElement) {
-        rootElement.innerHTML = `
-            <div style="font-family: sans-serif; padding: 2rem; text-align: center; background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 0.5rem; margin: 2rem auto; max-width: 600px;">
-                <h1 style="font-size: 1.25rem; font-weight: bold;">Erro de Configuração</h1>
-                <p>A URL ou a Chave de API do Supabase estão ausentes ou incorretas no arquivo <strong>services/supabaseClient.ts</strong>.</p>
-                <p style="margin-top: 1rem;">Por favor, abra este arquivo no código e siga as instruções para inserir a chave de API correta do seu projeto.</p>
-            </div>
-        `;
-    }
-    throw new Error(errorMessage);
-}
+// A verificação de chave inválida agora é tratada na página de Login para fornecer
+// uma experiência de usuário melhor com instruções claras.
+// Se a chave estiver errada, o Supabase retornará um erro 'Invalid API key'
+// que será capturado e exibido na tela de login.
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

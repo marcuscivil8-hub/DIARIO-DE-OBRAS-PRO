@@ -107,7 +107,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         const totalSaidas = Object.values(saidasConsolidadas).reduce((sum, val) => sum + val, 0);
         const balanco = totalEntradas - totalSaidas;
 
-        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: saidasConsolidadas };
+        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria };
     }, [selectedObraId, transacoes, pontos, funcionarios, movimentacoes, materiais, user.role]);
 
 
@@ -172,7 +172,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => (b as number) - (a as number)).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                {/* FIX: Explicitly cast sort parameters to numbers to resolve potential type inference issues. */}
+                                {/* FIX: Explicitly cast value to number to resolve potential type inference issues. */}
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {(valor as number).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </li>
                          ))}
