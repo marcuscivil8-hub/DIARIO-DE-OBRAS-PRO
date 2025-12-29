@@ -15,6 +15,7 @@ const UsuariosPage: React.FC = () => {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null); // State for modal errors
     
     // FIX: Added 'email' property to satisfy the User type.
     const initialNewUserState: Omit<User, 'id'> = {
@@ -49,6 +50,7 @@ const UsuariosPage: React.FC = () => {
 
 
     const handleOpenModal = (user: User | null = null) => {
+        setFormError(null); // Reset error on modal open
         if (user) {
             setEditingUser(user);
             // FIX: Added 'email' property when setting form state for an existing user.
@@ -68,9 +70,9 @@ const UsuariosPage: React.FC = () => {
     };
     
     const handleSaveUser = async () => {
+        setFormError(null); // Reset error on save attempt
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
-            // FIX: Replaced alert with console.error.
-            console.error('Por favor, preencha nome, email, usuário e senha.');
+            setFormError('Por favor, preencha nome, email, usuário e senha.');
             return;
         }
 
@@ -94,13 +96,13 @@ const UsuariosPage: React.FC = () => {
                 // SECURITY: Use the secure Edge Function to create a new user
                 await apiService.users.createUser(userData);
             }
+            // On success: close modal and refresh data
+            setIsModalOpen(false);
+            await fetchData();
         } catch (error: any) {
-            // FIX: Replaced alert with console.error.
             console.error(`Erro ao salvar usuário: ${error.message}`);
+            setFormError(error.message); // Set form error to display in the modal
         }
-        
-        setIsModalOpen(false);
-        await fetchData();
     };
 
     const triggerDeleteUser = (userId: string) => {
@@ -217,6 +219,8 @@ const UsuariosPage: React.FC = () => {
                              ))}
                         </div>
                     )}
+                    
+                    {formError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{formError}</p>}
 
                     <Button type="submit" className="w-full">Salvar Usuário</Button>
                 </form>
