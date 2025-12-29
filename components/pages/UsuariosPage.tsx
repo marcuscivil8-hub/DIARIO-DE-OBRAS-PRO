@@ -190,19 +190,26 @@ const UsuariosPage: React.FC = () => {
             {isConfigError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
                     <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha de Conexão com o Servidor (Edge Function)</h4>
-                    <p className="text-red-700">A criação ou exclusão de usuários falhou porque o aplicativo não conseguiu se comunicar com o servidor Supabase.</p>
-                    <p className="text-red-700 mt-2"><strong>Causa Mais Comum:</strong> A chave de API pública (<code className="bg-gray-200 text-black px-1 rounded">supabaseAnonKey</code>) no arquivo de configuração não foi definida.</p>
+                    <p className="text-red-700">A criação ou exclusão de usuários falhou porque o aplicativo não conseguiu se comunicar com as funções do servidor no Supabase.</p>
+                    <p className="text-red-700 mt-2"><strong>Causa mais provável:</strong> As "Edge Functions" (`create-user`, `delete-user`) não foram configuradas com as variáveis de ambiente (Secrets) necessárias para acessar o banco de dados com permissões de administrador.</p>
                     
                     <div className="mt-3 pt-3 border-t border-red-200">
-                        <h5 className="font-bold text-red-700">Como Corrigir:</h5>
-                        <ol className="list-decimal list-inside text-red-700 space-y-1 mt-1">
-                            <li>Abra o arquivo <code className="bg-gray-200 text-black px-1 rounded">services/supabaseClient.ts</code> no seu projeto.</li>
-                            <li>Siga as instruções nos comentários para copiar sua chave de API pública (anon) do painel do Supabase.</li>
-                            <li>Cole sua chave no lugar do texto <code className="bg-gray-200 text-black px-1 rounded">'SUA_CHAVE_PUBLICA_ANON_AQUI'</code>.</li>
-                            <li>Salve o arquivo. A funcionalidade será restaurada imediatamente.</li>
+                        <h5 className="font-bold text-red-700">Como Corrigir (Configuração do Servidor):</h5>
+                        <ol className="list-decimal list-inside text-red-700 space-y-2 mt-2">
+                            <li>Acesse seu projeto no <a href="https://supabase.com/" target="_blank" rel="noopener noreferrer" className="underline font-semibold">painel do Supabase</a>.</li>
+                            <li>No menu esquerdo, vá para <strong>Edge Functions</strong>.</li>
+                            <li>Clique na função <strong>`create-user`</strong> e vá para a aba <strong>Secrets</strong>.</li>
+                            <li>Adicione os dois "Secrets" abaixo:
+                                <ul className="list-disc list-inside ml-6 my-2 font-mono bg-red-100 p-2 rounded">
+                                    <li>Nome: <code className="bg-gray-200 text-black px-1 rounded">SUPABASE_URL</code>, Valor: <code className="bg-gray-200 text-black px-1 rounded">https://yaaqffcvpghdamtkzvea.supabase.co</code></li>
+                                    <li>Nome: <code className="bg-gray-200 text-black px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code>, Valor: <span className="italic">(Sua chave service_role)</span></li>
+                                </ul>
+                            </li>
+                             <li>Para encontrar a chave <code className="font-mono bg-gray-200 text-black px-1 rounded">service_role</code>: vá em <strong>Project Settings</strong> (ícone de engrenagem) &rarr; <strong>API</strong> &rarr; copie o valor do campo <strong>`service_role` (secret)</strong>.</li>
+                            <li>Repita os passos 3 a 5 para a função <strong>`delete-user`</strong>.</li>
                         </ol>
+                        <p className="text-red-800 font-semibold mt-3">Após configurar os Secrets, a funcionalidade será restaurada imediatamente, sem precisar alterar o código novamente.</p>
                     </div>
-                     <p className="text-red-700 mt-3 text-xs"><strong>Outras Causas:</strong> A URL do Supabase no mesmo arquivo pode estar incorreta, ou seu projeto no painel do Supabase pode estar pausado por inatividade.</p>
                 </Card>
             )}
 

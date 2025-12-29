@@ -1,3 +1,4 @@
+
 // FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
 declare const Deno: any;
 
@@ -23,6 +24,7 @@ Deno.serve(async (req: any) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
+      console.error('ERRO CRÍTICO: As variáveis de ambiente SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY não estão configuradas para a Edge Function "delete-user".');
       throw new Error('As variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
     }
 

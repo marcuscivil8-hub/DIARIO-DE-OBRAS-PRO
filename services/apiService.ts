@@ -9,7 +9,7 @@ const handleFunctionError = (error: any, context: string) => {
         
         // Check for generic network failure, often due to incorrect Supabase URL/key or paused project.
         if (error.message.includes('Failed to send a request')) {
-             throw new Error('CONFIG_ERROR: Falha de rede ao invocar a função do servidor. Verifique se o projeto Supabase está ativo e se a URL e a Chave de API em supabaseClient.ts estão corretas.');
+             throw new Error('CONFIG_ERROR: Falha de conexão com o servidor. Verifique a configuração do cliente (URL/Chave API) e as variáveis de ambiente da Edge Function (URL/Chave de Serviço) no painel do Supabase.');
         }
 
 
