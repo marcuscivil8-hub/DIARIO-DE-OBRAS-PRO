@@ -17,7 +17,8 @@ const UsuariosPage: React.FC = () => {
     const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null); // State for modal errors
     const [pageError, setPageError] = useState<string | null>(null);
-    const [isRlsError, setIsRlsError] = useState(false); // New state for RLS specific errors
+    const [isRlsError, setIsRlsError] = useState(false);
+    const [isConfigError, setIsConfigError] = useState(false);
     
     // FIX: Added 'email' property to satisfy the User type.
     const initialNewUserState: Omit<User, 'id'> = {
@@ -33,6 +34,7 @@ const UsuariosPage: React.FC = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         setIsRlsError(false); // Reset on every fetch
+        setIsConfigError(false);
         setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
@@ -63,6 +65,7 @@ const UsuariosPage: React.FC = () => {
         setFormError(null); // Reset error on modal open
         setPageError(null);
         setIsRlsError(false);
+        setIsConfigError(false);
         if (user) {
             setEditingUser(user);
             // FIX: Added 'email' property when setting form state for an existing user.
@@ -82,9 +85,10 @@ const UsuariosPage: React.FC = () => {
     };
     
     const handleSaveUser = async () => {
-        setFormError(null); // Reset error on save attempt
+        setFormError(null);
         setPageError(null);
         setIsRlsError(false);
+        setIsConfigError(false);
 
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
             setFormError('Por favor, preencha nome, email, usuário e senha.');
@@ -104,24 +108,24 @@ const UsuariosPage: React.FC = () => {
                     role: userData.role,
                     obraIds: userData.obraIds,
                 };
-                // NOTE: Supabase auth requires a separate flow to update email/password,
-                // which is more complex. For simplicity, we are only updating profile data here.
                 await apiService.users.update(editingUser.id, updates);
             } else {
-                // SECURITY: Use the secure Edge Function to create a new user
                 await apiService.users.createUser(userData);
             }
-            // On success: close modal and refresh data
             setIsModalOpen(false);
             await fetchData();
         } catch (error: any) {
             console.error(`Erro ao salvar usuário: ${error.message}`);
-            if (error.message.includes('RLS') || error.message.includes('recursion') || error.message.includes('permissão negada')) {
+            if (error.message.includes('CONFIG_ERROR')) {
+                setIsConfigError(true);
+                setPageError(error.message);
+                setIsModalOpen(false);
+            } else if (error.message.includes('RLS') || error.message.includes('recursion') || error.message.includes('permissão negada')) {
                 setIsRlsError(true);
                 setPageError(error.message);
-                setIsModalOpen(false); // Close modal to show the page-level error card
+                setIsModalOpen(false);
             } else {
-                setFormError(error.message); // Set form error to display in the modal
+                setFormError(error.message);
             }
         }
     };
@@ -129,6 +133,7 @@ const UsuariosPage: React.FC = () => {
     const triggerDeleteUser = (userId: string) => {
         setPageError(null);
         setIsRlsError(false);
+        setIsConfigError(false);
         const user = users.find(u => u.id === userId);
         if (user?.email === 'admin@diariodeobra.pro') {
             setPageError('Não é possível excluir o administrador principal.');
@@ -140,16 +145,24 @@ const UsuariosPage: React.FC = () => {
 
     const confirmDeleteUser = async () => {
         if (!userToDeleteId) return;
+        let hadError = false;
         try {
-            // SECURITY FIX: Call the secure Edge Function to delete the user completely.
             await apiService.users.deleteUser(userToDeleteId);
         } catch (error: any) {
-            setPageError(`Erro ao deletar usuário: ${error.message}`);
+            hadError = true;
+            if (error.message.includes('CONFIG_ERROR')) {
+                setIsConfigError(true);
+                setPageError(error.message);
+            } else {
+                setPageError(`Erro ao deletar usuário: ${error.message}`);
+            }
         }
         
         setIsConfirmModalOpen(false);
         setUserToDeleteId(null);
-        await fetchData();
+        if (!hadError) {
+            await fetchData();
+        }
     };
     
     const handleObraIdChange = (obraId: string) => {
@@ -172,8 +185,21 @@ const UsuariosPage: React.FC = () => {
                     <span>Novo Usuário</span>
                 </Button>
             </div>
-            {pageError && !isRlsError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
+            {pageError && !isRlsError && !isConfigError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
             
+            {isConfigError && (
+                 <Card className="mt-6 text-sm bg-red-50 border border-red-200">
+                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha de Conexão com o Servidor</h4>
+                    <p className="text-red-700">Não foi possível conectar-se às funções do servidor Supabase (Edge Functions). Isso geralmente ocorre por um dos seguintes motivos:</p>
+                    <ul className="list-disc list-inside text-red-700 space-y-1 mt-2">
+                        <li>O projeto no painel do Supabase está <strong>pausado</strong> devido à inatividade.</li>
+                        <li>A URL do Supabase (<code className="bg-gray-200 text-black px-1 rounded">supabaseUrl</code>) está incorreta no arquivo <code>services/supabaseClient.ts</code>.</li>
+                        <li>A chave de API pública (<code className="bg-gray-200 text-black px-1 rounded">supabaseAnonKey</code>) está incorreta no arquivo <code>services/supabaseClient.ts</code>.</li>
+                    </ul>
+                    <p className="text-red-700 mt-3"><strong>Ação recomendada:</strong> Verifique o status do seu projeto no painel do Supabase e confirme que as credenciais no arquivo <code>services/supabaseClient.ts</code> estão corretas.</p>
+                </Card>
+            )}
+
             {isRlsError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
                     <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Permissão de Acesso Negada (RLS)</h4>
@@ -212,7 +238,7 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                 </Card>
             )}
 
-            {!isRlsError && (
+            {!isRlsError && !isConfigError && (
                  <Card>
                     <div className="overflow-x-auto">
                          <table className="w-full text-left">

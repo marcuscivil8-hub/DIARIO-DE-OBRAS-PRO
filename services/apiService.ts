@@ -6,6 +6,12 @@ import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramen
 const handleFunctionError = (error: any, context: string) => {
     if (error) {
         console.error(`Raw error from Edge Function '${context}':`, error);
+        
+        // Check for generic network failure, often due to incorrect Supabase URL/key or paused project.
+        if (error.message.includes('Failed to send a request')) {
+             throw new Error('CONFIG_ERROR: Falha de rede ao invocar a função do servidor. Verifique se o projeto Supabase está ativo e se a URL e a Chave de API em supabaseClient.ts estão corretas.');
+        }
+
 
         // A biblioteca supabase-js geralmente coloca o corpo da resposta de erro na propriedade 'context'.
         // A nossa função de backend retorna um objeto JSON como { "error": "mensagem específica" }.
