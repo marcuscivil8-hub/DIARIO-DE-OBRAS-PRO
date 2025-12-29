@@ -17,6 +17,7 @@ const UsuariosPage: React.FC = () => {
     const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null); // State for modal errors
     const [pageError, setPageError] = useState<string | null>(null);
+    const [isRlsError, setIsRlsError] = useState(false); // New state for RLS specific errors
     
     // FIX: Added 'email' property to satisfy the User type.
     const initialNewUserState: Omit<User, 'id'> = {
@@ -31,6 +32,8 @@ const UsuariosPage: React.FC = () => {
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        setIsRlsError(false); // Reset on every fetch
+        setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
                 apiService.users.getAll(),
@@ -53,6 +56,7 @@ const UsuariosPage: React.FC = () => {
     const handleOpenModal = (user: User | null = null) => {
         setFormError(null); // Reset error on modal open
         setPageError(null);
+        setIsRlsError(false);
         if (user) {
             setEditingUser(user);
             // FIX: Added 'email' property when setting form state for an existing user.
@@ -73,6 +77,9 @@ const UsuariosPage: React.FC = () => {
     
     const handleSaveUser = async () => {
         setFormError(null); // Reset error on save attempt
+        setPageError(null);
+        setIsRlsError(false);
+
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
             setFormError('Por favor, preencha nome, email, usuário e senha.');
             return;
@@ -103,12 +110,19 @@ const UsuariosPage: React.FC = () => {
             await fetchData();
         } catch (error: any) {
             console.error(`Erro ao salvar usuário: ${error.message}`);
-            setFormError(error.message); // Set form error to display in the modal
+            if (error.message && error.message.includes('permissão negada')) {
+                setIsRlsError(true);
+                setPageError("Falha de permissão. Verifique as instruções abaixo para configurar as Políticas de Segurança (RLS).");
+                setIsModalOpen(false); // Close modal to show the page-level error card
+            } else {
+                setFormError(error.message); // Set form error to display in the modal
+            }
         }
     };
 
     const triggerDeleteUser = (userId: string) => {
         setPageError(null);
+        setIsRlsError(false);
         const user = users.find(u => u.id === userId);
         if (user?.email === 'admin@diariodeobra.pro') {
             setPageError('Não é possível excluir o administrador principal.');
@@ -153,6 +167,46 @@ const UsuariosPage: React.FC = () => {
                 </Button>
             </div>
             {pageError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
+            
+            {isRlsError && (
+                 <Card className="mt-6 text-sm bg-red-50 border border-red-200">
+                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Permissão de Acesso Negada (RLS)</h4>
+                    <p className="text-red-700">A operação falhou. Para que um <strong>Administrador</strong> possa gerenciar outros usuários (ver a lista e editar), as <strong>Políticas de Segurança (RLS)</strong> da sua tabela <code>profiles</code> no Supabase precisam ser ajustadas.</p>
+                    <p className="text-red-700 mt-2">No seu painel do Supabase, vá para <strong>Authentication &rarr; Policies</strong> e, na tabela <strong>profiles</strong>, garanta que as seguintes políticas existam e estejam ativas. Elas substituem políticas mais simples que permitem apenas o acesso ao próprio perfil.</p>
+                    
+                    <div className="mt-4">
+                        <h5 className="font-bold text-red-700">1. Política para Visualizar (SELECT)</h5>
+                        <p className="text-red-700 text-xs mb-1">Permite que Admins vejam todos os usuários e outros vejam apenas a si mesmos.</p>
+                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto">
+                            <code>
+    {`-- NOME: Admins can view all profiles
+-- OPERAÇÃO: SELECT
+-- EXPRESSÃO (USING):
+(auth.uid() = id) OR (( SELECT profiles.role
+    FROM profiles
+    WHERE (profiles.id = auth.uid())) = 'Admin'::text)`}
+                            </code>
+                        </pre>
+                    </div>
+
+                    <div className="mt-4">
+                        <h5 className="font-bold text-red-700">2. Política para Atualizar (UPDATE)</h5>
+                        <p className="text-red-700 text-xs mb-1">Permite que Admins atualizem o perfil de qualquer usuário.</p>
+                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto">
+                            <code>
+    {`-- NOME: Admins can update any profile
+-- OPERAÇÃO: UPDATE
+-- EXPRESSÃO (USING):
+(( SELECT profiles.role
+    FROM profiles
+    WHERE (profiles.id = auth.uid())) = 'Admin'::text)`}
+                            </code>
+                        </pre>
+                    </div>
+                    <p className="text-red-700 mt-3">Após adicionar/atualizar estas políticas, a edição e visualização de usuários funcionará corretamente.</p>
+                </Card>
+            )}
+
             <Card>
                 <div className="overflow-x-auto">
                      <table className="w-full text-left">
