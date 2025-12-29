@@ -157,7 +157,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort(([,a]: [string, number], [,b]: [string, number]) => b - a).map(([categoria, valor]: [string, number]) => (
+{/* FIX: Removed potentially problematic explicit type annotations from sort and map callbacks to rely on TypeScript's inference, which should be correct given the source array's type. */}
+                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => b - a).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>

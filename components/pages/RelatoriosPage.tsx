@@ -18,10 +18,10 @@ const RelatorioConsumo: React.FC<{
     const materiaisUsados = useMemo(() => {
         const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
         const movimentosUso = movimentacoes.filter(m => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
-        // FIX: Add explicit type annotation for the map callback parameter to ensure correct type inference.
+// FIX: Add explicit type annotation for the map callback parameter to ensure correct type inference.
         const materiaisMap = new Map(materiais.map((m: Material) => [m.id, m]));
 
-        // FIX: Add explicit type annotation for the forEach callback parameter to ensure correct type inference.
+// FIX: Add explicit type annotation for the forEach callback parameter to ensure correct type inference.
         movimentosUso.forEach((mov: MovimentacaoAlmoxarifado) => {
             const material = materiaisMap.get(mov.itemId);
             if (material) {
@@ -40,7 +40,7 @@ const RelatorioConsumo: React.FC<{
     }, [obra.id, ferramentas]);
 
     const custoTotalMateriais = materiaisUsados.reduce((sum, item) => sum + item.valorTotal, 0);
-    // FIX: Add explicit type annotation for the reduce callback parameter to ensure correct type inference.
+// FIX: Add explicit type annotation for the reduce callback parameter to ensure correct type inference.
     const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item: Ferramenta) => sum + (item.valor || 0), 0);
 
     return (
