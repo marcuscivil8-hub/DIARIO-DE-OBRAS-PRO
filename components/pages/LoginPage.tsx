@@ -12,10 +12,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [testResult, setTestResult] = useState<string | null>(null);
+
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setTestResult(null);
         setLoading(true);
         try {
             await onLogin(email, password);
@@ -23,6 +26,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         } catch (err: any) {
             // A mensagem de erro agora vem diretamente da apiService, mais específica.
             setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAdminTest = async () => {
+        setError('');
+        setTestResult(null);
+        setLoading(true);
+        try {
+            // Se o login for bem-sucedido, o App.tsx navegará para o dashboard.
+            await onLogin('admin@diariodeobra.pro', '12345678');
+        } catch (err: any) {
+            if (err.message.includes('Email ou senha inválidos')) {
+                setTestResult("Falha no Teste: As credenciais 'admin@diariodeobra.pro' / '12345678' estão incorretas no Supabase. Por favor, recrie o usuário com atenção à senha e ativando a opção 'Auto confirm user'.");
+            } else {
+                 setTestResult(`Falha no Teste com um erro inesperado: ${err.message}`);
+            }
         } finally {
             setLoading(false);
         }
@@ -73,6 +94,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </form>
+
+                <div className="bg-white rounded-xl shadow-2xl p-8 mt-4">
+                    <Button type="button" variant="secondary" onClick={handleAdminTest} className="w-full" disabled={loading}>
+                        {loading ? 'Testando...' : 'Testar Login Admin Padrão'}
+                    </Button>
+                     {testResult && (
+                        <div className="mt-4 text-sm text-center p-3 rounded-lg bg-red-50 text-red-800 border border-red-200">
+                            {testResult}
+                        </div>
+                    )}
+                </div>
+
                  <Card className="mt-6 text-sm bg-blue-50 border border-blue-200">
                     <h4 className="font-bold text-brand-blue mb-2">Problemas para acessar?</h4>
                     <p className="text-brand-gray">
