@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Funcionario, Ponto, User, UserRole, PagamentoTipo, Obra } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -80,23 +79,38 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
             setPontoError('Por favor, selecione uma obra específica para registrar o ponto.');
             return;
         }
-
-        const pontoIndex = pontos.findIndex(p => p.funcionarioId === funcionarioId && p.data === data && p.obraId === selectedObraId);
-        let updatedPontos = [...pontos];
-
-        if (pontoIndex > -1) {
-            const currentStatus = pontos[pontoIndex].status;
-            if (currentStatus === 'presente') {
-                updatedPontos[pontoIndex] = { ...updatedPontos[pontoIndex], status: 'falta' };
+    
+        const existingPonto = pontos.find(p => p.funcionarioId === funcionarioId && p.data === data && p.obraId === selectedObraId);
+    
+        try {
+            if (existingPonto) {
+                // Ponto existe: ciclo presente -> falta -> removido
+                if (existingPonto.status === 'presente') {
+                    // Atualiza para 'falta'
+                    const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
+                    setPontos(pontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                } else { // status é 'falta'
+                    // Remove o registro
+                    await apiService.pontos.delete(existingPonto.id);
+                    setPontos(pontos.filter(p => p.id !== existingPonto.id));
+                }
             } else {
-                updatedPontos.splice(pontoIndex, 1);
+                // Ponto não existe: cria novo como 'presente'
+                const newPontoData: Omit<Ponto, 'id'> = {
+                    funcionarioId,
+                    obraId: selectedObraId,
+                    data,
+                    status: 'presente'
+                };
+                const createdPonto = await apiService.pontos.create(newPontoData);
+                setPontos([...pontos, createdPonto]);
             }
-        } else {
-            const newPonto: Ponto = { id: new Date().toISOString(), funcionarioId, data, status: 'presente', obraId: selectedObraId };
-            updatedPontos.push(newPonto);
+        } catch (error) {
+            console.error("Falha ao atualizar o ponto:", error);
+            setPontoError("Não foi possível salvar a alteração. Por favor, recarregue a página e tente novamente.");
+            // Opcional: reverter a atualização otimista recarregando os dados
+            await fetchAllData();
         }
-        await apiService.pontos.replaceAll(updatedPontos);
-        setPontos(updatedPontos);
     };
     
     const visibleFuncionarios = useMemo(() => 
@@ -106,22 +120,39 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     [funcionarios, selectedObraId]);
 
     const custoSemanal = useMemo(() => {
-        return weekDayStrings.reduce((total, date) => {
-            const dailyCost = visibleFuncionarios.reduce((dailyTotal, func) => {
-                const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date && p.status === 'presente' && (selectedObraId === 'all' || p.obraId === selectedObraId));
-                if (ponto) {
-                    if (func.tipoPagamento === PagamentoTipo.Diaria) {
-                        return dailyTotal + func.valor;
-                    }
-                    if (func.tipoPagamento === PagamentoTipo.Salario) {
-                        return dailyTotal + (func.valor / 22);
-                    }
-                }
-                return dailyTotal;
-            }, 0);
+        // Considera apenas funcionários ativos para o cálculo
+        const activeFuncionarioIds = new Set(
+            funcionarios.filter(f => f.ativo).map(f => f.id)
+        );
+    
+        // Filtra os pontos relevantes para a semana e para a visão atual (obra específica ou todas)
+        const pontosDaSemana = pontos.filter(p => 
+            p.status === 'presente' &&
+            weekDayStrings.includes(p.data) &&
+            activeFuncionarioIds.has(p.funcionarioId) &&
+            (selectedObraId === 'all' || p.obraId === selectedObraId)
+        );
+    
+        // Mapeia os funcionários por ID para uma busca mais rápida
+        const funcionariosMap = new Map(funcionarios.map(f => [f.id, f]));
+    
+        const custoTotal = pontosDaSemana.reduce((total, ponto) => {
+            // FIX: Explicitly cast the result of .get() to fix type inference issue where `funcionario` becomes `unknown`.
+            const funcionario = funcionariosMap.get(ponto.funcionarioId) as Funcionario | undefined;
+            if (!funcionario) return total;
+    
+            let dailyCost = 0;
+            if (funcionario.tipoPagamento === PagamentoTipo.Diaria) {
+                dailyCost = funcionario.valor;
+            } else if (funcionario.tipoPagamento === PagamentoTipo.Salario) {
+                // Custo diário estimado para mensalista
+                dailyCost = funcionario.valor / 22;
+            }
             return total + dailyCost;
         }, 0);
-    }, [pontos, visibleFuncionarios, weekDayStrings, selectedObraId]);
+    
+        return custoTotal;
+    }, [pontos, funcionarios, weekDayStrings, selectedObraId]);
     
     if (loading) return <div className="text-center p-8">Carregando folha de pontos...</div>;
 

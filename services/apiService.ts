@@ -168,36 +168,7 @@ export const apiService = {
         handleSupabaseError(error, 'updateLembretes');
     },
     
-    pontos: {
-        ...createCrudService<Ponto>('pontos'),
-        async replaceAll(newItems: Ponto[]): Promise<void> {
-            const { data: existing } = await supabase.from('pontos').select('id, funcionario_id, data, obra_id').returns<{ id: string; funcionario_id: string; data: string; obra_id: string }[]>();
-            // FIX: Explicitly type the Map to prevent type inference issues when `existing` is null.
-            const existingMap = new Map<string, string>(existing?.map(p => [`${p.funcionario_id}-${p.data}-${p.obra_id}`, p.id]));
-            const newMap = new Map(newItems.map(p => [`${p.funcionarioId}-${p.data}-${p.obraId}`, p]));
-
-            const toDelete = Array.from(existingMap.keys()).filter(key => !newMap.has(key));
-            
-            // FIX: Explicitly type the array for upsert to handle potential type inference issues.
-            const toUpsert: Array<{ id?: string; funcionario_id: string; data: string; status: 'presente' | 'falta'; obra_id: string; }> = newItems.map(p => ({
-                id: existingMap.get(`${p.funcionarioId}-${p.data}-${p.obraId}`),
-                funcionario_id: p.funcionarioId,
-                data: p.data,
-                status: p.status,
-                obra_id: p.obraId,
-            }));
-
-            if(toDelete.length > 0) {
-                const idsToDelete = toDelete.map(key => existingMap.get(key)).filter((id): id is string => !!id);
-                if (idsToDelete.length > 0) {
-                    await supabase.from('pontos').delete().in('id', idsToDelete);
-                }
-            }
-            if(toUpsert.length > 0) {
-                 await supabase.from('pontos').upsert(toUpsert);
-            }
-        }
-    },
+    pontos: createCrudService<Ponto>('pontos'),
     
     documentos: {
         ...createCrudService<Documento>('documentos'),
