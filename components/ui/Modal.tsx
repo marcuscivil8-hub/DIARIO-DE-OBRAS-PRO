@@ -41,10 +41,15 @@ interface ConfirmationModalProps {
     title: string;
     message: React.ReactNode;
     confirmText?: string;
+    confirmVariant?: 'primary' | 'secondary' | 'danger';
 }
 
-export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirmar' }) => {
+export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirmar', confirmVariant = 'danger' }) => {
     if (!isOpen) return null;
+
+    const confirmIcon = confirmVariant === 'danger' 
+        ? React.cloneElement(ICONS.delete, { className: "h-5 w-5" })
+        : React.cloneElement(ICONS.check, { className: "h-5 w-5" });
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
@@ -54,8 +59,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, on
                     <Button variant="secondary" onClick={onClose} size="sm">
                         Cancelar
                     </Button>
-                    <Button variant="danger" onClick={onConfirm} className="flex items-center space-x-2" size="sm">
-                        {React.cloneElement(ICONS.delete, { className: "h-5 w-5" })}
+                    <Button variant={confirmVariant} onClick={onConfirm} className="flex items-center space-x-2" size="sm">
+                        {confirmIcon}
                         <span>{confirmText}</span>
                     </Button>
                 </div>

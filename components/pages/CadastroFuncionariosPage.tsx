@@ -187,6 +187,7 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
                 title={`Confirmar ${funcionarioToDeactivate?.ativo ? 'Desativação' : 'Reativação'}`}
                 message={`Tem certeza que deseja ${funcionarioToDeactivate?.ativo ? 'desativar' : 'reativar'} este funcionário?`}
                 confirmText={funcionarioToDeactivate?.ativo ? 'Desativar' : 'Reativar'}
+                confirmVariant={funcionarioToDeactivate?.ativo ? 'danger' : 'primary'}
             />
         </div>
     );
