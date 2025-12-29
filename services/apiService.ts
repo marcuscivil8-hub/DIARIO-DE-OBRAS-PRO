@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
@@ -12,29 +11,20 @@ const handleFunctionError = (error: any, context: string) => {
              throw new Error('CONFIG_ERROR: Falha de conexão com o servidor. Verifique a configuração do cliente (URL/Chave API) e as variáveis de ambiente da Edge Function (URL/Chave de Serviço) no painel do Supabase.');
         }
 
-
-        // A biblioteca supabase-js geralmente coloca o corpo da resposta de erro na propriedade 'context'.
-        // A nossa função de backend retorna um objeto JSON como { "error": "mensagem específica" }.
-        // Esta lógica tenta extrair essa mensagem específica.
-        let specificMessage = '';
-
+        // Tenta extrair a mensagem de erro específica do corpo da resposta, se disponível.
+        let specificMessage = `Edge Function '${context}' returned a non-2xx status code.`;
         if (error.context && typeof error.context.error === 'string') {
-            // Caso o `context` seja um objeto já parseado com a propriedade `error`.
             specificMessage = error.context.error;
         } else if (error.context && typeof error.context === 'string') {
-            // Caso o `context` seja uma string JSON crua.
             try {
                 const parsedBody = JSON.parse(error.context);
                 if (parsedBody.error) {
                     specificMessage = parsedBody.error;
                 }
-            } catch (e) {
-                // Não é um JSON válido, ignora.
-            }
+            } catch (e) { /* Ignora se não for JSON válido */ }
         }
         
-        // Se uma mensagem específica foi encontrada, a usamos. Caso contrário, usamos a mensagem genérica do erro.
-        throw new Error(specificMessage || error.message);
+        throw new Error(specificMessage);
     }
 }
 
@@ -227,6 +217,20 @@ export const apiService = {
 
     users: {
         ...createCrudService<User>('profiles'),
+        async getAll(): Promise<User[]> {
+            const { data, error } = await supabase.rpc('get_users_with_email');
+            handleSupabaseError(error, 'getAll users with email');
+
+            // O RPC retorna snake_case, então precisamos converter para camelCase
+            return data ? data.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                email: item.email,
+                username: item.username,
+                role: item.role,
+                obraIds: item.obra_ids,
+            })) : [];
+        },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', {
                 body: userData,

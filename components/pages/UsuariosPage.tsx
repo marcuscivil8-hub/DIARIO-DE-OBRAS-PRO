@@ -272,6 +272,8 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                             <thead className="border-b-2 border-brand-light-gray">
                                 <tr>
                                     <th className="p-4 text-brand-blue font-semibold">Nome</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Email</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Usuário</th>
                                     <th className="p-4 text-brand-blue font-semibold">Permissão</th>
                                     <th className="p-4 text-brand-blue font-semibold">Ações</th>
                                 </tr>
@@ -280,6 +282,8 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                                 {users.map(user => (
                                     <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
                                         <td className="p-4 font-bold text-brand-blue">{user.name}</td>
+                                        <td className="p-4 text-gray-700">{user.email}</td>
+                                        <td className="p-4 text-gray-700">{user.username}</td>
                                         <td className="p-4">
                                             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
                                                 user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :
