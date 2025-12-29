@@ -20,12 +20,12 @@ Deno.serve(async (req: any) => {
 
   try {
     // Verifica se as variáveis de ambiente essenciais estão configuradas
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('PROJECT_URL');
+    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error('ERRO CRÍTICO: As variáveis de ambiente SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY não estão configuradas para a Edge Function "delete-user".');
-      throw new Error('As variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
+      console.error('ERRO CRÍTICO: As variáveis de ambiente PROJECT_URL e/ou SERVICE_ROLE_KEY não estão configuradas para a Edge Function "delete-user".');
+      throw new Error('As variáveis de ambiente PROJECT_URL e SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
     }
 
     // Extrai o ID do usuário do corpo da requisição

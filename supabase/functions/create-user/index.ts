@@ -1,3 +1,4 @@
+
 // FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
 declare const Deno: any;
 
@@ -14,8 +15,8 @@ Deno.serve(async (req: any) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseUrl = Deno.env.get('PROJECT_URL');
+  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY');
   
   let authUser: any = null;
   // FIX: Declared supabaseAdmin here to widen its scope to the catch block for rollback operations.
@@ -23,8 +24,8 @@ Deno.serve(async (req: any) => {
 
   try {
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error('ERRO CRÍTICO: As variáveis de ambiente SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY não estão configuradas para a Edge Function "create-user".');
-      throw new Error('As variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
+      console.error('ERRO CRÍTICO: As variáveis de ambiente PROJECT_URL e/ou SERVICE_ROLE_KEY não estão configuradas para a Edge Function "create-user".');
+      throw new Error('As variáveis de ambiente PROJECT_URL e SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
     }
     
     supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
