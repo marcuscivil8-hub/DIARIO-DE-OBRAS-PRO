@@ -54,7 +54,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             : transacoes.filter((t: TransacaoFinanceira) => t.obraId === selectedObraId);
 
         const totalEntradas = user.role === UserRole.Admin 
-            ? transacoesFiltradas.filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc, t) => acc + t.valor, 0)
+            ? transacoesFiltradas.filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc: number, t: TransacaoFinanceira) => acc + t.valor, 0)
             : 0;
 
         const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));

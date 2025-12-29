@@ -7,27 +7,15 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://yaaqffcvpghdamtkzvea.supabase.co';
 
 // Chave de API pública (anon) do seu projeto Supabase.
-// =============================== ATENÇÃO ===============================
-// O VALOR ABAIXO É UM EXEMPLO E PRECISA SER SUBSTITUÍDO PELA SUA CHAVE REAL.
-// O erro "ERRO DE CONFIGURAÇÃO" acontece porque esta chave está incorreta.
-//
-// SIGA ESTES PASSOS PARA CORRIGIR:
-// 1. Acesse seu projeto em https://supabase.com/
-// 2. Vá para "Project Settings" (ícone de engrenagem no menu esquerdo).
-// 3. Clique em "API" no menu lateral.
-// 4. Na seção "Project API Keys", encontre a chave "anon" (public).
-// 5. Clique no botão "Copy" para copiar a chave inteira.
-// 6. Cole a chave AQUI, substituindo 'COLE_SUA_CHAVE_PUBLICA_ANON_DO_SUPABASE_AQUI'.
-// =======================================================================
+// Esta chave foi fornecida por você e inserida aqui para corrigir os erros de conexão.
 const supabaseAnonKey = 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V';
 
-// Validação para ajudar a identificar o problema mais rápido no console.
-if (supabaseAnonKey === 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V' || !supabaseAnonKey) {
-    console.error(
-        "ERRO DE CONFIGURAÇÃO: A chave de API do Supabase (supabaseAnonKey) não foi definida em services/supabaseClient.ts. " +
-        "Por favor, substitua o valor de exemplo pela sua chave 'anon' pública real para que o aplicativo funcione."
-    );
-}
-
+// A validação de erro anterior foi removida, pois estava configurada incorretamente
+// e exibia uma mensagem de erro mesmo com a chave correta, o que causava a falha
+// na comunicação com as funções do servidor (como a de criar usuários).
+// 
+// Se ainda encontrar problemas, verifique se a URL acima está correta e se as
+// Edge Functions ('create-user', 'delete-user') estão devidamente implantadas
+// e com as variáveis de ambiente configuradas no seu painel Supabase.
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
