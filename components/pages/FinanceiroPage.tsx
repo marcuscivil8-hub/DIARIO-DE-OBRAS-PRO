@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole } from '../../types';
+import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -14,6 +14,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
     const [obras, setObras] = useState<Obra[]>([]);
     const [pontos, setPontos] = useState<Ponto[]>([]);
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
+    const [materiais, setMateriais] = useState<Material[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
@@ -22,16 +24,20 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [transacoesData, obrasData, pontosData, funcionariosData] = await Promise.all([
+                const [transacoesData, obrasData, pontosData, funcionariosData, movsData, materiaisData] = await Promise.all([
                     apiService.transacoes.getAll(),
                     apiService.obras.getAll(),
                     apiService.pontos.getAll(),
                     apiService.funcionarios.getAll(),
+                    apiService.movimentacoesAlmoxarifado.getAll(),
+                    apiService.materiais.getAll(),
                 ]);
                 setTransacoes(transacoesData);
                 setObras(obrasData);
                 setPontos(pontosData);
                 setFuncionarios(funcionariosData);
+                setMovimentacoes(movsData);
+                setMateriais(materiaisData);
             } catch (error) {
                 console.error("Failed to fetch financial data", error);
             } finally {
@@ -41,67 +47,68 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         fetchData();
     }, []);
 
-    const filteredTransacoes = useMemo(() => {
-        let baseTransacoes = selectedObraId === 'all'
+    const { totalEntradas, totalSaidas, balanco, saidasPorCategoria } = useMemo(() => {
+        const isAllObras = selectedObraId === 'all';
+
+        // 1. Filtrar transações manuais pela obra selecionada
+        const transacoesFiltradas = isAllObras
             ? transacoes
             : transacoes.filter(t => t.obraId === selectedObraId);
-        
-        if (user.role === UserRole.Encarregado) {
-            return baseTransacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida);
-        }
 
-        return baseTransacoes;
-    }, [transacoes, selectedObraId, user.role]);
-        
-    const custoMaoDeObraPontos = useMemo(() => {
-        const pontosRelevantes = pontos.filter(p => 
-            p.status === 'presente' && (selectedObraId === 'all' || p.obraId === selectedObraId)
-        );
+        // 2. Calcular entradas (apenas Admin vê)
+        const totalEntradas = user.role === UserRole.Admin 
+            ? transacoesFiltradas.filter(t => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc, t) => acc + t.valor, 0)
+            : 0;
 
-        return pontosRelevantes.reduce((total, ponto) => {
+        // 3. Calcular Custo de Mão de Obra (baseado nos pontos)
+        const pontosRelevantes = pontos.filter(p => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
+        const custoMaoDeObra = pontosRelevantes.reduce((total, ponto) => {
             const func = funcionarios.find(f => f.id === ponto.funcionarioId);
             if (func) {
-                if (func.tipoPagamento === PagamentoTipo.Diaria) {
-                    return total + func.valor;
-                }
-                if (func.tipoPagamento === PagamentoTipo.Salario) {
-                    return total + (func.valor / 22); // Custo diário aproximado
-                }
+                const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
+                return total + dailyCost;
             }
             return total;
         }, 0);
 
-    }, [pontos, funcionarios, selectedObraId]);
+        // 4. Calcular Custo de Materiais (baseado nos movimentos de 'Uso')
+        const materiaisMap = new Map(materiais.map(m => [m.id, m]));
+        const movimentosUso = movimentacoes.filter(m => 
+            m.itemType === 'material' && 
+            m.tipoMovimentacao === MovimentacaoTipo.Uso &&
+            (isAllObras || m.obraId === selectedObraId)
+        );
+        const custoMateriais = movimentosUso.reduce((total, mov) => {
+            const material = materiaisMap.get(mov.itemId);
+            if (material && material.valor) {
+                return total + (material.valor * mov.quantidade);
+            }
+            return total;
+        }, 0);
 
-    const { totalEntradas, totalSaidas, balanco, saidasPorCategoria } = useMemo(() => {
-        const totalEntradas = filteredTransacoes
-            .filter(t => t.tipoTransacao === TransacaoTipo.Entrada)
-            .reduce((acc, t) => acc + t.valor, 0);
+        // 5. Consolidar todas as saídas por categoria
+        const saidasConsolidadas: Record<string, number> = {};
 
-        // Custo de Mão de Obra agora vem EXCLUSIVAMENTE da folha de ponto
-        const custoTotalMaoDeObra = custoMaoDeObraPontos;
+        // Adiciona saídas de transações manuais
+        transacoesFiltradas
+            .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento && t.categoria !== CategoriaSaida.Material)
+            .forEach(t => {
+                saidasConsolidadas[t.categoria] = (saidasConsolidadas[t.categoria] || 0) + t.valor;
+            });
 
-        // Processa as saídas manuais, ignorando a categoria 'Folha de Pagamento' que não deve mais ser usada
-        const saidasManuaisPorCategoria = filteredTransacoes
-            .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
-            .reduce((acc, t) => {
-                const categoria = t.categoria as CategoriaSaida;
-                acc[categoria] = (acc[categoria] || 0) + t.valor;
-                return acc;
-            }, {} as Record<string, number>);
-
-        // Junta os custos para o resumo final
-        // FIX: Add explicit type to prevent type inference issues where object values become `unknown`.
-        const finalSaidasPorCategoria: Record<string, number> = { ...saidasManuaisPorCategoria };
-        if (custoTotalMaoDeObra > 0) {
-            finalSaidasPorCategoria['Mão de Obra (Folha de Ponto)'] = custoTotalMaoDeObra;
+        // Adiciona custos calculados
+        if (custoMaoDeObra > 0) {
+            saidasConsolidadas['Mão de Obra (Folha de Ponto)'] = custoMaoDeObra;
+        }
+        if (custoMateriais > 0) {
+            saidasConsolidadas[CategoriaSaida.Material] = (saidasConsolidadas[CategoriaSaida.Material] || 0) + custoMateriais;
         }
 
-        const totalSaidas = Object.values(finalSaidasPorCategoria).reduce((sum, val) => sum + Number(val), 0);
+        const totalSaidas = Object.values(saidasConsolidadas).reduce((sum, val) => sum + val, 0);
         const balanco = totalEntradas - totalSaidas;
 
-        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: finalSaidasPorCategoria };
-    }, [filteredTransacoes, custoMaoDeObraPontos]);
+        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: saidasConsolidadas };
+    }, [selectedObraId, transacoes, pontos, funcionarios, movimentacoes, materiais, user.role]);
 
 
     const pieData = useMemo(() => {
@@ -120,7 +127,6 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <Card>
                 <div className="flex items-center space-x-4">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Filtrar por Obra:</label>
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
                     <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
                         {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
@@ -134,7 +140,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                         <p className="text-3xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
-                <Card title="Saídas (Transações + Ponto)" className="text-red-600">
+                <Card title="Saídas (Transações + Ponto + Uso de Material)" className="text-red-600">
                     <p className="text-3xl font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </Card>
                 {user.role === UserRole.Admin && (

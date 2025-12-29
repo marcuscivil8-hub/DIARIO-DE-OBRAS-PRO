@@ -83,6 +83,8 @@ export interface Material {
     unidade: string;
     quantidade: number; // This will now represent CENTRAL STOCK
     estoqueMinimo: number;
+    fornecedor?: string;
+    valor?: number;
 }
 
 export enum MovimentacaoTipo {
@@ -119,6 +121,7 @@ export interface Ferramenta {
     status: StatusFerramenta;
     responsavelId: string | null;
     obraId: string | null; // Current location of the tool
+    valor?: number;
 }
 
 export enum Clima {

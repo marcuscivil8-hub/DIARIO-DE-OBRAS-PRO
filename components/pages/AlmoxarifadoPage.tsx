@@ -3,7 +3,7 @@ import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, Movi
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
-import Modal from '../ui/Modal';
+import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
 
 interface AlmoxarifadoPageProps {
@@ -29,10 +29,15 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         descricao: ''
     });
 
-    // State for new material modal
-    const [isNewMaterialModalOpen, setIsNewMaterialModalOpen] = useState(false);
-    const emptyNewMaterial: Omit<Material, 'id' | 'quantidade'> = { nome: '', unidade: '', estoqueMinimo: 0 };
+    // State for new/edit material modal
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+    const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+    const emptyNewMaterial: Omit<Material, 'id' | 'quantidade'> = { nome: '', unidade: '', estoqueMinimo: 0, fornecedor: '', valor: 0 };
     const [newMaterialData, setNewMaterialData] = useState(emptyNewMaterial);
+    
+    // State for delete confirmations
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'material' | 'ferramenta' } | null>(null);
 
 
     const fetchData = useCallback(async () => {
@@ -66,11 +71,8 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         movimentacoes.forEach(mov => {
             if (mov.itemType === 'material') {
                 let change = 0;
-                // Estoque central aumenta com Entradas (de fornecedor) e Retornos (da obra).
                 if (mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
                     change = mov.quantidade;
-                // Estoque central diminui apenas com Saídas (para a obra).
-                // O 'Uso' do material ocorre na obra e afeta apenas o estoque da obra.
                 } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) {
                     change = -mov.quantidade;
                 }
@@ -118,7 +120,6 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         };
         await apiService.movimentacoesAlmoxarifado.create(newMov);
         
-        // If it's a tool going out, update its location
         if (currentItem.type === 'ferramenta' && modalType === 'saida') {
             await apiService.ferramentas.update(currentItem.id, {
                 obraId: formData.obraId,
@@ -129,14 +130,47 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         setIsMovementModalOpen(false);
         await fetchData();
     };
+
+    const handleOpenMaterialModal = (material: Material | null = null) => {
+        if (material) {
+            setEditingMaterial(material);
+            setNewMaterialData(material);
+        } else {
+            setEditingMaterial(null);
+            setNewMaterialData(emptyNewMaterial);
+        }
+        setIsMaterialModalOpen(true);
+    };
     
-    const handleSaveNewMaterial = async () => {
-        const newMaterialDataWithQuantity = { ...newMaterialData, quantidade: 0 };
-        await apiService.materiais.create(newMaterialDataWithQuantity);
-        setIsNewMaterialModalOpen(false);
-        setNewMaterialData(emptyNewMaterial);
+    const handleSaveMaterial = async () => {
+        if (editingMaterial) {
+            await apiService.materiais.update(editingMaterial.id, newMaterialData);
+        } else {
+            await apiService.materiais.create({ ...newMaterialData, quantidade: 0 });
+        }
+        setIsMaterialModalOpen(false);
         await fetchData();
     };
+    
+    const triggerDelete = (id: string, type: 'material' | 'ferramenta') => {
+        setItemToDelete({ id, type });
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
+        if (itemToDelete.type === 'material') {
+            await apiService.materiais.delete(itemToDelete.id);
+        } else {
+            await apiService.ferramentas.delete(itemToDelete.id);
+        }
+        
+        setIsDeleteConfirmOpen(false);
+        setItemToDelete(null);
+        await fetchData();
+    };
+
 
     const getNomeItem = (item: {id: string, type: 'material' | 'ferramenta'}) => {
         if (item.type === 'material') return materiais.find(m => m.id === item.id)?.nome || 'Item desconhecido';
@@ -152,11 +186,11 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 <div className="flex gap-2">
                     <Button onClick={() => navigateTo('Ferramentas')} variant="secondary" className="flex items-center space-x-2">
                         {ICONS.ferramentas}
-                        <span>Cadastrar Ferramenta</span>
+                        <span>Gerenciar Ferramentas</span>
                     </Button>
-                    <Button onClick={() => setIsNewMaterialModalOpen(true)} className="flex items-center space-x-2">
+                    <Button onClick={() => handleOpenMaterialModal()} className="flex items-center space-x-2">
                         {ICONS.add}
-                        <span>Cadastrar Material</span>
+                        <span>Novo Material</span>
                     </Button>
                 </div>
             </div>
@@ -178,9 +212,13 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                                     {estoqueCalculadoMateriais[m.id] || 0} {m.unidade}
                                 </td>
                                 <td className="p-4">
-                                    <div className="flex space-x-2">
+                                    <div className="flex items-center space-x-2">
                                         <Button size="sm" onClick={() => handleOpenMovementModal('entrada', {id: m.id, type: 'material'})}>+ Entrada</Button>
-                                        <Button size="sm" variant="secondary" onClick={() => handleOpenMovementModal('saida', {id: m.id, type: 'material'})} disabled={(estoqueCalculadoMateriais[m.id] || 0) === 0}>- Saída</Button>
+                                        <Button size="sm" variant="secondary" onClick={() => handleOpenMovementModal('saida', {id: m.id, type: 'material'})} disabled={(estoqueCalculadoMateriais[m.id] || 0) <= 0}>- Saída</Button>
+                                        {/* FIX: Changed from <ICONS.edit /> to {ICONS.edit} to render the JSX element. */}
+                                        <button onClick={() => handleOpenMaterialModal(m)} className="p-2 text-blue-600 hover:text-blue-800">{ICONS.edit}</button>
+                                        {/* FIX: Changed from <ICONS.delete /> to {ICONS.delete} to render the JSX element. */}
+                                        <button onClick={() => triggerDelete(m.id, 'material')} className="p-2 text-red-600 hover:text-red-800">{ICONS.delete}</button>
                                     </div>
                                 </td>
                             </tr>
@@ -204,8 +242,10 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                                 <td className="p-4 font-bold text-brand-blue">{f.nome}</td>
                                 <td className="p-4 text-brand-gray">{f.codigo}</td>
                                 <td className="p-4">
-                                    <div className="flex space-x-2">
+                                    <div className="flex items-center space-x-2">
                                          <Button size="sm" variant="secondary" onClick={() => handleOpenMovementModal('saida', {id: f.id, type: 'ferramenta'})}>- Saída</Button>
+                                         {/* FIX: Changed from <ICONS.delete /> to {ICONS.delete} to render the JSX element. */}
+                                         <button onClick={() => triggerDelete(f.id, 'ferramenta')} className="p-2 text-red-600 hover:text-red-800">{ICONS.delete}</button>
                                     </div>
                                 </td>
                             </tr>
@@ -222,17 +262,13 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 {currentItem && (
                     <form onSubmit={e => {e.preventDefault(); handleSaveMovimentacao();}} className="space-y-4">
                         {currentItem.type === 'material' && (
-                            // FIX: Cast event target to HTMLInputElement to access value property.
                             <div><label>Quantidade</label><input type="number" min="1" value={formData.quantidade} onChange={e => setFormData({...formData, quantidade: Number((e.target as HTMLInputElement).value)})} className="w-full p-2 border rounded" required /></div>
                         )}
                         {modalType === 'entrada' && (
-                            // FIX: Cast event target to HTMLInputElement to access value property.
                             <div><label>Descrição (Ex: Nota Fiscal, Fornecedor)</label><input type="text" value={formData.descricao} onChange={e => setFormData({...formData, descricao: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" /></div>
                         )}
                         {modalType === 'saida' && (<>
-                            {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
                             <div><label>Obra de Destino</label><select value={formData.obraId} onChange={e => setFormData({...formData, obraId: (e.target as HTMLSelectElement).value})} className="w-full p-2 border rounded" required>{obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                            {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
                             <div><label>Responsável pela Retirada</label><select value={formData.responsavelRetiradaId} onChange={e => setFormData({...formData, responsavelRetiradaId: (e.target as HTMLSelectElement).value})} className="w-full p-2 border rounded" required>{funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
                         </>)}
                         <Button type="submit" className="w-full">Salvar Movimentação</Button>
@@ -240,17 +276,25 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 )}
             </Modal>
             
-            <Modal isOpen={isNewMaterialModalOpen} onClose={() => setIsNewMaterialModalOpen(false)} title="Cadastrar Novo Material no Catálogo">
-                 <form onSubmit={e => { e.preventDefault(); handleSaveNewMaterial(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Nome do Material" value={newMaterialData.nome} onChange={e => setNewMaterialData({...newMaterialData, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={newMaterialData.unidade} onChange={e => setNewMaterialData({...newMaterialData, unidade: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="number" placeholder="Estoque Mínimo" value={newMaterialData.estoqueMinimo} onChange={e => setNewMaterialData({...newMaterialData, estoqueMinimo: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required/>
-                    <Button type="submit" className="w-full">Salvar Novo Material</Button>
+            <Modal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} title={editingMaterial ? "Editar Material" : "Novo Material"}>
+                 <form onSubmit={e => { e.preventDefault(); handleSaveMaterial(); }} className="space-y-4">
+                    <input type="text" placeholder="Nome do Material" value={newMaterialData.nome} onChange={e => setNewMaterialData({...newMaterialData, nome: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={newMaterialData.unidade} onChange={e => setNewMaterialData({...newMaterialData, unidade: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="number" placeholder="Estoque Mínimo" value={newMaterialData.estoqueMinimo} onChange={e => setNewMaterialData({...newMaterialData, estoqueMinimo: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Fornecedor" value={newMaterialData.fornecedor || ''} onChange={e => setNewMaterialData({...newMaterialData, fornecedor: e.target.value})} className="w-full p-2 border rounded"/>
+                    <input type="number" step="0.01" placeholder="Valor Unitário" value={newMaterialData.valor || ''} onChange={e => setNewMaterialData({...newMaterialData, valor: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded"/>
+                    <Button type="submit" className="w-full">Salvar Material</Button>
                 </form>
             </Modal>
+            
+            <ConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                onConfirm={confirmDelete}
+                title="Confirmar Exclusão"
+                message={`Tem certeza que deseja excluir este ${itemToDelete?.type === 'material' ? 'material' : 'ferramenta'} do catálogo? Esta ação não pode ser desfeita.`}
+                confirmText="Excluir Permanentemente"
+            />
         </div>
     );
 };

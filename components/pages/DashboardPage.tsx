@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo, CategoriaSaida } from '../../types';
+import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo, CategoriaSaida, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -20,6 +20,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
     const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
     const [pontos, setPontos] = useState<Ponto[]>([]);
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
     const [lembretes, setLembretes] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     
@@ -31,13 +32,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData, lembretesData] = await Promise.all([
+                const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData, movimentacoesData, lembretesData] = await Promise.all([
                     apiService.obras.getAll(),
                     apiService.servicos.getAll(),
                     apiService.materiais.getAll(),
                     apiService.transacoes.getAll(),
                     apiService.pontos.getAll(),
                     apiService.funcionarios.getAll(),
+                    apiService.movimentacoesAlmoxarifado.getAll(),
                     apiService.getLembretes(),
                 ]);
                 setObras(obrasData);
@@ -46,6 +48,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                 setTransacoes(transacoesData);
                 setPontos(pontosData);
                 setFuncionarios(funcionariosData);
+                setMovimentacoes(movimentacoesData);
                 setLembretes(lembretesData);
                 setLembretesEdit(lembretesData.join('\n'));
             } catch (error) {
@@ -77,7 +80,27 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         return userObraIds.includes(s.obraId) && isDelayed;
     }).length;
 
-    const lowStockMaterials = materiais.filter(m => m.quantidade <= m.estoqueMinimo).length;
+    const estoqueCentral = useMemo(() => {
+        const estoque: Record<string, number> = {};
+        movimentacoes.forEach(mov => {
+            if (mov.itemType === 'material') {
+                let change = 0;
+                if (mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
+                    change = mov.quantidade;
+                } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) {
+                    change = -mov.quantidade;
+                }
+                if (change !== 0) {
+                   estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
+                }
+            }
+        });
+        return estoque;
+    }, [movimentacoes]);
+
+    const lowStockMaterials = useMemo(() => {
+        return materiais.filter(m => (estoqueCentral[m.id] || 0) <= m.estoqueMinimo).length;
+    }, [materiais, estoqueCentral]);
     
     const funcionariosHoje = useMemo(() => {
         const todayString = new Date().toISOString().split('T')[0];

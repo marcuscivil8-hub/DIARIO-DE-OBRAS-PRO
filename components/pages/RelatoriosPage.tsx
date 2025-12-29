@@ -6,6 +6,114 @@ import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
+// --- Relatório de Consumo (Materiais e Ferramentas) ---
+const RelatorioConsumo: React.FC<{
+    obra: Obra,
+    movimentacoes: MovimentacaoAlmoxarifado[],
+    materiais: Material[],
+    ferramentas: Ferramenta[]
+}> = ({ obra, movimentacoes, materiais, ferramentas }) => {
+
+    const materiaisUsados = useMemo(() => {
+        const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
+        const movimentosUso = movimentacoes.filter(m => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
+        const materiaisMap = new Map(materiais.map(m => [m.id, m]));
+
+        movimentosUso.forEach(mov => {
+            const material = materiaisMap.get(mov.itemId);
+            if (material) {
+                if (!consumo[material.id]) {
+                    consumo[material.id] = { nome: material.nome, unidade: material.unidade, quantidade: 0, valorTotal: 0 };
+                }
+                consumo[material.id].quantidade += mov.quantidade;
+                consumo[material.id].valorTotal += (material.valor || 0) * mov.quantidade;
+            }
+        });
+        return Object.values(consumo);
+    }, [obra.id, movimentacoes, materiais]);
+
+    const ferramentasNaObra = useMemo(() => {
+        return ferramentas.filter(f => f.obraId === obra.id);
+    }, [obra.id, ferramentas]);
+
+    const custoTotalMateriais = materiaisUsados.reduce((sum, item) => sum + item.valorTotal, 0);
+    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item) => sum + (item.valor || 0), 0);
+
+    return (
+        <div className="p-8 bg-white text-gray-800 font-sans">
+            <header className="text-right border-b-2 border-black pb-4 mb-8">
+                <h1 className="text-3xl font-bold text-brand-blue">{obra.construtora}</h1>
+                <p className="text-gray-600">Relatório de Consumo da Obra</p>
+            </header>
+            <main>
+                <div className="mb-8 p-4 border border-gray-300 rounded">
+                    <h2 className="text-xl font-bold mb-2 text-brand-blue">{obra.name}</h2>
+                    <p><strong>Cliente:</strong> {obra.cliente}</p>
+                    <p><strong>Data de Emissão:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+
+                <div className="mb-8 break-inside-avoid">
+                    <h3 className="text-lg font-bold mb-2 text-brand-blue border-b pb-1">Materiais Utilizados na Obra</h3>
+                    <table className="w-full text-sm border-collapse border border-gray-300">
+                        <thead className="bg-gray-200">
+                            <tr>
+                                <th className="p-2 border text-left text-brand-blue font-bold">Material</th>
+                                <th className="p-2 border text-center text-brand-blue font-bold">Qtd. Usada</th>
+                                <th className="p-2 border text-right text-brand-blue font-bold">Custo Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {materiaisUsados.map(item => (
+                                <tr key={item.nome}>
+                                    <td className="p-2 border">{item.nome}</td>
+                                    <td className="p-2 border text-center">{item.quantidade} {item.unidade}</td>
+                                    <td className="p-2 border text-right">R$ {item.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot className="bg-gray-200 font-bold">
+                             <tr>
+                                <td colSpan={2} className="p-2 border text-right">Custo Total de Materiais</td>
+                                <td className="p-2 border text-right">R$ {custoTotalMateriais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                 <div className="mb-8 break-inside-avoid">
+                    <h3 className="text-lg font-bold mb-2 text-brand-blue border-b pb-1">Ferramentas Alocadas na Obra</h3>
+                     <table className="w-full text-sm border-collapse border border-gray-300">
+                        <thead className="bg-gray-200">
+                            <tr>
+                                <th className="p-2 border text-left text-brand-blue font-bold">Ferramenta</th>
+                                <th className="p-2 border text-left text-brand-blue font-bold">Código</th>
+                                <th className="p-2 border text-right text-brand-blue font-bold">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {ferramentasNaObra.map(item => (
+                                <tr key={item.id}>
+                                    <td className="p-2 border">{item.nome}</td>
+                                    <td className="p-2 border">{item.codigo}</td>
+                                    <td className="p-2 border text-right">R$ {item.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                         <tfoot className="bg-gray-200 font-bold">
+                             <tr>
+                                <td colSpan={2} className="p-2 border text-right">Valor Total de Ferramentas</td>
+                                <td className="p-2 border text-right">R$ {custoTotalFerramentas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+            </main>
+        </div>
+    );
+};
+
+
 // --- Date Helpers for Payroll ---
 const getPeriodDates = (periodo: 'semanal' | 'quinzenal' | 'mensal') => {
     const today = new Date();
@@ -304,7 +412,7 @@ const RelatorioDocumentos: React.FC<{ obra: Obra | null, documentos: Documento[]
 
 
 // --- Main Page Component ---
-type ReportType = 'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado' | 'documentos';
+type ReportType = 'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado' | 'documentos' | 'consumo';
 type PeriodoFolha = 'semanal' | 'quinzenal' | 'mensal';
 
 const RelatoriosPage: React.FC = () => {
@@ -410,7 +518,7 @@ const RelatoriosPage: React.FC = () => {
 
     if (pageLoading) return <div className="text-center p-8">Carregando dados para relatórios...</div>;
 
-    const needsObraSelection = ['fotografico', 'financeiro', 'folhaPagamento', 'documentos'].includes(reportType) && selectedObraId === 'all' && reportType !== 'financeiro';
+    const needsObraSelection = ['fotografico', 'financeiro', 'folhaPagamento', 'documentos', 'consumo'].includes(reportType) && selectedObraId === 'all' && reportType !== 'financeiro';
 
     return (
         <div className="space-y-6">
@@ -424,7 +532,8 @@ const RelatoriosPage: React.FC = () => {
                             <option value="fotografico">Fotográfico</option>
                             <option value="financeiro">Financeiro</option>
                             <option value="folhaPagamento">Folha de Pagamento</option>
-                            <option value="almoxarifado">Almoxarifado</option>
+                            <option value="almoxarifado">Almoxarifado (Saídas)</option>
+                            <option value="consumo">Consumo (Materiais e Ferramentas)</option>
                             <option value="documentos">Documentos da Obra</option>
                         </select>
                     </div>
@@ -466,6 +575,9 @@ const RelatoriosPage: React.FC = () => {
                         {reportType === 'folhaPagamento' && <RelatorioFolhaPagamento obra={obraSelecionada || null} funcionarios={funcionarios} pontos={pontos} periodo={periodoFolha} />}
                         
                         {reportType === 'almoxarifado' && <RelatorioAlmoxarifado movimentacoes={movimentacoes} materiais={materiais} ferramentas={ferramentas} obras={obras} funcionarios={funcionarios} />}
+
+                        {reportType === 'consumo' && obraSelecionada && <RelatorioConsumo obra={obraSelecionada} movimentacoes={movimentacoes} materiais={materiais} ferramentas={ferramentas} />}
+                        {reportType === 'consumo' && !obraSelecionada && <div className="p-8 text-center text-brand-gray">Selecione uma obra para gerar o relatório de consumo.</div>}
                         
                         {reportType === 'documentos' && obraSelecionada && <RelatorioDocumentos obra={obraSelecionada} documentos={documentosFiltrados} />}
                         {reportType === 'documentos' && !obraSelecionada && <div className="p-8 text-center text-brand-gray">Selecione uma obra para listar os documentos.</div>}

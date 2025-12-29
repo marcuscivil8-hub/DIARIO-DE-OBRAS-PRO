@@ -19,7 +19,6 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     
     // Modal for Usage/Return
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-    // FIX: Changed state to use MovimentacaoTipo enum for type safety.
     const [modalAction, setModalAction] = useState<MovimentacaoTipo.Uso | MovimentacaoTipo.Retorno | null>(null);
     const [currentMaterial, setCurrentMaterial] = useState<Material | null>(null);
     const [actionQuantity, setActionQuantity] = useState(1);
@@ -64,8 +63,8 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         
         movsDaObra.forEach(mov => {
             let change = 0;
-            // FIX: Used MovimentacaoTipo.Saida enum member for correct comparison.
             if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) change = mov.quantidade;
+            // Retorno para o almoxarifado e Uso na obra diminuem o estoque da obra.
             if (mov.tipoMovimentacao === MovimentacaoTipo.Uso || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) change = -mov.quantidade;
             estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
         });
@@ -86,7 +85,6 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
             itemId: currentMaterial.id,
             itemType: 'material',
-            // FIX: modalAction now has the correct type, resolving the assignment error.
             tipoMovimentacao: modalAction,
             quantidade: actionQuantity,
             data: new Date().toISOString().split('T')[0],
@@ -120,8 +118,9 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                             <thead className="border-b-2 border-brand-light-gray">
                                 <tr>
                                     <th className="p-4 text-brand-blue font-semibold">Material</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Fornecedor</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Valor Unit.</th>
                                     <th className="p-4 text-brand-blue font-semibold">Estoque na Obra</th>
-                                    <th className="p-4 text-brand-blue font-semibold">Estoque Mínimo (Global)</th>
                                     {canEdit && <th className="p-4 text-brand-blue font-semibold">Ações</th>}
                                 </tr>
                             </thead>
@@ -131,10 +130,11 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                                     return (
                                         <tr key={material.id} className="border-b border-brand-light-gray hover:bg-gray-50">
                                             <td className="p-4 font-bold text-brand-blue">{material.nome}</td>
+                                            <td className="p-4 text-gray-700">{material.fornecedor || '-'}</td>
+                                            <td className="p-4 text-gray-700">R$ {material.valor?.toLocaleString('pt-BR', {minimumFractionDigits: 2}) || '0,00'}</td>
                                             <td className={`p-4 font-bold ${estoqueAtual <= material.estoqueMinimo ? 'text-red-500' : 'text-gray-700'}`}>
                                                 {estoqueAtual} {material.unidade}
                                             </td>
-                                            <td className="p-4 text-gray-700">{material.estoqueMinimo} {material.unidade}</td>
                                             {canEdit && (
                                                 <td className="p-4">
                                                     <div className="flex space-x-2">

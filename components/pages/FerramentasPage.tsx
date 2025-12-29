@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-// FIX: Imported the 'MovimentacaoAlmoxarifado' type.
 import { Ferramenta, Funcionario, StatusFerramenta, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
@@ -35,6 +34,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         status: StatusFerramenta.Funcionando,
         responsavelId: null,
         obraId: null,
+        valor: 0,
     };
     const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
 
@@ -167,6 +167,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                         <thead className="border-b-2 border-brand-light-gray">
                             <tr>
                                 <th className="p-4 text-brand-blue font-semibold">Ferramenta</th>
+                                <th className="p-4 text-brand-blue font-semibold">Valor</th>
                                 <th className="p-4 text-brand-blue font-semibold">Localização</th>
                                 <th className="p-4 text-brand-blue font-semibold">Responsável</th>
                                 {canEdit && <th className="p-4 text-brand-blue font-semibold">Ações</th>}
@@ -176,6 +177,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                             {visibleFerramentas.map(ferramenta => (
                                 <tr key={ferramenta.id} className="border-b border-brand-light-gray hover:bg-gray-50">
                                     <td className="p-4 font-bold text-brand-blue">{ferramenta.nome} ({ferramenta.codigo})</td>
+                                    <td className="p-4 text-gray-700">R$ {ferramenta.valor?.toLocaleString('pt-BR', {minimumFractionDigits: 2}) || '0,00'}</td>
                                     <td className="p-4 text-gray-700">{getObraName(ferramenta.obraId)}</td>
                                     <td className="p-4 text-gray-700">{getResponsavelName(ferramenta.responsavelId)}</td>
                                     {canEdit && (
@@ -198,6 +200,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                 <form onSubmit={e => { e.preventDefault(); handleSaveFerramenta(); }} className="space-y-4">
                     <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: e.target.value})} className="w-full p-2 border rounded" required/>
                     <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: e.target.value})} className="w-full p-2 border rounded"/>
+                    <input type="number" step="0.01" placeholder="Valor da Ferramenta" value={currentFerramenta.valor || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, valor: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded"/>
                     <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: e.target.value as StatusFerramenta})} className="w-full p-2 border rounded">
                         {Object.values(StatusFerramenta).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
