@@ -66,13 +66,18 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         movimentacoes.forEach(mov => {
             if (mov.itemType === 'material') {
                 let change = 0;
-                // FIX: Used MovimentacaoTipo enum members for type-safe comparisons.
-                if(mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
+                // Estoque central aumenta com Entradas (de fornecedor) e Retornos (da obra).
+                if (mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
                     change = mov.quantidade;
-                } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida || mov.tipoMovimentacao === MovimentacaoTipo.Uso) {
+                // Estoque central diminui apenas com Saídas (para a obra).
+                // O 'Uso' do material ocorre na obra e afeta apenas o estoque da obra.
+                } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) {
                     change = -mov.quantidade;
                 }
-                estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
+                
+                if (change !== 0) {
+                   estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
+                }
             }
         });
         return estoque;
