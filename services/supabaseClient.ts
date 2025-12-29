@@ -1,20 +1,33 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// ATENÇÃO: A URL foi corrigida para apontar para o seu projeto Supabase correto.
+// URL do seu projeto Supabase.
+// Verifique se esta URL está correta. Você pode encontrá-la em:
+// Painel do Supabase -> Project Settings -> API -> Project URL
 const supabaseUrl = 'https://yaaqffcvpghdamtkzvea.supabase.co';
 
-// IMPORTANTE: Você PRECISA substituir o valor abaixo pela sua chave de API 'anon' (pública).
-// Siga estes passos para encontrá-la:
-// 1. Acesse seu projeto no painel do Supabase.
-// 2. Vá para "Project Settings" (ícone de engrenagem) -> "API".
-// 3. Na seção "Project API Keys", copie a chave "anon" (public).
-// 4. Cole a chave aqui, substituindo todo este texto entre as aspas.
+// Chave de API pública (anon) do seu projeto Supabase.
+// =============================== ATENÇÃO ===============================
+// O VALOR ABAIXO É UM EXEMPLO E PRECISA SER SUBSTITUÍDO PELA SUA CHAVE REAL.
+// O erro "ERRO DE CONFIGURAÇÃO" acontece porque esta chave está incorreta.
+//
+// SIGA ESTES PASSOS PARA CORRIGIR:
+// 1. Acesse seu projeto em https://supabase.com/
+// 2. Vá para "Project Settings" (ícone de engrenagem no menu esquerdo).
+// 3. Clique em "API" no menu lateral.
+// 4. Na seção "Project API Keys", encontre a chave "anon" (public).
+// 5. Clique no botão "Copy" para copiar a chave inteira.
+// 6. Cole a chave AQUI, substituindo 'COLE_SUA_CHAVE_PUBLICA_ANON_DO_SUPABASE_AQUI'.
+// =======================================================================
 const supabaseAnonKey = 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V';
 
-// A verificação de chave inválida agora é tratada na página de Login para fornecer
-// uma experiência de usuário melhor com instruções claras.
-// Se a chave estiver errada, o Supabase retornará um erro 'Invalid API key'
-// que será capturado e exibido na tela de login.
+// Validação para ajudar a identificar o problema mais rápido no console.
+if (supabaseAnonKey === 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V' || !supabaseAnonKey) {
+    console.error(
+        "ERRO DE CONFIGURAÇÃO: A chave de API do Supabase (supabaseAnonKey) não foi definida em services/supabaseClient.ts. " +
+        "Por favor, substitua o valor de exemplo pela sua chave 'anon' pública real para que o aplicativo funcione."
+    );
+}
+
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

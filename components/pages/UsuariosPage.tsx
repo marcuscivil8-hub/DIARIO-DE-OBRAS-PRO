@@ -189,14 +189,20 @@ const UsuariosPage: React.FC = () => {
             
             {isConfigError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha de Conexão com o Servidor</h4>
-                    <p className="text-red-700">Não foi possível conectar-se às funções do servidor Supabase (Edge Functions). Isso geralmente ocorre por um dos seguintes motivos:</p>
-                    <ul className="list-disc list-inside text-red-700 space-y-1 mt-2">
-                        <li>O projeto no painel do Supabase está <strong>pausado</strong> devido à inatividade.</li>
-                        <li>A URL do Supabase (<code className="bg-gray-200 text-black px-1 rounded">supabaseUrl</code>) está incorreta no arquivo <code>services/supabaseClient.ts</code>.</li>
-                        <li>A chave de API pública (<code className="bg-gray-200 text-black px-1 rounded">supabaseAnonKey</code>) está incorreta no arquivo <code>services/supabaseClient.ts</code>.</li>
-                    </ul>
-                    <p className="text-red-700 mt-3"><strong>Ação recomendada:</strong> Verifique o status do seu projeto no painel do Supabase e confirme que as credenciais no arquivo <code>services/supabaseClient.ts</code> estão corretas.</p>
+                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha de Conexão com o Servidor (Edge Function)</h4>
+                    <p className="text-red-700">A criação ou exclusão de usuários falhou porque o aplicativo não conseguiu se comunicar com o servidor Supabase.</p>
+                    <p className="text-red-700 mt-2"><strong>Causa Mais Comum:</strong> A chave de API pública (<code className="bg-gray-200 text-black px-1 rounded">supabaseAnonKey</code>) no arquivo de configuração não foi definida.</p>
+                    
+                    <div className="mt-3 pt-3 border-t border-red-200">
+                        <h5 className="font-bold text-red-700">Como Corrigir:</h5>
+                        <ol className="list-decimal list-inside text-red-700 space-y-1 mt-1">
+                            <li>Abra o arquivo <code className="bg-gray-200 text-black px-1 rounded">services/supabaseClient.ts</code> no seu projeto.</li>
+                            <li>Siga as instruções nos comentários para copiar sua chave de API pública (anon) do painel do Supabase.</li>
+                            <li>Cole sua chave no lugar do texto <code className="bg-gray-200 text-black px-1 rounded">'SUA_CHAVE_PUBLICA_ANON_AQUI'</code>.</li>
+                            <li>Salve o arquivo. A funcionalidade será restaurada imediatamente.</li>
+                        </ol>
+                    </div>
+                     <p className="text-red-700 mt-3 text-xs"><strong>Outras Causas:</strong> A URL do Supabase no mesmo arquivo pode estar incorreta, ou seu projeto no painel do Supabase pode estar pausado por inatividade.</p>
                 </Card>
             )}
 
