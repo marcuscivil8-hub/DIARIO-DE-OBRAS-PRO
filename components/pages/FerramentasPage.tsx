@@ -15,28 +15,25 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
     const [obras, setObras] = useState<Obra[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingFerramenta, setEditingFerramenta] = useState<Ferramenta | null>(null);
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const [ferramentaToDeleteId, setFerramentaToDeleteId] = useState<string | null>(null);
     
-    // State for Return Modal
+    // Modal states
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+
+    // Data for modals
+    const [editingFerramenta, setEditingFerramenta] = useState<Ferramenta | null>(null);
+    const [ferramentaToDeleteId, setFerramentaToDeleteId] = useState<string | null>(null);
     const [ferramentaToReturn, setFerramentaToReturn] = useState<Ferramenta | null>(null);
+    const [modalError, setModalError] = useState<string | null>(null);
+    const [pageError, setPageError] = useState<string | null>(null);
+
+    // Form states
+    const [selectedLocation, setSelectedLocation] = useState<string>('all'); // 'all', 'almoxarifado', or obraId
+    const emptyFerramenta: Omit<Ferramenta, 'id'> = { nome: '', codigo: '', status: StatusFerramenta.Funcionando, responsavelId: null, obraId: null, valor: 0, };
+    const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
     const [depositoManagerId, setDepositoManagerId] = useState<string>('');
 
-    const [selectedLocation, setSelectedLocation] = useState<string>('all'); // 'all', 'almoxarifado', or obraId
-
-
-    const emptyFerramenta: Omit<Ferramenta, 'id'> = {
-        nome: '',
-        codigo: '',
-        status: StatusFerramenta.Funcionando,
-        responsavelId: null,
-        obraId: null,
-        valor: 0,
-    };
-    const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
 
@@ -51,8 +48,9 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
             setFerramentas(ferramentasData);
             setFuncionarios(funcionariosData.filter(f => f.ativo));
             setObras(obrasData.filter(o => o.status === 'Ativa'));
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch data", error);
+            setPageError(error.message || "Não foi possível carregar os dados.");
         } finally {
             setLoading(false);
         }
@@ -72,6 +70,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const getObraName = (id: string | null) => id ? obras.find(o => o.id === id)?.name || 'Desconhecida' : 'Almoxarifado';
     
     const handleOpenModal = (ferramenta: Ferramenta | null = null) => {
+        setModalError(null);
         if (ferramenta) {
             setEditingFerramenta(ferramenta);
             setCurrentFerramenta(ferramenta);
@@ -83,13 +82,19 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     };
 
     const handleSaveFerramenta = async () => {
-        if (editingFerramenta) {
-            await apiService.ferramentas.update(editingFerramenta.id, currentFerramenta);
-        } else {
-            await apiService.ferramentas.create(currentFerramenta);
+        setModalError(null);
+        try {
+            if (editingFerramenta) {
+                await apiService.ferramentas.update(editingFerramenta.id, currentFerramenta);
+            } else {
+                await apiService.ferramentas.create(currentFerramenta);
+            }
+            setIsModalOpen(false);
+            await fetchData();
+        } catch (error: any) {
+            console.error("Failed to save tool:", error);
+            setModalError(error.message || "Ocorreu um erro ao salvar a ferramenta.");
         }
-        setIsModalOpen(false);
-        await fetchData();
     };
 
     const triggerDeleteFerramenta = (id: string) => {
@@ -99,42 +104,49 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
 
     const confirmDeleteFerramenta = async () => {
         if (!ferramentaToDeleteId) return;
-        await apiService.ferramentas.delete(ferramentaToDeleteId);
-        setIsConfirmModalOpen(false);
-        setFerramentaToDeleteId(null);
-        await fetchData();
+        try {
+            await apiService.ferramentas.delete(ferramentaToDeleteId);
+            await fetchData();
+        } catch(error: any) {
+            console.error("Failed to delete tool:", error);
+            setPageError(error.message || "Não foi possível excluir a ferramenta.");
+        } finally {
+            setIsConfirmModalOpen(false);
+            setFerramentaToDeleteId(null);
+        }
     };
 
     const handleOpenReturnModal = (ferramenta: Ferramenta) => {
+        setModalError(null);
         setFerramentaToReturn(ferramenta);
         setDepositoManagerId(funcionarios[0]?.id || '');
         setIsReturnModalOpen(true);
     };
 
     const handleConfirmReturn = async () => {
+        setModalError(null);
         if (!ferramentaToReturn) return;
 
-        // 1. Update the tool's location and responsible person
-        await apiService.ferramentas.update(ferramentaToReturn.id, {
-            obraId: null,
-            responsavelId: depositoManagerId
-        });
-        
-        // 2. Create a movement record for traceability
-        const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
-            itemId: ferramentaToReturn.id,
-            itemType: 'ferramenta',
-            tipoMovimentacao: MovimentacaoTipo.Retorno,
-            quantidade: 1,
-            data: new Date().toISOString().split('T')[0],
-            obraId: ferramentaToReturn.obraId || undefined,
-            responsavelRetiradaId: ferramentaToReturn.responsavelId || undefined,
-            descricao: `Devolvido para o almoxarifado. Recebido por: ${getResponsavelName(depositoManagerId)}`
-        };
-        await apiService.movimentacoesAlmoxarifado.create(newMov);
-        
-        setIsReturnModalOpen(false);
-        await fetchData();
+        try {
+            await apiService.ferramentas.update(ferramentaToReturn.id, {
+                obraId: null,
+                responsavelId: depositoManagerId
+            });
+            
+            const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
+                itemId: ferramentaToReturn.id, itemType: 'ferramenta', tipoMovimentacao: MovimentacaoTipo.Retorno,
+                quantidade: 1, data: new Date().toISOString().split('T')[0], obraId: ferramentaToReturn.obraId || undefined,
+                responsavelRetiradaId: ferramentaToReturn.responsavelId || undefined,
+                descricao: `Devolvido para o almoxarifado. Recebido por: ${getResponsavelName(depositoManagerId)}`
+            };
+            await apiService.movimentacoesAlmoxarifado.create(newMov);
+            
+            setIsReturnModalOpen(false);
+            await fetchData();
+        } catch(error: any) {
+             console.error("Failed to return tool:", error);
+            setModalError(error.message || "Não foi possível registrar a devolução.");
+        }
     };
     
     if (loading) return <div className="text-center p-8">Carregando ferramentas...</div>;
@@ -160,6 +172,8 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                     )}
                 </div>
             </div>
+
+            {pageError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{pageError}</p>}
 
             <Card>
                 <div className="overflow-x-auto">
@@ -212,6 +226,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                         <option value="">Ninguém</option>
                         {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
+                    {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                     <Button type="submit" className="w-full">Salvar</Button>
                 </form>
             </Modal>
@@ -224,6 +239,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                             {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                         </select>
                     </div>
+                    {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                     <Button type="submit" className="w-full">Confirmar Devolução</Button>
                 </form>
             </Modal>

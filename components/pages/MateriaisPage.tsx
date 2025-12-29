@@ -22,6 +22,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     const [modalAction, setModalAction] = useState<MovimentacaoTipo.Uso | MovimentacaoTipo.Retorno | null>(null);
     const [currentMaterial, setCurrentMaterial] = useState<Material | null>(null);
     const [actionQuantity, setActionQuantity] = useState(1);
+    const [modalError, setModalError] = useState<string | null>(null);
 
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
@@ -73,6 +74,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     }, [movimentacoes, selectedObraId]);
     
     const handleOpenActionModal = (material: Material, action: MovimentacaoTipo.Uso | MovimentacaoTipo.Retorno) => {
+        setModalError(null);
         setCurrentMaterial(material);
         setModalAction(action);
         setActionQuantity(1);
@@ -80,21 +82,27 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     };
     
     const handleSaveAction = async () => {
+        setModalError(null);
         if (!currentMaterial || !modalAction || !selectedObraId) return;
 
-        const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
-            itemId: currentMaterial.id,
-            itemType: 'material',
-            tipoMovimentacao: modalAction,
-            quantidade: actionQuantity,
-            data: new Date().toISOString().split('T')[0],
-            obraId: selectedObraId,
-            descricao: `Registro de ${modalAction} na obra`
-        };
+        try {
+            const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
+                itemId: currentMaterial.id,
+                itemType: 'material',
+                tipoMovimentacao: modalAction,
+                quantidade: actionQuantity,
+                data: new Date().toISOString().split('T')[0],
+                obraId: selectedObraId,
+                descricao: `Registro de ${modalAction} na obra`
+            };
 
-        await apiService.movimentacoesAlmoxarifado.create(newMov);
-        setIsActionModalOpen(false);
-        await fetchData();
+            await apiService.movimentacoesAlmoxarifado.create(newMov);
+            setIsActionModalOpen(false);
+            await fetchData();
+        } catch (error: any) {
+            console.error("Failed to save action:", error);
+            setModalError(error.message || `Não foi possível registrar a ação.`);
+        }
     };
     
     if (loading) return <div className="text-center p-8">Carregando estoque de materiais...</div>;
@@ -132,7 +140,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                                             <td className="p-4 font-bold text-brand-blue">{material.nome}</td>
                                             <td className="p-4 text-gray-700">{material.fornecedor || '-'}</td>
                                             <td className="p-4 text-gray-700">R$ {material.valor?.toLocaleString('pt-BR', {minimumFractionDigits: 2}) || '0,00'}</td>
-                                            <td className={`p-4 font-bold ${estoqueAtual <= material.estoqueMinimo ? 'text-red-500' : 'text-gray-700'}`}>
+                                            <td className={`p-4 font-bold ${estoqueAtual <= 0 ? 'text-red-500' : 'text-gray-700'}`}>
                                                 {estoqueAtual} {material.unidade}
                                             </td>
                                             {canEdit && (
@@ -167,6 +175,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                             required
                         />
                     </div>
+                    {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                     <Button type="submit" className="w-full">Confirmar {modalAction}</Button>
                 </form>
             </Modal>
