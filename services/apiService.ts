@@ -118,7 +118,9 @@ export const apiService = {
     async login(email: string, password: string): Promise<User> {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) {
-            throw new Error('Email ou senha inválidos.');
+            // A mensagem de erro padrão do Supabase para credenciais erradas é "Invalid login credentials".
+            // Retornar a mensagem original pode ajudar na depuração.
+            throw new Error(authError.message === 'Invalid login credentials' ? 'Email ou senha inválidos.' : authError.message);
         }
         if (!authData.user) {
             throw new Error("Login falhou: Nenhum usuário retornado após a autenticação.");

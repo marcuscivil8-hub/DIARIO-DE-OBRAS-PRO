@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import Button from '../ui/Button';
+import Card from '../ui/Card';
 
 interface LoginPageProps {
     onLogin: (email: string, password: string) => Promise<void>;
@@ -20,6 +21,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             await onLogin(email, password);
             // O sucesso é implícito; a navegação é tratada pelo App.tsx
         } catch (err: any) {
+            // A mensagem de erro agora vem diretamente da apiService, mais específica.
             setError(err.message);
         } finally {
             setLoading(false);
@@ -65,12 +67,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         />
                     </div>
                     
-                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{error}</p>}
 
                     <Button type="submit" className="w-full !py-4 text-lg" disabled={loading}>
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </form>
+                 <Card className="mt-6 text-sm bg-blue-50 border border-blue-200">
+                    <h4 className="font-bold text-brand-blue mb-2">Problemas para acessar?</h4>
+                    <p className="text-brand-gray">
+                        Certifique-se de que o usuário administrador foi criado no painel do Supabase.
+                    </p>
+                    <ul className="list-disc list-inside text-brand-gray space-y-1 mt-2">
+                        <li>Email: <code className="bg-gray-200 px-1 rounded">admin@diariodeobra.pro</code></li>
+                        <li>Senha: <code className="bg-gray-200 px-1 rounded">12345678</code></li>
+                        <li>A opção <strong>"Auto confirm user"</strong> deve estar ativada durante a criação.</li>
+                    </ul>
+                </Card>
             </div>
         </div>
     );
