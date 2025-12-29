@@ -1,4 +1,3 @@
-
 // FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
 declare const Deno: any;
 
@@ -17,19 +16,19 @@ Deno.serve(async (req: any) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error('Missing Supabase environment variables.');
-    return new Response(JSON.stringify({ error: 'Erro de configuração do servidor.' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
-  }
   
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
   let authUser: any = null;
+  // FIX: Declared supabaseAdmin here to widen its scope to the catch block for rollback operations.
+  let supabaseAdmin: any;
 
   try {
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('ERRO CRÍTICO: As variáveis de ambiente SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY não estão configuradas para a Edge Function "create-user".');
+      throw new Error('As variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
+    }
+    
+    supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const { name, email, password, username, role, obraIds } = await req.json()
 
     if (!email || !password || !name || !role || !username) {
@@ -95,7 +94,8 @@ Deno.serve(async (req: any) => {
   } catch (error) {
     // Rollback: se ocorrer qualquer erro após a criação do usuário na autenticação,
     // deleta o registro da autenticação para manter a consistência.
-    if (authUser?.id) {
+    // FIX: Check if authUser and supabaseAdmin were successfully created before attempting rollback.
+    if (authUser?.id && supabaseAdmin) {
       console.log(`Iniciando rollback para o usuário de auth: ${authUser.id}`);
       await supabaseAdmin.auth.admin.deleteUser(authUser.id);
     }
