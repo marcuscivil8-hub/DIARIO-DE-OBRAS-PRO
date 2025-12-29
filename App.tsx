@@ -35,8 +35,8 @@ const App: React.FC = () => {
         checkSession();
     }, []);
 
-    const handleLogin = async (username: string, password: string): Promise<void> => {
-        const user = await apiService.login(username, password); // Lançará um erro em caso de falha
+    const handleLogin = async (email: string, password: string): Promise<void> => {
+        const user = await apiService.login(email, password); // Lançará um erro em caso de falha
         setCurrentUser(user);
         setCurrentPage('Dashboard');
     };
