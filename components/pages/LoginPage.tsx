@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -122,10 +121,14 @@ $$;`}
 
                         <div className="mt-4">
                             <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
-                            <p className="text-red-700 text-xs mb-1">Crie estas duas políticas para a tabela <code>profiles</code>. Elas usarão a função acima.</p>
+                            <p className="text-red-700 text-xs mb-1">Crie estas duas políticas para a tabela <code>profiles</code>. Este script é seguro para ser executado múltiplas vezes.</p>
                             <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                                 <code>
-{`-- Política para Visualizar (SELECT)
+{`-- (Opcional) Limpa políticas antigas para evitar o erro "policy already exists".
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins and users can update profiles" ON public.profiles;
+
+-- Política para Visualizar (SELECT)
 CREATE POLICY "Admins can view all profiles" ON public.profiles
 FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
 
