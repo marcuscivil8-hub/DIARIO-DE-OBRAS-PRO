@@ -218,9 +218,18 @@ export const apiService = {
             return data;
         },
         async updateUser(userId: string, updates: Partial<User>): Promise<any> {
-             const { data, error } = await supabase.from('profiles').update(toSnakeCase(updates)).eq('id', userId).select().single();
+             const { data, error } = await supabase.from('profiles').update(toSnakeCase(updates)).eq('id', userId).select();
              handleSupabaseError(error, `updateUser`);
-             return toCamelCase<User>(data);
+
+             if (!data || data.length === 0) {
+                throw new Error("Nenhum usuário encontrado para atualizar ou permissão negada.");
+             }
+             if (data.length > 1) {
+                console.error("CRITICAL: A atualização do usuário afetou múltiplas linhas. Verifique a chave primária da tabela 'profiles'.", data);
+                throw new Error("Erro de consistência de dados ao atualizar o usuário.");
+             }
+        
+             return toCamelCase<User>(data[0]);
         },
         async deleteUser(userId: string): Promise<any> {
             const { data, error } = await supabase.functions.invoke('delete-user', {

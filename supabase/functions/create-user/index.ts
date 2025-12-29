@@ -1,3 +1,4 @@
+
 // FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
 declare const Deno: any;
 
@@ -55,7 +56,7 @@ Deno.serve(async (req: any) => {
     }
     
     // 2. Inserir o perfil explicitamente na tabela 'profiles'.
-    const { error: profileError } = await supabaseAdmin
+    const { data: profileData, error: profileError } = await supabaseAdmin
         .from('profiles')
         .insert({
             id: authUser.id,
@@ -64,7 +65,9 @@ Deno.serve(async (req: any) => {
             username: username,
             role: role,
             obra_ids: obraIds || [], // Garante que seja sempre um array
-        });
+        })
+        .select()
+        .single();
 
     if (profileError) {
         // Log do erro detalhado para depuração nos logs da Supabase Function
@@ -77,6 +80,10 @@ Deno.serve(async (req: any) => {
 
         // Erro genérico, mas mais informativo, do perfil
         throw new Error(`Erro ao criar o perfil do usuário: ${profileError.message}`);
+    }
+
+    if (!profileData) {
+        throw new Error("Falha ao criar o perfil do usuário: nenhum dado retornado após a inserção.");
     }
 
 
