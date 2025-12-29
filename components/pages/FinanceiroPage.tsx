@@ -157,6 +157,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
 {/* FIX: Add explicit types for sort and map callback parameters to ensure correct type inference. */}
+                         {/* FIX: Added explicit types for sort and map callback parameters to fix type inference issues. */}
                          {Object.entries(saidasPorCategoria).sort(([,a]: [string, number], [,b]: [string, number]) => b - a).map(([categoria, valor]: [string, number]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
