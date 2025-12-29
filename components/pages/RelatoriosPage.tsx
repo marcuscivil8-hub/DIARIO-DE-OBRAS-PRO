@@ -384,7 +384,7 @@ const RelatoriosPage: React.FC = () => {
     const handleGeneratePdf = () => {
         if (!reportRef.current) return;
         setPdfLoading(true);
-        html2canvas(reportRef.current, { scale: 2 }).then((canvas) => {
+        html2canvas(reportRef.current, { scale: 2, useCORS: true }).then((canvas) => {
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const imgData = canvas.toDataURL('image/png');
