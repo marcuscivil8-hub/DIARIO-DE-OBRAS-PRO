@@ -304,6 +304,9 @@ const RelatorioDocumentos: React.FC<{ obra: Obra | null, documentos: Documento[]
 
 
 // --- Main Page Component ---
+type ReportType = 'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado' | 'documentos';
+type PeriodoFolha = 'semanal' | 'quinzenal' | 'mensal';
+
 const RelatoriosPage: React.FC = () => {
     const [obras, setObras] = useState<Obra[]>([]);
     const [diarios, setDiarios] = useState<DiarioObra[]>([]);
@@ -318,8 +321,8 @@ const RelatoriosPage: React.FC = () => {
     const [pageLoading, setPageLoading] = useState(true);
     
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
-    const [reportType, setReportType] = useState<'fotografico' | 'financeiro' | 'folhaPagamento' | 'almoxarifado' | 'documentos'>('fotografico');
-    const [periodoFolha, setPeriodoFolha] = useState<'semanal' | 'quinzenal' | 'mensal'>('semanal');
+    const [reportType, setReportType] = useState<ReportType>('fotografico');
+    const [periodoFolha, setPeriodoFolha] = useState<PeriodoFolha>('semanal');
     const [pdfLoading, setPdfLoading] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
     
@@ -417,8 +420,7 @@ const RelatoriosPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 items-end gap-4">
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Tipo de Relatório</label>
-                        {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                        <select value={reportType} onChange={e => setReportType((e.target as HTMLSelectElement).value as any)} className="w-full p-3 border rounded-lg">
+                        <select value={reportType} onChange={e => setReportType((e.target as HTMLSelectElement).value as ReportType)} className="w-full p-3 border rounded-lg">
                             <option value="fotografico">Fotográfico</option>
                             <option value="financeiro">Financeiro</option>
                             <option value="folhaPagamento">Folha de Pagamento</option>
@@ -429,7 +431,6 @@ const RelatoriosPage: React.FC = () => {
                     { (reportType !== 'almoxarifado') &&
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Filtrar por Obra</label>
-                        {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
                         <select value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="w-full p-3 border rounded-lg">
                              <option value="all">Todas as Obras</option>
                             {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
@@ -439,8 +440,7 @@ const RelatoriosPage: React.FC = () => {
                     {reportType === 'folhaPagamento' && (
                         <div className="md:col-span-1">
                             <label className="text-sm font-medium text-brand-gray">Período da Folha</label>
-                            {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                            <select value={periodoFolha} onChange={e => setPeriodoFolha((e.target as HTMLSelectElement).value as any)} className="w-full p-3 border rounded-lg">
+                            <select value={periodoFolha} onChange={e => setPeriodoFolha((e.target as HTMLSelectElement).value as PeriodoFolha)} className="w-full p-3 border rounded-lg">
                                 <option value="semanal">Semanal</option>
                                 <option value="quinzenal">Quinzenal</option>
                                 <option value="mensal">Mensal</option>

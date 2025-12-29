@@ -39,6 +39,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const [obras, setObras] = useState<Obra[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
+    const [pontoError, setPontoError] = useState<string | null>(null);
     
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -74,9 +75,9 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const weekDayStrings = weekDays.map(formatDate);
     
     const handlePontoClick = async (funcionarioId: string, data: string) => {
+        setPontoError(null);
         if (selectedObraId === 'all') {
-            // FIX: Replaced alert with console.warn to avoid undefined error.
-            console.warn('Por favor, selecione uma obra específica para registrar o ponto.');
+            setPontoError('Por favor, selecione uma obra específica para registrar o ponto.');
             return;
         }
 
@@ -149,6 +150,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                     <Button variant="secondary" onClick={() => setCurrentDate(changeWeek(currentDate, 'next'))}>Próxima Semana &rarr;</Button>
                 </div>
                  {isPontoDisabled && <p className="text-center text-brand-yellow bg-yellow-50 p-2 rounded-md mb-4">Selecione uma obra para registrar presenças ou faltas.</p>}
+                 {pontoError && <p className="text-center text-red-600 bg-red-50 p-3 rounded-md mb-4">{pontoError}</p>}
                 <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                         <thead>

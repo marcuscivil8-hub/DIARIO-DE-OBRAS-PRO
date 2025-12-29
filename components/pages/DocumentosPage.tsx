@@ -21,6 +21,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [docToDelete, setDocToDelete] = useState<Documento | null>(null);
+    const [modalError, setModalError] = useState<string | null>(null);
 
     const initialFormState: Omit<Documento, 'id' | 'obraId' | 'url' | 'nome'> = {
         tipo: 'Outro',
@@ -68,25 +69,24 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     const handleOpenModal = () => {
         setFormData(initialFormState);
         setFile(null);
+        setModalError(null);
         setIsModalOpen(true);
     };
 
     const handleSaveDocument = async () => {
+        setModalError(null);
         if (!file || !selectedObraId) {
-            // FIX: Replaced alert with console.error.
-            console.error("Por favor, selecione um arquivo e uma obra.");
+            setModalError("Por favor, selecione um arquivo e uma obra.");
             return;
         }
 
         try {
             await apiService.documentos.create(formData, selectedObraId, file);
-        } catch(error) {
-            console.error(error);
-            // FIX: Replaced alert with console.error.
-            console.error("Falha no upload do documento.");
-        } finally {
             setIsModalOpen(false);
             await fetchData();
+        } catch(error: any) {
+            console.error(error);
+            setModalError(`Falha no upload do documento: ${error.message}`);
         }
     };
     
@@ -156,10 +156,20 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Adicionar Novo Documento">
                 <form onSubmit={e => { e.preventDefault(); handleSaveDocument(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                    <div><label>Tipo de Documento</label><select value={formData.tipo} onChange={e => setFormData({...formData, tipo: (e.target as HTMLSelectElement).value as Documento['tipo']})} className="w-full p-2 border rounded" required><option value="Contrato">Contrato</option><option value="Comprovante de Pagamento">Comprovante de Pagamento</option><option value="Projeto">Projeto</option><option value="Outro">Outro</option></select></div>
-                    {/* FIX: Cast event target to HTMLInputElement to access files property. */}
-                    <div><label>Arquivo (PDF, JPEG)</label><input type="file" onChange={e => setFile((e.target as HTMLInputElement).files ? (e.target as HTMLInputElement).files[0] : null)} className="w-full p-2 border rounded" accept=".pdf,.jpeg,.jpg,.png" required /></div>
+                    <div>
+                        <label>Tipo de Documento</label>
+                        <select value={formData.tipo} onChange={e => setFormData({...formData, tipo: (e.target as HTMLSelectElement).value as Documento['tipo']})} className="w-full p-2 border rounded" required>
+                            <option value="Contrato">Contrato</option>
+                            <option value="Comprovante de Pagamento">Comprovante de Pagamento</option>
+                            <option value="Projeto">Projeto</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Arquivo (PDF, JPEG)</label>
+                        <input type="file" onChange={e => setFile((e.target as HTMLInputElement).files ? (e.target as HTMLInputElement).files[0] : null)} className="w-full p-2 border rounded" accept=".pdf,.jpeg,.jpg,.png" required />
+                    </div>
+                    {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                     <Button type="submit" className="w-full">Salvar Documento</Button>
                 </form>
             </Modal>

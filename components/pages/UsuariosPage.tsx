@@ -16,6 +16,7 @@ const UsuariosPage: React.FC = () => {
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null); // State for modal errors
+    const [pageError, setPageError] = useState<string | null>(null);
     
     // FIX: Added 'email' property to satisfy the User type.
     const initialNewUserState: Omit<User, 'id'> = {
@@ -51,6 +52,7 @@ const UsuariosPage: React.FC = () => {
 
     const handleOpenModal = (user: User | null = null) => {
         setFormError(null); // Reset error on modal open
+        setPageError(null);
         if (user) {
             setEditingUser(user);
             // FIX: Added 'email' property when setting form state for an existing user.
@@ -106,11 +108,10 @@ const UsuariosPage: React.FC = () => {
     };
 
     const triggerDeleteUser = (userId: string) => {
-        // Simple check to prevent deleting the default admin for now
+        setPageError(null);
         const user = users.find(u => u.id === userId);
         if (user?.email === 'admin@diariodeobra.pro') {
-            // FIX: Replaced alert with console.warn.
-            console.warn('Não é possível excluir o administrador principal.');
+            setPageError('Não é possível excluir o administrador principal.');
             return;
         }
         setUserToDeleteId(userId);
@@ -123,8 +124,7 @@ const UsuariosPage: React.FC = () => {
             // SECURITY FIX: Call the secure Edge Function to delete the user completely.
             await apiService.users.deleteUser(userToDeleteId);
         } catch (error: any) {
-            // FIX: Replaced alert with console.error.
-            console.error(`Erro ao deletar usuário: ${error.message}`);
+            setPageError(`Erro ao deletar usuário: ${error.message}`);
         }
         
         setIsConfirmModalOpen(false);
@@ -152,6 +152,7 @@ const UsuariosPage: React.FC = () => {
                     <span>Novo Usuário</span>
                 </Button>
             </div>
+            {pageError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
             <Card>
                 <div className="overflow-x-auto">
                      <table className="w-full text-left">
