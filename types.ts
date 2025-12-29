@@ -72,7 +72,7 @@ export interface TransacaoFinanceira {
     obraId: string;
     descricao: string;
     valor: number;
-    tipo: TransacaoTipo;
+    tipoTransacao: TransacaoTipo;
     categoria: CategoriaSaida | 'Receita';
     data: string; // YYYY-MM-DD
 }
@@ -95,7 +95,7 @@ export interface MovimentacaoAlmoxarifado {
     id: string;
     itemId: string; // Can be material or ferramenta id
     itemType: 'material' | 'ferramenta';
-    tipo: MovimentacaoTipo;
+    tipoMovimentacao: MovimentacaoTipo;
     quantidade: number; // For materials, 1 for tools
     data: string; // YYYY-MM-DD
     obraDestinoId?: string;
@@ -151,7 +151,7 @@ export interface Documento {
     id: string;
     obraId: string;
     nome: string;
-    tipo: 'Contrato' | 'Comprovante de Pagamento' | 'Projeto' | 'Outro';
+    tipoDocumento: 'Contrato' | 'Comprovante de Pagamento' | 'Projeto' | 'Outro';
     url: string; // base64 data URL
     dataUpload: string; // YYYY-MM-DD
 }

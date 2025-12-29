@@ -66,7 +66,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         const estoque: Record<string, number> = {};
         movimentacoes.forEach(mov => {
             if (mov.itemType === 'material') {
-                estoque[mov.itemId] = (estoque[mov.itemId] || 0) + (mov.tipo === 'Entrada' ? mov.quantidade : -mov.quantidade);
+                estoque[mov.itemId] = (estoque[mov.itemId] || 0) + (mov.tipoMovimentacao === 'Entrada' ? mov.quantidade : -mov.quantidade);
             }
         });
         return estoque;
@@ -90,7 +90,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
             itemId: currentItem.id,
             itemType: currentItem.type,
-            tipo: modalType === 'entrada' ? MovimentacaoTipo.Entrada : MovimentacaoTipo.Saida,
+            tipoMovimentacao: modalType === 'entrada' ? MovimentacaoTipo.Entrada : MovimentacaoTipo.Saida,
             quantidade: formData.quantidade,
             data: new Date().toISOString().split('T')[0],
             ...(modalType === 'saida' && {

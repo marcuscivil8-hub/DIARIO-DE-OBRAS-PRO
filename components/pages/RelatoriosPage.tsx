@@ -78,8 +78,8 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
 
 // --- Relatório Financeiro Component ---
 const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFinanceira[], custoMaoDeObra: number }> = ({ obra, transacoes, custoMaoDeObra }) => {
-    const totalEntradas = transacoes.filter(t => t.tipo === TransacaoTipo.Entrada).reduce((sum, t) => sum + t.valor, 0);
-    const totalSaidas = transacoes.filter(t => t.tipo === TransacaoTipo.Saida).reduce((sum, t) => sum + t.valor, 0) + custoMaoDeObra;
+    const totalEntradas = transacoes.filter(t => t.tipoTransacao === TransacaoTipo.Entrada).reduce((sum, t) => sum + t.valor, 0);
+    const totalSaidas = transacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida).reduce((sum, t) => sum + t.valor, 0) + custoMaoDeObra;
     const balanco = totalEntradas - totalSaidas;
 
     return (
@@ -122,7 +122,7 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
                         </tr>
                     </thead>
                     <tbody>
-                        {transacoes.filter(t => t.tipo === TransacaoTipo.Saida).map(t => (
+                        {transacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida).map(t => (
                             <tr key={t.id} className="text-gray-800"><td className="p-2 border border-gray-300">{new Date(t.data).toLocaleDateString('pt-BR')}</td><td className="p-2 border border-gray-300">{t.descricao}</td><td className="p-2 border border-gray-300">{t.categoria}</td><td className="p-2 border border-gray-300 text-right">- R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>
                         ))}
                         {custoMaoDeObra > 0 && <tr className="font-bold bg-gray-100 text-gray-800"><td className="p-2 border border-gray-300" colSpan={3}>Custo com Mão de Obra (do Ponto)</td><td className="p-2 border border-gray-300 text-right">- R$ {custoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>}
@@ -220,7 +220,7 @@ const RelatorioAlmoxarifado: React.FC<{
         return ferramentas.find(f => f.id === mov.itemId)?.nome || 'Item não encontrado';
     };
 
-    const saidas = movimentacoes.filter(m => m.tipo === 'Saída').sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    const saidas = movimentacoes.filter(m => m.tipoMovimentacao === 'Saída').sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     return (
         <div className="p-8 bg-white text-gray-800 font-sans">
@@ -263,11 +263,11 @@ const RelatorioAlmoxarifado: React.FC<{
 // --- Relatório de Documentos ---
 const RelatorioDocumentos: React.FC<{ obra: Obra | null, documentos: Documento[] }> = ({ obra, documentos }) => {
     const groupedDocs = documentos.reduce((acc, doc) => {
-        (acc[doc.tipo] = acc[doc.tipo] || []).push(doc);
+        (acc[doc.tipoDocumento] = acc[doc.tipoDocumento] || []).push(doc);
         return acc;
     }, {} as Record<string, Documento[]>);
     
-    const groupOrder: Documento['tipo'][] = ['Contrato', 'Comprovante de Pagamento', 'Projeto', 'Outro'];
+    const groupOrder: Documento['tipoDocumento'][] = ['Contrato', 'Comprovante de Pagamento', 'Projeto', 'Outro'];
 
     return (
         <div className="p-8 bg-white text-gray-800 font-sans">

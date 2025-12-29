@@ -47,7 +47,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             : transacoes.filter(t => t.obraId === selectedObraId);
         
         if (user.role === UserRole.Encarregado) {
-            return baseTransacoes.filter(t => t.tipo === TransacaoTipo.Saida);
+            return baseTransacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida);
         }
 
         return baseTransacoes;
@@ -75,7 +75,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
 
     const { totalEntradas, totalSaidas, balanco, saidasPorCategoria } = useMemo(() => {
         const totalEntradas = filteredTransacoes
-            .filter(t => t.tipo === TransacaoTipo.Entrada)
+            .filter(t => t.tipoTransacao === TransacaoTipo.Entrada)
             .reduce((acc, t) => acc + t.valor, 0);
 
         // Custo de Mão de Obra agora vem EXCLUSIVAMENTE da folha de ponto
@@ -83,7 +83,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
 
         // Processa as saídas manuais, ignorando a categoria 'Folha de Pagamento' que não deve mais ser usada
         const saidasManuaisPorCategoria = filteredTransacoes
-            .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
+            .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
             .reduce((acc, t) => {
                 const categoria = t.categoria as CategoriaSaida;
                 acc[categoria] = (acc[categoria] || 0) + t.valor;

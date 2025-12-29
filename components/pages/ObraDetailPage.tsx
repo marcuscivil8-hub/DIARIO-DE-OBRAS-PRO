@@ -75,7 +75,7 @@ const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
                         <li key={doc.id} className="flex items-center justify-between p-3 bg-brand-light-gray rounded-lg">
                             <div className="flex flex-col">
                                 <span className="font-semibold text-brand-blue">{doc.nome}</span>
-                                <span className="text-sm text-brand-gray">{doc.tipo} - {new Date(doc.dataUpload).toLocaleDateString()}</span>
+                                <span className="text-sm text-brand-gray">{doc.tipoDocumento} - {new Date(doc.dataUpload).toLocaleDateString()}</span>
                             </div>
                             <Button size="sm" onClick={() => handleDownload(doc)}>Baixar</Button>
                         </li>
@@ -97,7 +97,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
     const [transacaoToDeleteId, setTransacaoToDeleteId] = useState<string | null>(null);
 
     const [currentTransacao, setCurrentTransacao] = useState<Omit<TransacaoFinanceira, 'id' | 'obraId'>>({
-        descricao: '', valor: 0, tipo: TransacaoTipo.Saida, categoria: CategoriaSaida.Outros, data: new Date().toISOString().split('T')[0]
+        descricao: '', valor: 0, tipoTransacao: TransacaoTipo.Saida, categoria: CategoriaSaida.Outros, data: new Date().toISOString().split('T')[0]
     });
 
     const fetchTransacoes = useCallback(async () => {
@@ -106,7 +106,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
         let obraTransacoes = all.filter(t => t.obraId === obraId);
 
         if (user.role === UserRole.Encarregado) {
-            obraTransacoes = obraTransacoes.filter(t => t.tipo === TransacaoTipo.Saida);
+            obraTransacoes = obraTransacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida);
         }
 
         setTransacoes(obraTransacoes.sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime()));
@@ -127,7 +127,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
             setCurrentTransacao({
                 descricao: '',
                 valor: 0,
-                tipo: defaultTipo,
+                tipoTransacao: defaultTipo,
                 categoria: defaultCategoria,
                 data: new Date().toISOString().split('T')[0],
             });
@@ -188,12 +188,12 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
                                     <td className="p-4 font-bold text-brand-blue">{new Date(t.data).toLocaleDateString()}</td>
                                     <td className="p-4 font-bold text-brand-blue">{t.descricao}</td>
                                     <td className="p-4 font-bold text-brand-blue">{t.categoria}</td>
-                                    <td className={`p-4 font-bold ${t.tipo === TransacaoTipo.Entrada ? 'text-green-600' : 'text-red-600'}`}>
-                                        {t.tipo === TransacaoTipo.Entrada ? '+' : '-'} R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                    <td className={`p-4 font-bold ${t.tipoTransacao === TransacaoTipo.Entrada ? 'text-green-600' : 'text-red-600'}`}>
+                                        {t.tipoTransacao === TransacaoTipo.Entrada ? '+' : '-'} R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                                     </td>
                                     {canEdit && (
                                         <td className="p-4">
-                                            {(user.role === UserRole.Admin || t.tipo === TransacaoTipo.Saida) && (
+                                            {(user.role === UserRole.Admin || t.tipoTransacao === TransacaoTipo.Saida) && (
                                                 <div className="flex space-x-2">
                                                     <button onClick={() => handleOpenModal(t)} className="p-1 text-blue-600 hover:text-blue-800">{ICONS.edit}</button>
                                                     <button onClick={() => triggerDelete(t.id)} className="p-1 text-red-600 hover:text-red-800">{ICONS.delete}</button>
@@ -219,13 +219,13 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
                     
                     {user.role === UserRole.Admin && (
                         // FIX: Cast event target to HTMLSelectElement to access value property.
-                        <select value={currentTransacao.tipo} onChange={e => setCurrentTransacao({...currentTransacao, tipo: (e.target as HTMLSelectElement).value as TransacaoTipo, categoria: (e.target as HTMLSelectElement).value === TransacaoTipo.Entrada ? 'Receita' : CategoriaSaida.Outros })} className="w-full p-2 border rounded">
+                        <select value={currentTransacao.tipoTransacao} onChange={e => setCurrentTransacao({...currentTransacao, tipoTransacao: (e.target as HTMLSelectElement).value as TransacaoTipo, categoria: (e.target as HTMLSelectElement).value === TransacaoTipo.Entrada ? 'Receita' : CategoriaSaida.Outros })} className="w-full p-2 border rounded">
                             <option value={TransacaoTipo.Entrada}>Entrada</option>
                             <option value={TransacaoTipo.Saida}>Saída</option>
                         </select>
                     )}
 
-                    {currentTransacao.tipo === TransacaoTipo.Saida && (
+                    {currentTransacao.tipoTransacao === TransacaoTipo.Saida && (
                          // FIX: Cast event target to HTMLSelectElement to access value property.
                          <select value={currentTransacao.categoria} onChange={e => setCurrentTransacao({...currentTransacao, categoria: (e.target as HTMLSelectElement).value as CategoriaSaida})} className="w-full p-2 border rounded">
                            {Object.values(CategoriaSaida).filter(c => c !== CategoriaSaida.FolhaPagamento).map(c => <option key={c} value={c}>{c}</option>)}

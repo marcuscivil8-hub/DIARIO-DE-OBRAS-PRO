@@ -24,7 +24,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     const [modalError, setModalError] = useState<string | null>(null);
 
     const initialFormState: Omit<Documento, 'id' | 'obraId' | 'url' | 'nome'> = {
-        tipo: 'Outro',
+        tipoDocumento: 'Outro',
         dataUpload: new Date().toISOString().split('T')[0]
     };
     const [formData, setFormData] = useState(initialFormState);
@@ -140,7 +140,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
                             <li key={doc.id} className="flex items-center justify-between p-3 bg-brand-light-gray rounded-lg hover:bg-gray-200 transition-colors">
                                 <div className="flex flex-col">
                                     <span className="font-semibold text-brand-blue">{doc.nome}</span>
-                                    <span className="text-sm text-brand-gray">{doc.tipo} - {new Date(doc.dataUpload).toLocaleDateString()}</span>
+                                    <span className="text-sm text-brand-gray">{doc.tipoDocumento} - {new Date(doc.dataUpload).toLocaleDateString()}</span>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Button size="sm" onClick={() => handleDownload(doc)}>Baixar</Button>
@@ -158,7 +158,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
                 <form onSubmit={e => { e.preventDefault(); handleSaveDocument(); }} className="space-y-4">
                     <div>
                         <label>Tipo de Documento</label>
-                        <select value={formData.tipo} onChange={e => setFormData({...formData, tipo: (e.target as HTMLSelectElement).value as Documento['tipo']})} className="w-full p-2 border rounded" required>
+                        <select value={formData.tipoDocumento} onChange={e => setFormData({...formData, tipoDocumento: (e.target as HTMLSelectElement).value as Documento['tipoDocumento']})} className="w-full p-2 border rounded" required>
                             <option value="Contrato">Contrato</option>
                             <option value="Comprovante de Pagamento">Comprovante de Pagamento</option>
                             <option value="Projeto">Projeto</option>

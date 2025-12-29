@@ -39,30 +39,11 @@ const handleSupabaseError = (error: any, context: string) => {
     }
 };
 
-// Mapeia nomes de campos JS para nomes de colunas do banco (convenção snake_case)
-// FIX: Adicionado mapeamento para o campo 'tipo' para colunas mais específicas
-// como 'tipo_transacao' para corresponder a um schema de banco de dados mais
-// provável, resolvendo o erro "column 'tipo' does not exist".
+// Mapeia nomes de campos JS (camelCase) para nomes de colunas do banco (snake_case)
 const toSnakeCase = (data: Record<string, any>) => {
     const snakeCaseData: Record<string, any> = {};
     for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
-            // Mapeamento especial para o campo 'tipo' com base em outros campos presentes no objeto
-            if (key === 'tipo') {
-                if ('valor' in data && 'categoria' in data) { // Heurística para TransacaoFinanceira
-                    snakeCaseData['tipo_transacao'] = data[key];
-                    continue; // Pula o processamento normal para esta chave
-                }
-                if ('itemId' in data && 'itemType' in data) { // Heurística para MovimentacaoAlmoxarifado
-                    snakeCaseData['tipo_movimentacao'] = data[key];
-                    continue;
-                }
-                 if ('dataUpload' in data) { // Heurística para Documento
-                    snakeCaseData['tipo_documento'] = data[key];
-                    continue;
-                }
-            }
-
             const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
             snakeCaseData[snakeKey] = data[key];
         }
@@ -70,19 +51,13 @@ const toSnakeCase = (data: Record<string, any>) => {
     return snakeCaseData;
 };
 
-// Mapeia nomes de colunas do banco para nomes de campos JS
-// FIX: Adicionado mapeamento reverso para colunas como 'tipo_transacao'
-// para o campo 'tipo' do lado do cliente, garantindo consistência.
+// Mapeia nomes de colunas do banco (snake_case) para nomes de campos JS (camelCase)
 const toCamelCase = <T>(data: Record<string, any>): T => {
     if (!data) return data as T;
     const camelCaseData: Record<string, any> = {};
     for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
-            let keyToConvert = key;
-            if (key === 'tipo_transacao' || key === 'tipo_movimentacao' || key === 'tipo_documento') {
-                keyToConvert = 'tipo';
-            }
-            const camelKey = keyToConvert.replace(/_([a-z])/g, g => g[1].toUpperCase());
+            const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
             camelCaseData[camelKey] = data[key];
         }
     }
@@ -233,8 +208,6 @@ export const apiService = {
 
             const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(filePath);
 
-            // FIX: Aplicado toSnakeCase para converter 'tipo' em 'tipo_documento'
-            // e 'dataUpload' em 'data_upload', alinhando com o schema do banco de dados.
             const newDocForDb = { 
                 ...toSnakeCase(docData),
                 obra_id: obraId, 

@@ -117,11 +117,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             });
 
             const entradas = monthlyTransactions
-                .filter(t => t.tipo === TransacaoTipo.Entrada)
+// FIX: Corrected property from `tipo` to `tipoTransacao` to match the type definition.
+                .filter(t => t.tipoTransacao === TransacaoTipo.Entrada)
                 .reduce((sum, t) => sum + t.valor, 0);
 
             const saidasFromTransactions = monthlyTransactions
-                .filter(t => t.tipo === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
+// FIX: Corrected property from `tipo` to `tipoTransacao` to match the type definition.
+                .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
                 .reduce((sum, t) => sum + t.valor, 0);
             
             const saidasFromPontos = monthlyPontos.reduce((total, ponto) => {
