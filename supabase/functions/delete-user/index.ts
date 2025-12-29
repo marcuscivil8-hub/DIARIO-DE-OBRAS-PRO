@@ -1,6 +1,5 @@
-// FIX: Updated the Deno type reference to use the recommended Supabase URL for edge functions. This fixes errors where the type definition file could not be found and properties like `Deno.serve` and `Deno.env` were not recognized.
-// Corrected the Deno type reference to a valid, versioned URL for Supabase functions to resolve type errors.
-/// <reference types="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
+// FIX: Replaced remote type reference with a direct reference to the Deno namespace library to resolve type definition errors.
+/// <reference lib="deno.ns" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
