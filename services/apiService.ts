@@ -159,12 +159,20 @@ export const apiService = {
 
     async getLembretes(): Promise<string[]> {
         const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).single();
+        if (error && error.message.includes('configuracoes')) { // More generic check
+            console.warn("AVISO: Tabela 'configuracoes' não encontrada. A funcionalidade de lembretes está desativada. Para usá-la, crie a tabela no Supabase com uma coluna 'lembretes_encarregado' do tipo text[].");
+            return [];
+        }
         handleSupabaseError(error, 'getLembretes');
         return data?.lembretes_encarregado || [];
     },
 
     async updateLembretes(lembretes: string[]): Promise<void> {
         const { error } = await supabase.from('configuracoes').update({ lembretes_encarregado: lembretes }).eq('id', 1);
+        if (error && error.message.includes('configuracoes')) { // More generic check
+            console.warn("AVISO: Tabela 'configuracoes' não encontrada. Não foi possível salvar os lembretes.");
+            return;
+        }
         handleSupabaseError(error, 'updateLembretes');
     },
     

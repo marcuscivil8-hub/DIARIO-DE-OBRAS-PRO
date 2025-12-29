@@ -47,23 +47,20 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         fetchData();
     }, []);
 
-    const { totalEntradas, totalSaidas, balanco, saidasPorCategoria } = useMemo(() => {
+    const { totalEntradas, totalSaidas, balanco, saidasPorCategoria, pieData } = useMemo(() => {
         const isAllObras = selectedObraId === 'all';
 
-        // 1. Filtrar transações manuais pela obra selecionada
         const transacoesFiltradas = isAllObras
             ? transacoes
-            : transacoes.filter(t => t.obraId === selectedObraId);
+            : transacoes.filter((t: TransacaoFinanceira) => t.obraId === selectedObraId);
 
-        // 2. Calcular entradas (apenas Admin vê)
         const totalEntradas = user.role === UserRole.Admin 
-            ? transacoesFiltradas.filter(t => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc, t) => acc + t.valor, 0)
+            ? transacoesFiltradas.filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc, t) => acc + t.valor, 0)
             : 0;
 
-        // 3. Calcular Custo de Mão de Obra (baseado nos pontos)
-        const pontosRelevantes = pontos.filter(p => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
-        const custoMaoDeObra = pontosRelevantes.reduce((total, ponto) => {
-            const func = funcionarios.find(f => f.id === ponto.funcionarioId);
+        const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
+        const custoMaoDeObra = pontosRelevantes.reduce((total, ponto: Ponto) => {
+            const func = funcionarios.find((f: Funcionario) => f.id === ponto.funcionarioId);
             if (func) {
                 const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
                 return total + dailyCost;
@@ -71,14 +68,13 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             return total;
         }, 0);
 
-        // 4. Calcular Custo de Materiais (baseado nos movimentos de 'Uso')
-        const materiaisMap = new Map(materiais.map(m => [m.id, m]));
-        const movimentosUso = movimentacoes.filter(m => 
+        const materiaisMap = new Map(materiais.map((m: Material) => [m.id, m]));
+        const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => 
             m.itemType === 'material' && 
             m.tipoMovimentacao === MovimentacaoTipo.Uso &&
             (isAllObras || m.obraId === selectedObraId)
         );
-        const custoMateriais = movimentosUso.reduce((total, mov) => {
+        const custoMateriais = movimentosUso.reduce((total, mov: MovimentacaoAlmoxarifado) => {
             const material = materiaisMap.get(mov.itemId);
             if (material && material.valor) {
                 return total + (material.valor * mov.quantidade);
@@ -86,17 +82,14 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             return total;
         }, 0);
 
-        // 5. Consolidar todas as saídas por categoria
         const saidasConsolidadas: Record<string, number> = {};
 
-        // Adiciona saídas de transações manuais
         transacoesFiltradas
-            .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento && t.categoria !== CategoriaSaida.Material)
-            .forEach(t => {
+            .filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento && t.categoria !== CategoriaSaida.Material)
+            .forEach((t: TransacaoFinanceira) => {
                 saidasConsolidadas[t.categoria] = (saidasConsolidadas[t.categoria] || 0) + t.valor;
             });
 
-        // Adiciona custos calculados
         if (custoMaoDeObra > 0) {
             saidasConsolidadas['Mão de Obra (Folha de Ponto)'] = custoMaoDeObra;
         }
@@ -106,15 +99,11 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
 
         const totalSaidas = Object.values(saidasConsolidadas).reduce((sum, val) => sum + val, 0);
         const balanco = totalEntradas - totalSaidas;
+        
+        const pieDataResult = Object.entries(saidasConsolidadas).map(([name, value]: [string, number]) => ({ name, value }));
 
-        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria };
+        return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: saidasConsolidadas, pieData: pieDataResult };
     }, [selectedObraId, transacoes, pontos, funcionarios, movimentacoes, materiais, user.role]);
-
-
-    const pieData = useMemo(() => {
-        return Object.entries(saidasPorCategoria).map(([name, value]) => ({ name, value }));
-    }, [saidasPorCategoria]);
-
 
     const COLORS = ['#1e3a5f', '#facc15', '#3b82f6', '#fbbf24', '#6b7280', '#ef4444', '#8b5cf6'];
 
@@ -129,7 +118,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Filtrar por Obra:</label>
                     <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
-                        {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
+                        {obras.map((obra: Obra) => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
                 </div>
             </Card>
@@ -155,8 +144,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                     <div className="h-96">
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                    {pieData.map((entry, index) => (
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                    {pieData.map((_entry: {name: string, value: number}, index: number) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
@@ -168,12 +157,10 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {/* FIX: Explicitly cast sort parameters to numbers to resolve potential type inference issues. */}
-                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => (b as number) - (a as number)).map(([categoria, valor]) => (
+                         {Object.entries(saidasPorCategoria).sort(([,a]: [string, number], [,b]: [string, number]) => b - a).map(([categoria, valor]: [string, number]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                {/* FIX: Explicitly cast value to number to resolve potential type inference issues. */}
-                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {(valor as number).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </li>
                          ))}
                     </ul>
