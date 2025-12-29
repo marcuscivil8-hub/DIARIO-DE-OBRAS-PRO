@@ -66,8 +66,7 @@ Deno.serve(async (req: any) => {
             role: role,
             obra_ids: obraIds || [], // Garante que seja sempre um array
         })
-        .select()
-        .single();
+        .select();
 
     if (profileError) {
         // Log do erro detalhado para depuração nos logs da Supabase Function
@@ -82,8 +81,9 @@ Deno.serve(async (req: any) => {
         throw new Error(`Erro ao criar o perfil do usuário: ${profileError.message}`);
     }
 
-    if (!profileData) {
-        throw new Error("Falha ao criar o perfil do usuário: nenhum dado retornado após a inserção.");
+    if (!profileData || profileData.length !== 1) {
+        console.error('Insert into profiles did not return a single row.', { profileData });
+        throw new Error("Falha crítica ao criar o perfil do usuário: a inserção não retornou o registro esperado.");
     }
 
 

@@ -93,7 +93,7 @@ const UsuariosPage: React.FC = () => {
                 };
                 // NOTE: Supabase auth requires a separate flow to update email/password,
                 // which is more complex. For simplicity, we are only updating profile data here.
-                await apiService.users.updateUser(editingUser.id, updates);
+                await apiService.users.update(editingUser.id, updates);
             } else {
                 // SECURITY: Use the secure Edge Function to create a new user
                 await apiService.users.createUser(userData);

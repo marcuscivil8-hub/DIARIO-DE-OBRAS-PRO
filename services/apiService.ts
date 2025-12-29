@@ -73,14 +73,24 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
             return data ? data.map(item => toCamelCase<T>(item)) : [];
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).insert(toSnakeCase(itemData)).select().single();
+            const { data, error } = await supabase.from(tableName).insert(toSnakeCase(itemData)).select();
             handleSupabaseError(error, `create ${tableName}`);
-            return toCamelCase<T>(data);
+            if (!data || data.length !== 1) {
+                console.error(`Supabase create did not return a single row for table ${tableName}.`, data);
+                throw new Error(`Falha ao criar item na tabela '${tableName}'. A inserção não retornou o registro esperado.`);
+            }
+            return toCamelCase<T>(data[0]);
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).update(toSnakeCase(updates)).eq('id', itemId).select().single();
+            const { data, error } = await supabase.from(tableName).update(toSnakeCase(updates)).eq('id', itemId).select();
             handleSupabaseError(error, `update ${tableName}`);
-            return toCamelCase<T>(data);
+            if (!data || data.length === 0) {
+                throw new Error(`Nenhum item encontrado na tabela '${tableName}' para atualizar, ou permissão negada.`);
+            }
+            if (data.length > 1) {
+                console.warn(`A atualização na tabela '${tableName}' afetou múltiplas linhas. Retornando o primeiro resultado.`, data);
+            }
+            return toCamelCase<T>(data[0]);
         },
         async delete(itemId: string): Promise<void> {
             const { error } = await supabase.from(tableName).delete().eq('id', itemId);
@@ -216,20 +226,6 @@ export const apiService = {
             });
             handleFunctionError(error, 'createUser');
             return data;
-        },
-        async updateUser(userId: string, updates: Partial<User>): Promise<any> {
-             const { data, error } = await supabase.from('profiles').update(toSnakeCase(updates)).eq('id', userId).select();
-             handleSupabaseError(error, `updateUser`);
-
-             if (!data || data.length === 0) {
-                throw new Error("Nenhum usuário encontrado para atualizar ou permissão negada.");
-             }
-             if (data.length > 1) {
-                console.error("CRITICAL: A atualização do usuário afetou múltiplas linhas. Verifique a chave primária da tabela 'profiles'.", data);
-                throw new Error("Erro de consistência de dados ao atualizar o usuário.");
-             }
-        
-             return toCamelCase<User>(data[0]);
         },
         async deleteUser(userId: string): Promise<any> {
             const { data, error } = await supabase.functions.invoke('delete-user', {
