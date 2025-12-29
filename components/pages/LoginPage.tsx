@@ -13,19 +13,31 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [testResult, setTestResult] = useState<string | null>(null);
+    const [isApiKeyError, setIsApiKeyError] = useState(false);
+    const [isRlsError, setIsRlsError] = useState(false);
 
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setTestResult(null);
+        setIsApiKeyError(false);
+        setIsRlsError(false);
         setLoading(true);
         try {
             await onLogin(email, password);
             // O sucesso é implícito; a navegação é tratada pelo App.tsx
         } catch (err: any) {
-            // A mensagem de erro agora vem diretamente da apiService, mais específica.
-            setError(err.message);
+            if (err.message.includes('Invalid API key')) {
+                setIsApiKeyError(true);
+                setError('A chave de API configurada é inválida. Veja as instruções abaixo.');
+            } else if (err.message.includes('RLS_POLICY_ERROR')) {
+                setIsRlsError(true);
+                setError(err.message.split(': ')[1]); // Extrai a mensagem amigável
+            } else {
+                // A mensagem de erro agora vem diretamente da apiService, mais específica.
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
@@ -34,12 +46,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const handleAdminTest = async () => {
         setError('');
         setTestResult(null);
+        setIsApiKeyError(false);
+        setIsRlsError(false);
         setLoading(true);
         try {
             // Se o login for bem-sucedido, o App.tsx navegará para o dashboard.
             await onLogin('admin@diariodeobra.pro', '12345678');
         } catch (err: any) {
-            if (err.message.includes('Email ou senha inválidos')) {
+            if (err.message.includes('Invalid API key')) {
+                setIsApiKeyError(true);
+                setTestResult('Falha no Teste: A chave de API configurada é inválida. Siga as instruções abaixo para corrigir.');
+            } else if (err.message.includes('RLS_POLICY_ERROR')) {
+                setIsRlsError(true);
+                setTestResult(`Falha no Teste: ${err.message.split(': ')[1]}. Siga as instruções abaixo para corrigir o acesso à tabela de perfis.`);
+            } else if (err.message.includes('Email ou senha inválidos')) {
                 setTestResult("Falha no Teste: As credenciais 'admin@diariodeobra.pro' / '12345678' estão incorretas no Supabase. Por favor, recrie o usuário com atenção à senha e ativando a opção 'Auto confirm user'.");
             } else {
                  setTestResult(`Falha no Teste com um erro inesperado: ${err.message}`);
@@ -88,7 +108,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         />
                     </div>
                     
-                    {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{error}</p>}
+                    {error && !isApiKeyError && !isRlsError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{error}</p>}
 
                     <Button type="submit" className="w-full !py-4 text-lg" disabled={loading}>
                         {loading ? 'Entrando...' : 'Entrar'}
@@ -100,23 +120,49 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         {loading ? 'Testando...' : 'Testar Login Admin Padrão'}
                     </Button>
                      {testResult && (
-                        <div className="mt-4 text-sm text-center p-3 rounded-lg bg-red-50 text-red-800 border border-red-200">
+                        <div className={`mt-4 text-sm text-center p-3 rounded-lg ${(isApiKeyError || isRlsError) ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-yellow-50 text-yellow-800 border border-yellow-200'}`}>
                             {testResult}
                         </div>
                     )}
                 </div>
 
-                 <Card className="mt-6 text-sm bg-blue-50 border border-blue-200">
-                    <h4 className="font-bold text-brand-blue mb-2">Problemas para acessar?</h4>
-                    <p className="text-brand-gray">
-                        Certifique-se de que o usuário administrador foi criado no painel do Supabase.
-                    </p>
-                    <ul className="list-disc list-inside text-brand-gray space-y-1 mt-2">
-                        <li>Email: <code className="bg-gray-200 px-1 rounded">admin@diariodeobra.pro</code></li>
-                        <li>Senha: <code className="bg-gray-200 px-1 rounded">12345678</code></li>
-                        <li>A opção <strong>"Auto confirm user"</strong> deve estar ativada durante a criação.</li>
-                    </ul>
-                </Card>
+                {isApiKeyError && (
+                    <Card className="mt-6 text-sm bg-red-50 border border-red-200">
+                        <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Chave de API Inválida</h4>
+                        <p className="text-red-700">A chave de conexão com o banco de dados (Supabase) está incorreta ou foi revogada. Para corrigir, por favor siga os passos:</p>
+                        <ol className="list-decimal list-inside text-red-700 space-y-1 mt-2">
+                            <li>Acesse seu projeto no <a href="https://supabase.com/" target="_blank" rel="noopener noreferrer" className="underline font-semibold">painel do Supabase</a>.</li>
+                            <li>Navegue até <strong>Project Settings</strong> (ícone de engrenagem) &rarr; <strong>API</strong>.</li>
+                            <li>Na seção <strong>Project API Keys</strong>, encontre a chave <code className="bg-gray-200 text-black px-1 rounded">anon</code> (public).</li>
+                            <li>Clique para copiar a chave inteira.</li>
+                            <li>Abra o arquivo <code className="bg-gray-200 text-black px-1 rounded">services/supabaseClient.ts</code> no seu projeto.</li>
+                            <li>Cole a chave que você copiou, substituindo o valor atual da constante <code className="bg-gray-200 text-black px-1 rounded">supabaseAnonKey</code>.</li>
+                        </ol>
+                    </Card>
+                )}
+                
+                {isRlsError && (
+                     <Card className="mt-6 text-sm bg-red-50 border border-red-200">
+                        <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha ao Carregar Perfil</h4>
+                        <p className="text-red-700">A autenticação funcionou, mas o app não conseguiu carregar os dados do perfil (nome, permissões). Isso quase sempre é causado pela falta de <strong>Políticas de Segurança (RLS)</strong> na sua tabela <strong>profiles</strong> no Supabase.</p>
+                        <p className="text-red-700 mt-2">Para corrigir, siga os passos:</p>
+                        <ol className="list-decimal list-inside text-red-700 space-y-2 mt-2">
+                            <li>Acesse seu projeto no Supabase e vá para <strong>Authentication &rarr; Policies</strong>.</li>
+                            <li>Na tabela <strong>profiles</strong>, clique em <strong>"Enable RLS"</strong> se estiver desativado.</li>
+                            <li>Clique em <strong>"New Policy"</strong> &rarr; <strong>"For full customization"</strong> e crie a política abaixo para permitir que usuários leiam seus próprios dados:</li>
+                        </ol>
+                         <pre className="bg-gray-800 text-white p-3 rounded-md mt-2 text-xs overflow-x-auto">
+                            <code>
+{`-- Nome da Política:
+-- Users can view their own profile.
+
+-- Definição:
+auth.uid() = id`}
+                            </code>
+                         </pre>
+                         <p className="text-red-700 mt-2">Após salvar a política, o login deve funcionar imediatamente.</p>
+                    </Card>
+                )}
             </div>
         </div>
     );

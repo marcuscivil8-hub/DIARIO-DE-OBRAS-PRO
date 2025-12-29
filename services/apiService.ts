@@ -135,11 +135,8 @@ export const apiService = {
         if (profileError || !profileData) {
             console.error('Error fetching profile:', profileError?.message);
             await supabase.auth.signOut();
-            
-            const detailedError = profileError?.message.includes('recursion')
-                ? "Erro de configuração no banco (recursão de RLS). Contacte o administrador."
-                : `Falha ao buscar perfil do usuário: ${profileError?.message}`;
-            throw new Error(detailedError);
+            // Lança um erro específico e capturável para a UI poder exibir instruções detalhadas.
+            throw new Error("RLS_POLICY_ERROR: Falha ao buscar perfil do usuário. Verifique as políticas de segurança (RLS) da tabela 'profiles' no Supabase.");
         }
 
         const user: User = {

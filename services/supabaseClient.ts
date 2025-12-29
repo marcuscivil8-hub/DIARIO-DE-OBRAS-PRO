@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://glvtwaiobvdqojahitwn.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsdnR3YWlvYnZkcW9qYWhpdHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTgxMDQ0MDgsImV4cCI6MjAzMzY4MDQwOH0.r_b6e4vTfCHiR2f8Tmy-2Y2omX-L4k9m5-4k1i5KPTc';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsdnR3YWlvYnZkcW9qYWhpdHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njg4MDgsImV4cCI6MjA4MjU0NDgwOH0.ztI6grGxlyjaQy9WH_PlvL-qXCHZQjQIlv2TLmC8n9U';
 
 if (!supabaseUrl || !supabaseAnonKey) {
     const errorMessage = "ERRO DE CONFIGURAÇÃO: A URL ou a chave de API do Supabase não foram definidas.";
