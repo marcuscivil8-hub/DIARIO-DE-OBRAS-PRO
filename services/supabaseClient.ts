@@ -17,7 +17,7 @@ const supabaseUrl = 'https://yaaqffcvpghdamtkzvea.supabase.co';
 // 4. Na seção "Project API Keys", encontre a chave chamada "anon" (com o rótulo "public").
 // 5. Clique em "Copy" para copiar a chave inteira.
 // 6. Cole a chave que você copiou aqui, substituindo o texto 'SUA_CHAVE_ANON_PUBLICA_AQUI'.
-const supabaseAnonKey = 'sb_secret_rRMIqW3uFks46BiBsZlT0w_JY4vASqv';
+const supabaseAnonKey = 'sb_publishable_v8Sn0Zk4eZN0hKjMTGSUhg_Gx4dnP9V';
 
 // A validação de erro foi removida para simplificar. Se a chave ou URL estiverem erradas,
 // o aplicativo irá falhar ao tentar fazer login ou carregar dados, e as mensagens de erro
