@@ -40,6 +40,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const [loading, setLoading] = useState(true);
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
     const [pontoError, setPontoError] = useState<string | null>(null);
+    const [updatingPontoKey, setUpdatingPontoKey] = useState<string | null>(null);
     
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -75,42 +76,52 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     const weekDayStrings = weekDays.map(formatDate);
     
     const handlePontoClick = async (funcionarioId: string, data: string) => {
+        const key = `${funcionarioId}-${data}`;
+        if (updatingPontoKey === key) return; // Prevent concurrent updates for the same cell
+
+        setUpdatingPontoKey(key);
         setPontoError(null);
+        
         if (selectedObraId === 'all') {
             setPontoError('Por favor, selecione uma obra específica para registrar o ponto.');
+            setUpdatingPontoKey(null);
             return;
         }
     
         const existingPonto = pontos.find(p => p.funcionarioId === funcionarioId && p.data === data && p.obraId === selectedObraId);
     
         try {
-            if (existingPonto) {
-                 // Cycle: presente -> falta -> meio-dia -> removido
-                if (existingPonto.status === 'presente') {
-                    const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
-                    setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
-                } else if (existingPonto.status === 'falta') {
-                    const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
-                    setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
-                } else if (existingPonto.status === 'meio-dia') { // Explicitly check for 'meio-dia' before deleting
-                    await apiService.pontos.delete(existingPonto.id);
-                    setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
-                }
-            } else {
-                // Ponto não existe: cria novo como 'presente'
-                const newPontoData: Omit<Ponto, 'id'> = {
-                    funcionarioId,
-                    obraId: selectedObraId,
-                    data,
-                    status: 'presente'
-                };
+            if (!existingPonto) {
+                // Case 1: Create new entry as 'presente'
+                const newPontoData: Omit<Ponto, 'id'> = { funcionarioId, obraId: selectedObraId, data, status: 'presente' };
                 const createdPonto = await apiService.pontos.create(newPontoData);
                 setPontos(prevPontos => [...prevPontos, createdPonto]);
+            } else {
+                // Cycle through existing entry statuses
+                switch (existingPonto.status) {
+                    case 'presente': {
+                        const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
+                        setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                        break;
+                    }
+                    case 'falta': {
+                        const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
+                        setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                        break;
+                    }
+                    case 'meio-dia': {
+                        await apiService.pontos.delete(existingPonto.id);
+                        setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
+                        break;
+                    }
+                }
             }
         } catch (error) {
             console.error("Falha ao atualizar o ponto:", error);
             setPontoError("Não foi possível salvar a alteração. Por favor, recarregue a página e tente novamente.");
-            await fetchAllData();
+            await fetchAllData(); // Re-sync state on error
+        } finally {
+            setUpdatingPontoKey(null); // Release lock
         }
     };
     
@@ -197,6 +208,8 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                                 <tr key={func.id} className="hover:bg-gray-50">
                                     <td className="p-3 font-bold text-brand-blue border sticky left-0 bg-white/75 backdrop-blur-sm">{func.name}</td>
                                     {weekDayStrings.map(date => {
+                                        const key = `${func.id}-${date}`;
+                                        const isUpdating = updatingPontoKey === key;
                                         const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date && (selectedObraId === 'all' || p.obraId === selectedObraId));
                                         const status = ponto?.status;
                                         let bgColor = 'bg-gray-200';
@@ -206,7 +219,11 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                                         
                                         return (
                                             <td key={date} className="p-0 border text-center align-middle">
-                                                <button onClick={() => handlePontoClick(func.id, date)} className={`w-full h-12 transition-colors duration-200 ${bgColor} ${isPontoDisabled ? 'cursor-not-allowed' : 'hover:opacity-80'}`} disabled={isPontoDisabled}></button>
+                                                <button 
+                                                    onClick={() => handlePontoClick(func.id, date)} 
+                                                    className={`w-full h-12 transition-colors duration-200 ${bgColor} ${isPontoDisabled || isUpdating ? 'cursor-not-allowed opacity-50' : 'hover:opacity-80'}`} 
+                                                    disabled={isPontoDisabled || isUpdating}>
+                                                </button>
                                             </td>
                                         );
                                     })}

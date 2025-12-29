@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -220,7 +219,7 @@ const RelatorioAlmoxarifado: React.FC<{
         return ferramentas.find(f => f.id === mov.itemId)?.nome || 'Item não encontrado';
     };
 
-    const saidas = movimentacoes.filter(m => m.tipoMovimentacao === 'Saída').sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    const saidas = movimentacoes.filter(m => m.tipoMovimentacao === MovimentacaoTipo.Saida).sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     return (
         <div className="p-8 bg-white text-gray-800 font-sans">
@@ -249,7 +248,8 @@ const RelatorioAlmoxarifado: React.FC<{
                                 <td className="p-2 border border-gray-300">{new Date(mov.data).toLocaleDateString('pt-BR')}</td>
                                 <td className="p-2 border border-gray-300">{getNomeItem(mov)}</td>
                                 <td className="p-2 border border-gray-300 text-center">{mov.quantidade}</td>
-                                <td className="p-2 border border-gray-300">{obras.find(o => o.id === mov.obraDestinoId)?.name || '-'}</td>
+                                {/* FIX: Changed property from `obraDestinoId` to `obraId`. */}
+                                <td className="p-2 border border-gray-300">{obras.find(o => o.id === mov.obraId)?.name || '-'}</td>
                                 <td className="p-2 border border-gray-300">{funcionarios.find(f => f.id === mov.responsavelRetiradaId)?.name || '-'}</td>
                             </tr>
                         ))}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo, Page } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -67,9 +66,10 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         movimentacoes.forEach(mov => {
             if (mov.itemType === 'material') {
                 let change = 0;
-                if(mov.tipoMovimentacao === 'Entrada' || mov.tipoMovimentacao === 'Retorno') {
+                // FIX: Used MovimentacaoTipo enum members for type-safe comparisons.
+                if(mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
                     change = mov.quantidade;
-                } else if (mov.tipoMovimentacao === 'Saida' || mov.tipoMovimentacao === 'Uso') {
+                } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida || mov.tipoMovimentacao === MovimentacaoTipo.Uso) {
                     change = -mov.quantidade;
                 }
                 estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;

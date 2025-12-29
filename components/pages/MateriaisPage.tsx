@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Material, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -20,7 +19,8 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     
     // Modal for Usage/Return
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-    const [modalAction, setModalAction] = useState<'Uso' | 'Retorno' | null>(null);
+    // FIX: Changed state to use MovimentacaoTipo enum for type safety.
+    const [modalAction, setModalAction] = useState<MovimentacaoTipo.Uso | MovimentacaoTipo.Retorno | null>(null);
     const [currentMaterial, setCurrentMaterial] = useState<Material | null>(null);
     const [actionQuantity, setActionQuantity] = useState(1);
 
@@ -64,15 +64,16 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         
         movsDaObra.forEach(mov => {
             let change = 0;
-            if (mov.tipoMovimentacao === 'Saida') change = mov.quantidade;
-            if (mov.tipoMovimentacao === 'Uso' || mov.tipoMovimentacao === 'Retorno') change = -mov.quantidade;
+            // FIX: Used MovimentacaoTipo.Saida enum member for correct comparison.
+            if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) change = mov.quantidade;
+            if (mov.tipoMovimentacao === MovimentacaoTipo.Uso || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) change = -mov.quantidade;
             estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
         });
         
         return estoque;
     }, [movimentacoes, selectedObraId]);
     
-    const handleOpenActionModal = (material: Material, action: 'Uso' | 'Retorno') => {
+    const handleOpenActionModal = (material: Material, action: MovimentacaoTipo.Uso | MovimentacaoTipo.Retorno) => {
         setCurrentMaterial(material);
         setModalAction(action);
         setActionQuantity(1);
@@ -85,6 +86,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
             itemId: currentMaterial.id,
             itemType: 'material',
+            // FIX: modalAction now has the correct type, resolving the assignment error.
             tipoMovimentacao: modalAction,
             quantidade: actionQuantity,
             data: new Date().toISOString().split('T')[0],
@@ -136,8 +138,8 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                                             {canEdit && (
                                                 <td className="p-4">
                                                     <div className="flex space-x-2">
-                                                        <Button size="sm" variant="danger" onClick={() => handleOpenActionModal(material, 'Uso')} disabled={estoqueAtual <= 0}>Registrar Uso</Button>
-                                                        <Button size="sm" variant="secondary" onClick={() => handleOpenActionModal(material, 'Retorno')} disabled={estoqueAtual <= 0}>Devolver</Button>
+                                                        <Button size="sm" variant="danger" onClick={() => handleOpenActionModal(material, MovimentacaoTipo.Uso)} disabled={estoqueAtual <= 0}>Registrar Uso</Button>
+                                                        <Button size="sm" variant="secondary" onClick={() => handleOpenActionModal(material, MovimentacaoTipo.Retorno)} disabled={estoqueAtual <= 0}>Devolver</Button>
                                                     </div>
                                                 </td>
                                             )}
