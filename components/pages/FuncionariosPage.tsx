@@ -88,13 +88,13 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                  // Cycle: presente -> falta -> meio-dia -> removido
                 if (existingPonto.status === 'presente') {
                     const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
-                    setPontos(pontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                    setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
                 } else if (existingPonto.status === 'falta') {
                     const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
-                    setPontos(pontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
-                } else { // status is 'meio-dia'
+                    setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                } else if (existingPonto.status === 'meio-dia') { // Explicitly check for 'meio-dia' before deleting
                     await apiService.pontos.delete(existingPonto.id);
-                    setPontos(pontos.filter(p => p.id !== existingPonto.id));
+                    setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
                 }
             } else {
                 // Ponto não existe: cria novo como 'presente'
@@ -105,7 +105,7 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                     status: 'presente'
                 };
                 const createdPonto = await apiService.pontos.create(newPontoData);
-                setPontos([...pontos, createdPonto]);
+                setPontos(prevPontos => [...prevPontos, createdPonto]);
             }
         } catch (error) {
             console.error("Falha ao atualizar o ponto:", error);
