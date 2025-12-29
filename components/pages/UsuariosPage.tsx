@@ -19,7 +19,6 @@ const UsuariosPage: React.FC = () => {
     const [isRlsError, setIsRlsError] = useState(false);
     const [isConfigError, setIsConfigError] = useState(false);
     
-    // FIX: Added 'email' property to satisfy the User type.
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
         email: '',
@@ -67,7 +66,6 @@ const UsuariosPage: React.FC = () => {
         setIsConfigError(false);
         if (user) {
             setEditingUser(user);
-            // FIX: Added 'email' property when setting form state for an existing user.
             setCurrentUserForm({
                 name: user.name,
                 email: user.email,
@@ -274,7 +272,6 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                             <thead className="border-b-2 border-brand-light-gray">
                                 <tr>
                                     <th className="p-4 text-brand-blue font-semibold">Nome</th>
-                                    <th className="p-4 text-brand-blue font-semibold">Email</th>
                                     <th className="p-4 text-brand-blue font-semibold">Permissão</th>
                                     <th className="p-4 text-brand-blue font-semibold">Ações</th>
                                 </tr>
@@ -283,7 +280,6 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                                 {users.map(user => (
                                     <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
                                         <td className="p-4 font-bold text-brand-blue">{user.name}</td>
-                                        <td className="p-4 text-gray-700">{user.email}</td>
                                         <td className="p-4">
                                             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
                                                 user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :
@@ -309,16 +305,10 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
             
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? "Editar Usuário" : "Criar Novo Usuário"}>
                  <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
                     <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({...currentUserForm, name: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Added email input and changed username placeholder. */}
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
                     <input type="email" placeholder="Email (para login)" value={currentUserForm.email} onChange={e => setCurrentUserForm({...currentUserForm, email: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required disabled={!!editingUser}/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
                     <input type="text" placeholder="Nome de Usuário (ex: joaosilva)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
                     <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required={!editingUser}/>
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
                     <select value={currentUserForm.role} onChange={e => setCurrentUserForm({...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole})} className="w-full p-2 border rounded">
                         <option value={UserRole.Admin}>Admin</option>
                         <option value={UserRole.Encarregado}>Encarregado</option>
