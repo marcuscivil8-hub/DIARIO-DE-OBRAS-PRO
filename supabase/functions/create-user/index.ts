@@ -1,4 +1,3 @@
-
 // FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
 declare const Deno: any;
 
@@ -60,7 +59,6 @@ Deno.serve(async (req: any) => {
         .from('profiles')
         .insert({
             id: authUser.id,
-            email: email,
             name: name,
             username: username,
             role: role,

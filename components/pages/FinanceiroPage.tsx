@@ -156,9 +156,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-{/* FIX: Add explicit types for sort and map callback parameters to ensure correct type inference. */}
-                         {/* FIX: Added explicit types for sort and map callback parameters to fix type inference issues. */}
-                         {Object.entries(saidasPorCategoria).sort(([,a]: [string, number], [,b]: [string, number]) => b - a).map(([categoria, valor]: [string, number]) => (
+{/* FIX: Corrected the typing for the sort/map chain by using standard function parameters (a, b) and accessing properties via index (b[1] - a[1]), which ensures correct type inference. The previous syntax for typing destructured parameters was causing type errors. */}
+                         {Object.entries(saidasPorCategoria).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).map(([categoria, valor]: [string, number]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
