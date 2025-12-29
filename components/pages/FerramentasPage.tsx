@@ -1,6 +1,6 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Ferramenta, Funcionario, StatusFerramenta, User, UserRole } from '../../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// FIX: Imported the 'MovimentacaoAlmoxarifado' type.
+import { Ferramenta, Funcionario, StatusFerramenta, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -14,17 +14,27 @@ interface FerramentasPageProps {
 const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+    const [obras, setObras] = useState<Obra[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFerramenta, setEditingFerramenta] = useState<Ferramenta | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [ferramentaToDeleteId, setFerramentaToDeleteId] = useState<string | null>(null);
+    
+    // State for Return Modal
+    const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+    const [ferramentaToReturn, setFerramentaToReturn] = useState<Ferramenta | null>(null);
+    const [depositoManagerId, setDepositoManagerId] = useState<string>('');
+
+    const [selectedLocation, setSelectedLocation] = useState<string>('all'); // 'all', 'almoxarifado', or obraId
+
 
     const emptyFerramenta: Omit<Ferramenta, 'id'> = {
         nome: '',
         codigo: '',
         status: StatusFerramenta.Funcionando,
-        responsavelId: null
+        responsavelId: null,
+        obraId: null,
     };
     const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
 
@@ -33,12 +43,14 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [ferramentasData, funcionariosData] = await Promise.all([
+            const [ferramentasData, funcionariosData, obrasData] = await Promise.all([
                 apiService.ferramentas.getAll(),
                 apiService.funcionarios.getAll(),
+                apiService.obras.getAll(),
             ]);
             setFerramentas(ferramentasData);
-            setFuncionarios(funcionariosData);
+            setFuncionarios(funcionariosData.filter(f => f.ativo));
+            setObras(obrasData.filter(o => o.status === 'Ativa'));
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {
@@ -50,11 +62,14 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         fetchData();
     }, [fetchData]);
 
+    const visibleFerramentas = useMemo(() => {
+        if (selectedLocation === 'all') return ferramentas;
+        if (selectedLocation === 'almoxarifado') return ferramentas.filter(f => f.obraId === null);
+        return ferramentas.filter(f => f.obraId === selectedLocation);
+    }, [ferramentas, selectedLocation]);
 
-    const getResponsavelName = (id: string | null) => {
-        if (!id) return 'Ninguém';
-        return funcionarios.find(f => f.id === id)?.name || 'Desconhecido';
-    };
+    const getResponsavelName = (id: string | null) => id ? funcionarios.find(f => f.id === id)?.name || 'Desconhecido' : 'N/A';
+    const getObraName = (id: string | null) => id ? obras.find(o => o.id === id)?.name || 'Desconhecida' : 'Almoxarifado';
     
     const handleOpenModal = (ferramenta: Ferramenta | null = null) => {
         if (ferramenta) {
@@ -89,19 +104,61 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         setFerramentaToDeleteId(null);
         await fetchData();
     };
+
+    const handleOpenReturnModal = (ferramenta: Ferramenta) => {
+        setFerramentaToReturn(ferramenta);
+        setDepositoManagerId(funcionarios[0]?.id || '');
+        setIsReturnModalOpen(true);
+    };
+
+    const handleConfirmReturn = async () => {
+        if (!ferramentaToReturn) return;
+
+        // 1. Update the tool's location and responsible person
+        await apiService.ferramentas.update(ferramentaToReturn.id, {
+            obraId: null,
+            responsavelId: depositoManagerId
+        });
+        
+        // 2. Create a movement record for traceability
+        const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
+            itemId: ferramentaToReturn.id,
+            itemType: 'ferramenta',
+            tipoMovimentacao: MovimentacaoTipo.Retorno,
+            quantidade: 1,
+            data: new Date().toISOString().split('T')[0],
+            obraId: ferramentaToReturn.obraId || undefined,
+            responsavelRetiradaId: ferramentaToReturn.responsavelId || undefined,
+            descricao: `Devolvido para o almoxarifado. Recebido por: ${getResponsavelName(depositoManagerId)}`
+        };
+        await apiService.movimentacoesAlmoxarifado.create(newMov);
+        
+        setIsReturnModalOpen(false);
+        await fetchData();
+    };
     
     if (loading) return <div className="text-center p-8">Carregando ferramentas...</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <h2 className="text-2xl font-bold text-brand-blue">Controle de Ferramentas</h2>
-                {canEdit && (
-                    <Button onClick={() => handleOpenModal()} className="flex items-center space-x-2">
-                        {ICONS.add}
-                        <span>Nova Ferramenta</span>
-                    </Button>
-                )}
+                <div className="flex items-center gap-4">
+                     <div className="flex items-center space-x-2">
+                        <label htmlFor="location-filter" className="font-semibold text-brand-blue">Local:</label>
+                        <select id="location-filter" value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className="p-2 border rounded-lg">
+                            <option value="all">Todos os Locais</option>
+                            <option value="almoxarifado">Almoxarifado Central</option>
+                            {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
+                        </select>
+                    </div>
+                    {canEdit && (
+                        <Button onClick={() => handleOpenModal()} className="flex items-center space-x-2">
+                            {ICONS.add}
+                            <span>Nova Ferramenta</span>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <Card>
@@ -110,32 +167,23 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                         <thead className="border-b-2 border-brand-light-gray">
                             <tr>
                                 <th className="p-4 text-brand-blue font-semibold">Ferramenta</th>
-                                <th className="p-4 text-brand-blue font-semibold">Código</th>
-                                <th className="p-4 text-brand-blue font-semibold">Status</th>
+                                <th className="p-4 text-brand-blue font-semibold">Localização</th>
                                 <th className="p-4 text-brand-blue font-semibold">Responsável</th>
                                 {canEdit && <th className="p-4 text-brand-blue font-semibold">Ações</th>}
                             </tr>
                         </thead>
                         <tbody>
-                            {ferramentas.map(ferramenta => (
+                            {visibleFerramentas.map(ferramenta => (
                                 <tr key={ferramenta.id} className="border-b border-brand-light-gray hover:bg-gray-50">
-                                    <td className="p-4 font-bold text-brand-blue">{ferramenta.nome}</td>
-                                    <td className="p-4 text-gray-700">{ferramenta.codigo}</td>
-                                    <td className="p-4">
-                                        <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                                            ferramenta.status === StatusFerramenta.Funcionando ? 'bg-green-100 text-green-800' :
-                                            ferramenta.status === StatusFerramenta.Parada ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-gray-200 text-gray-800'
-                                        }`}>
-                                            {ferramenta.status}
-                                        </span>
-                                    </td>
+                                    <td className="p-4 font-bold text-brand-blue">{ferramenta.nome} ({ferramenta.codigo})</td>
+                                    <td className="p-4 text-gray-700">{getObraName(ferramenta.obraId)}</td>
                                     <td className="p-4 text-gray-700">{getResponsavelName(ferramenta.responsavelId)}</td>
                                     {canEdit && (
                                         <td className="p-4">
-                                            <div className="flex space-x-2">
+                                            <div className="flex items-center space-x-2">
                                                  <button onClick={() => handleOpenModal(ferramenta)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
                                                  <button onClick={() => triggerDeleteFerramenta(ferramenta.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
+                                                 {ferramenta.obraId && <Button size="sm" onClick={() => handleOpenReturnModal(ferramenta)}>Devolver</Button>}
                                             </div>
                                         </td>
                                     )}
@@ -148,20 +196,32 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
 
              <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingFerramenta ? "Editar Ferramenta" : "Nova Ferramenta"}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveFerramenta(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded"/>
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                    <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: (e.target as HTMLSelectElement).value as StatusFerramenta})} className="w-full p-2 border rounded">
+                    <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: e.target.value})} className="w-full p-2 border rounded"/>
+                    <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: e.target.value as StatusFerramenta})} className="w-full p-2 border rounded">
                         {Object.values(StatusFerramenta).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
-                     {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                     <select value={currentFerramenta.responsavelId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, responsavelId: (e.target as HTMLSelectElement).value || null})} className="w-full p-2 border rounded">
+                     <select value={currentFerramenta.obraId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, obraId: e.target.value || null})} className="w-full p-2 border rounded">
+                        <option value="">Almoxarifado Central</option>
+                        {obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </select>
+                     <select value={currentFerramenta.responsavelId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, responsavelId: e.target.value || null})} className="w-full p-2 border rounded">
                         <option value="">Ninguém</option>
-                        {funcionarios.filter(f => f.ativo).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                        {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                     <Button type="submit" className="w-full">Salvar</Button>
+                </form>
+            </Modal>
+            
+            <Modal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} title={`Devolver ${ferramentaToReturn?.nome}`}>
+                <form onSubmit={e => { e.preventDefault(); handleConfirmReturn(); }} className="space-y-4">
+                    <div>
+                        <label htmlFor="manager" className="block text-sm font-medium text-brand-gray mb-1">Recebido por (Chefe de Depósito)</label>
+                        <select id="manager" value={depositoManagerId} onChange={e => setDepositoManagerId(e.target.value)} className="w-full p-2 border rounded" required>
+                            {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                        </select>
+                    </div>
+                    <Button type="submit" className="w-full">Confirmar Devolução</Button>
                 </form>
             </Modal>
             

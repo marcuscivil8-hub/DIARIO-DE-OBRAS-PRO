@@ -50,7 +50,7 @@ export interface Ponto {
     funcionarioId: string;
     obraId: string;
     data: string; // YYY-MM-DD
-    status: 'presente' | 'falta';
+    status: 'presente' | 'falta' | 'meio-dia';
 }
 
 export enum TransacaoTipo {
@@ -86,8 +86,10 @@ export interface Material {
 }
 
 export enum MovimentacaoTipo {
-    Entrada = 'Entrada',
-    Saida = 'Saída'
+    Entrada = 'Entrada',   // From supplier to central warehouse
+    Saida = 'Saída',       // From central warehouse to an obra
+    Uso = 'Uso',           // Material consumed/used at an obra
+    Retorno = 'Retorno'      // From an obra back to central warehouse
 }
 
 // This type is for CENTRAL WAREHOUSE movements
@@ -98,7 +100,7 @@ export interface MovimentacaoAlmoxarifado {
     tipoMovimentacao: MovimentacaoTipo;
     quantidade: number; // For materials, 1 for tools
     data: string; // YYYY-MM-DD
-    obraDestinoId?: string;
+    obraId?: string; // Used for Saida, Uso, Retorno
     responsavelRetiradaId?: string;
     descricao?: string; // e.g., "Nota fiscal 123" for entry
 }
@@ -116,6 +118,7 @@ export interface Ferramenta {
     codigo: string;
     status: StatusFerramenta;
     responsavelId: string | null;
+    obraId: string | null; // Current location of the tool
 }
 
 export enum Clima {

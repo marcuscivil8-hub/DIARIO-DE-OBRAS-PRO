@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Funcionario, Ponto, User, UserRole, PagamentoTipo, Obra } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -84,13 +85,14 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     
         try {
             if (existingPonto) {
-                // Ponto existe: ciclo presente -> falta -> removido
+                 // Cycle: presente -> falta -> meio-dia -> removido
                 if (existingPonto.status === 'presente') {
-                    // Atualiza para 'falta'
                     const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
                     setPontos(pontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
-                } else { // status é 'falta'
-                    // Remove o registro
+                } else if (existingPonto.status === 'falta') {
+                    const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
+                    setPontos(pontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                } else { // status is 'meio-dia'
                     await apiService.pontos.delete(existingPonto.id);
                     setPontos(pontos.filter(p => p.id !== existingPonto.id));
                 }
@@ -108,7 +110,6 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
         } catch (error) {
             console.error("Falha ao atualizar o ponto:", error);
             setPontoError("Não foi possível salvar a alteração. Por favor, recarregue a página e tente novamente.");
-            // Opcional: reverter a atualização otimista recarregando os dados
             await fetchAllData();
         }
     };
@@ -120,34 +121,28 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     [funcionarios, selectedObraId]);
 
     const custoSemanal = useMemo(() => {
-        // Considera apenas funcionários ativos para o cálculo
-        const activeFuncionarioIds = new Set(
-            funcionarios.filter(f => f.ativo).map(f => f.id)
-        );
-    
-        // Filtra os pontos relevantes para a semana e para a visão atual (obra específica ou todas)
+        const activeFuncionarioIds = new Set(funcionarios.filter(f => f.ativo).map(f => f.id));
         const pontosDaSemana = pontos.filter(p => 
-            p.status === 'presente' &&
             weekDayStrings.includes(p.data) &&
             activeFuncionarioIds.has(p.funcionarioId) &&
             (selectedObraId === 'all' || p.obraId === selectedObraId)
         );
     
-        // Mapeia os funcionários por ID para uma busca mais rápida
         const funcionariosMap = new Map(funcionarios.map(f => [f.id, f]));
     
         const custoTotal = pontosDaSemana.reduce((total, ponto) => {
-            // FIX: Explicitly cast the result of .get() to fix type inference issue where `funcionario` becomes `unknown`.
             const funcionario = funcionariosMap.get(ponto.funcionarioId) as Funcionario | undefined;
             if (!funcionario) return total;
     
             let dailyCost = 0;
-            if (funcionario.tipoPagamento === PagamentoTipo.Diaria) {
-                dailyCost = funcionario.valor;
-            } else if (funcionario.tipoPagamento === PagamentoTipo.Salario) {
-                // Custo diário estimado para mensalista
-                dailyCost = funcionario.valor / 22;
+            const baseDailyValue = funcionario.tipoPagamento === PagamentoTipo.Diaria ? funcionario.valor : (funcionario.valor / 22);
+
+            if (ponto.status === 'presente') {
+                dailyCost = baseDailyValue;
+            } else if (ponto.status === 'meio-dia') {
+                dailyCost = baseDailyValue / 2;
             }
+            
             return total + dailyCost;
         }, 0);
     
@@ -203,7 +198,11 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                                     {weekDayStrings.map(date => {
                                         const ponto = pontos.find(p => p.funcionarioId === func.id && p.data === date && (selectedObraId === 'all' || p.obraId === selectedObraId));
                                         const status = ponto?.status;
-                                        const bgColor = status === 'presente' ? 'bg-green-500' : status === 'falta' ? 'bg-red-500' : 'bg-gray-200';
+                                        let bgColor = 'bg-gray-200';
+                                        if (status === 'presente') bgColor = 'bg-green-500';
+                                        if (status === 'falta') bgColor = 'bg-red-500';
+                                        if (status === 'meio-dia') bgColor = 'bg-blue-500';
+                                        
                                         return (
                                             <td key={date} className="p-0 border text-center align-middle">
                                                 <button onClick={() => handlePontoClick(func.id, date)} className={`w-full h-12 transition-colors duration-200 ${bgColor} ${isPontoDisabled ? 'cursor-not-allowed' : 'hover:opacity-80'}`} disabled={isPontoDisabled}></button>

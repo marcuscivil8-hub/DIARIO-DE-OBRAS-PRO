@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Material, User, UserRole } from '../../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Material, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
-import Modal, { ConfirmationModal } from '../ui/Modal';
+import Modal from '../ui/Modal';
 import { ICONS } from '../../constants';
 
 interface MateriaisPageProps {
@@ -13,138 +13,161 @@ interface MateriaisPageProps {
 
 const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     const [materiais, setMateriais] = useState<Material[]>([]);
+    const [obras, setObras] = useState<Obra[]>([]);
+    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const [materialToDeleteId, setMaterialToDeleteId] = useState<string | null>(null);
+    const [selectedObraId, setSelectedObraId] = useState<string>('');
     
-    const emptyMaterial: Omit<Material, 'id' | 'quantidade'> = { nome: '', unidade: '', estoqueMinimo: 0 };
-    const [currentMaterial, setCurrentMaterial] = useState(emptyMaterial);
+    // Modal for Usage/Return
+    const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+    const [modalAction, setModalAction] = useState<'Uso' | 'Retorno' | null>(null);
+    const [currentMaterial, setCurrentMaterial] = useState<Material | null>(null);
+    const [actionQuantity, setActionQuantity] = useState(1);
+
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
 
-    const fetchMateriais = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await apiService.materiais.getAll();
-            setMateriais(data);
+            const [matData, obrasData, movData] = await Promise.all([
+                apiService.materiais.getAll(),
+                apiService.obras.getAll(),
+                apiService.movimentacoesAlmoxarifado.getAll(),
+            ]);
+            
+            const activeObras = obrasData.filter(o => o.status === 'Ativa');
+            setMateriais(matData.sort((a,b) => a.nome.localeCompare(b.nome)));
+            setObras(activeObras);
+            setMovimentacoes(movData);
+            
+            if (activeObras.length > 0 && !selectedObraId) {
+                setSelectedObraId(activeObras[0].id);
+            }
+            
         } catch (error) {
-            console.error("Failed to fetch materiais", error);
+            console.error("Failed to fetch materiais data", error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedObraId]);
 
     useEffect(() => {
-        fetchMateriais();
-    }, [fetchMateriais]);
+        fetchData();
+    }, [fetchData]);
 
-
-    const handleOpenModal = (material: Material | null = null) => {
-        if (material) {
-            setEditingMaterial(material);
-            setCurrentMaterial(material);
-        } else {
-            setEditingMaterial(null);
-            setCurrentMaterial(emptyMaterial);
-        }
-        setIsModalOpen(true);
-    };
-
-    const handleSaveMaterial = async () => {
-        if (editingMaterial) {
-            await apiService.materiais.update(editingMaterial.id, currentMaterial);
-        } else {
-            // New materials start with 0 quantity in central stock.
-            const newMaterialData = { ...currentMaterial, quantidade: 0 };
-            await apiService.materiais.create(newMaterialData);
-        }
-        setIsModalOpen(false);
-        await fetchMateriais();
-    };
-
-    const triggerDeleteMaterial = (id: string) => {
-        setMaterialToDeleteId(id);
-        setIsConfirmModalOpen(true);
-    };
-
-    const confirmDeleteMaterial = async () => {
-        if (!materialToDeleteId) return;
-        await apiService.materiais.delete(materialToDeleteId);
-        setIsConfirmModalOpen(false);
-        setMaterialToDeleteId(null);
-        await fetchMateriais();
+    const estoquePorObra = useMemo(() => {
+        if (!selectedObraId) return {};
+        
+        const estoque: Record<string, number> = {};
+        const movsDaObra = movimentacoes.filter(m => m.obraId === selectedObraId && m.itemType === 'material');
+        
+        movsDaObra.forEach(mov => {
+            let change = 0;
+            if (mov.tipoMovimentacao === 'Saida') change = mov.quantidade;
+            if (mov.tipoMovimentacao === 'Uso' || mov.tipoMovimentacao === 'Retorno') change = -mov.quantidade;
+            estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
+        });
+        
+        return estoque;
+    }, [movimentacoes, selectedObraId]);
+    
+    const handleOpenActionModal = (material: Material, action: 'Uso' | 'Retorno') => {
+        setCurrentMaterial(material);
+        setModalAction(action);
+        setActionQuantity(1);
+        setIsActionModalOpen(true);
     };
     
-    if (loading) return <div className="text-center p-8">Carregando catálogo de materiais...</div>;
+    const handleSaveAction = async () => {
+        if (!currentMaterial || !modalAction || !selectedObraId) return;
 
+        const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
+            itemId: currentMaterial.id,
+            itemType: 'material',
+            tipoMovimentacao: modalAction,
+            quantidade: actionQuantity,
+            data: new Date().toISOString().split('T')[0],
+            obraId: selectedObraId,
+            descricao: `Registro de ${modalAction} na obra`
+        };
+
+        await apiService.movimentacoesAlmoxarifado.create(newMov);
+        setIsActionModalOpen(false);
+        await fetchData();
+    };
+    
+    if (loading) return <div className="text-center p-8">Carregando estoque de materiais...</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-brand-blue">Catálogo de Materiais</h2>
-                {canEdit && (
-                    <Button onClick={() => handleOpenModal()} className="flex items-center space-x-2">
-                        {ICONS.add}
-                        <span>Novo Material</span>
-                    </Button>
-                )}
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <h2 className="text-2xl font-bold text-brand-blue">Estoque de Materiais por Obra</h2>
+                <div className="flex items-center space-x-2">
+                    <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Obra:</label>
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
+                        {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
+                    </select>
+                </div>
             </div>
 
             <Card>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="border-b-2 border-brand-light-gray">
-                            <tr>
-                                <th className="p-4 text-brand-blue font-semibold">Material</th>
-                                <th className="p-4 text-brand-blue font-semibold">Unidade</th>
-                                <th className="p-4 text-brand-blue font-semibold">Estoque Mínimo</th>
-                                {canEdit && <th className="p-4 text-brand-blue font-semibold">Ações</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {materiais.map(material => (
-                                    <tr key={material.id} className="border-b border-brand-light-gray hover:bg-gray-50">
-                                        <td className="p-4 font-bold text-brand-blue">{material.nome}</td>
-                                        <td className="p-4 text-gray-700">{material.unidade}</td>
-                                        <td className="p-4 text-gray-700">{material.estoqueMinimo}</td>
-                                        {canEdit && (
-                                            <td className="p-4">
-                                                <div className="flex space-x-2">
-                                                    <button onClick={() => handleOpenModal(material)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
-                                                    <button onClick={() => triggerDeleteMaterial(material.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
-                                                </div>
+                {!selectedObraId ? <p className="text-center text-brand-gray">Selecione uma obra para ver o estoque.</p> : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="border-b-2 border-brand-light-gray">
+                                <tr>
+                                    <th className="p-4 text-brand-blue font-semibold">Material</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Estoque na Obra</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Estoque Mínimo (Global)</th>
+                                    {canEdit && <th className="p-4 text-brand-blue font-semibold">Ações</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {materiais.map(material => {
+                                    const estoqueAtual = estoquePorObra[material.id] || 0;
+                                    return (
+                                        <tr key={material.id} className="border-b border-brand-light-gray hover:bg-gray-50">
+                                            <td className="p-4 font-bold text-brand-blue">{material.nome}</td>
+                                            <td className={`p-4 font-bold ${estoqueAtual <= material.estoqueMinimo ? 'text-red-500' : 'text-gray-700'}`}>
+                                                {estoqueAtual} {material.unidade}
                                             </td>
-                                        )}
-                                    </tr>
-                                )
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                            <td className="p-4 text-gray-700">{material.estoqueMinimo} {material.unidade}</td>
+                                            {canEdit && (
+                                                <td className="p-4">
+                                                    <div className="flex space-x-2">
+                                                        <Button size="sm" variant="danger" onClick={() => handleOpenActionModal(material, 'Uso')} disabled={estoqueAtual <= 0}>Registrar Uso</Button>
+                                                        <Button size="sm" variant="secondary" onClick={() => handleOpenActionModal(material, 'Retorno')} disabled={estoqueAtual <= 0}>Devolver</Button>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </Card>
-
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingMaterial ? "Editar Material" : "Novo Material"}>
-                <form onSubmit={e => { e.preventDefault(); handleSaveMaterial(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Nome do Material" value={currentMaterial.nome} onChange={e => setCurrentMaterial({...currentMaterial, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={currentMaterial.unidade} onChange={e => setCurrentMaterial({...currentMaterial, unidade: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="number" placeholder="Estoque Mínimo" value={currentMaterial.estoqueMinimo} onChange={e => setCurrentMaterial({...currentMaterial, estoqueMinimo: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required/>
-                    <Button type="submit" className="w-full">Salvar</Button>
+            
+            <Modal isOpen={isActionModalOpen} onClose={() => setIsActionModalOpen(false)} title={`${modalAction} de ${currentMaterial?.nome}`}>
+                 <form onSubmit={e => { e.preventDefault(); handleSaveAction(); }} className="space-y-4">
+                    <div>
+                         <label htmlFor="quantity" className="block text-sm font-medium text-brand-gray mb-1">Quantidade</label>
+                         <input
+                            type="number"
+                            id="quantity"
+                            value={actionQuantity}
+                            onChange={e => setActionQuantity(Number(e.target.value))}
+                            className="w-full p-2 border rounded"
+                            min="1"
+                            max={estoquePorObra[currentMaterial?.id || ''] || 1}
+                            required
+                        />
+                    </div>
+                    <Button type="submit" className="w-full">Confirmar {modalAction}</Button>
                 </form>
             </Modal>
-            
-            <ConfirmationModal
-                isOpen={isConfirmModalOpen}
-                onClose={() => setIsConfirmModalOpen(false)}
-                onConfirm={confirmDeleteMaterial}
-                title="Confirmar Exclusão"
-                message="Tem certeza que deseja excluir este material do catálogo? Todas as movimentações de estoque relacionadas também serão afetadas."
-                confirmText="Excluir Material"
-            />
         </div>
     );
 };
