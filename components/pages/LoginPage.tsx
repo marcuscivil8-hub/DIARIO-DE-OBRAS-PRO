@@ -29,9 +29,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             if (err.message.includes('Invalid API key')) {
                 setIsApiKeyError(true);
                 setError('A chave de API configurada é inválida. Veja as instruções abaixo.');
-            } else if (err.message.includes('RLS_POLICY_ERROR')) {
+            } else if (err.message.includes('RLS') || err.message.includes('recursion')) {
                 setIsRlsError(true);
-                setError(err.message.split(': ')[1]); // Extrai a mensagem amigável
+                setError(err.message); 
             } else {
                 // A mensagem de erro agora vem diretamente da apiService, mais específica.
                 setError(err.message);
@@ -104,27 +104,38 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 
                 {isRlsError && (
                      <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                        <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha ao Carregar Perfil</h4>
-                        <p className="text-red-700">A autenticação funcionou, mas o app não conseguiu carregar os dados do perfil (nome, permissões). Isso quase sempre é causado pela falta de <strong>Políticas de Segurança (RLS)</strong> na sua tabela <strong>profiles</strong> no Supabase.</p>
-                        <p className="text-red-700 mt-2">Para corrigir, siga os passos:</p>
-                        <ol className="list-decimal list-inside text-red-700 space-y-2 mt-2">
-                            <li>Acesse seu projeto no Supabase e vá para <strong>Authentication &rarr; Policies</strong>.</li>
-                            <li>Na tabela <strong>profiles</strong>, clique em <strong>"Enable RLS"</strong> se estiver desativado.</li>
-                            <li>Clique em <strong>"New Policy"</strong> &rarr; <strong>"For full customization"</strong> e crie a política abaixo para permitir que usuários leiam seus próprios dados:</li>
-                        </ol>
-                         <pre className="bg-gray-800 text-white p-3 rounded-md mt-2 text-xs overflow-x-auto">
-                            <code>
-{`-- Nome da Política:
--- Permite que usuários leiam seus próprios perfis.
+                        <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Permissão de Acesso Negada (RLS)</h4>
+                        <p className="text-red-700">A autenticação funcionou, mas o app não conseguiu carregar os dados do seu perfil (nome, permissões). Isso geralmente é causado por políticas de segurança (RLS) ausentes ou incorretas na sua tabela <code>profiles</code> no Supabase.</p>
+                        <p className="text-red-700 mt-2">Para corrigir, execute o script SQL abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele cria as permissões necessárias para administradores e usuários comuns de forma segura.</p>
+                        
+                        <div className="mt-4">
+                            <h5 className="font-bold text-red-700">1. (Obrigatório) Crie uma Função Auxiliar Segura</h5>
+                             <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
+                                <code>
+{`CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT LANGUAGE SQL SECURITY DEFINER AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
+$$;`}
+                                </code>
+                            </pre>
+                        </div>
 
--- Aplicar para a operação:
--- SELECT
+                        <div className="mt-4">
+                            <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
+                            <p className="text-red-700 text-xs mb-1">Crie estas duas políticas para a tabela <code>profiles</code>. Elas usarão a função acima.</p>
+                            <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
+                                <code>
+{`-- Política para Visualizar (SELECT)
+CREATE POLICY "Admins can view all profiles" ON public.profiles
+FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
 
--- Usando a expressão (USING expression):
-auth.uid() = id`}
-                            </code>
-                         </pre>
-                         <p className="text-red-700 mt-2">Após salvar a política, o login deve funcionar imediatamente.</p>
+-- Política para Atualizar (UPDATE)
+CREATE POLICY "Admins and users can update profiles" ON public.profiles
+FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
+                                </code>
+                            </pre>
+                        </div>
+                         <p className="text-red-700 mt-2">Após executar estes comandos, o login funcionará imediatamente.</p>
                     </Card>
                 )}
             </div>

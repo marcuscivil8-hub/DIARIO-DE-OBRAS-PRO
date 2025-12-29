@@ -41,7 +41,13 @@ const UsuariosPage: React.FC = () => {
             ]);
             setUsers(usersData);
             setObras(obrasData);
-        } catch (error) {
+        } catch (error: any) {
+             if (error.message.includes('RLS') || error.message.includes('recursion')) {
+                setIsRlsError(true);
+                setPageError(error.message);
+            } else {
+                setPageError("Falha ao carregar dados dos usuários.");
+            }
             console.error("Failed to fetch data for user management", error);
         } finally {
             setLoading(false);
@@ -110,9 +116,9 @@ const UsuariosPage: React.FC = () => {
             await fetchData();
         } catch (error: any) {
             console.error(`Erro ao salvar usuário: ${error.message}`);
-            if (error.message && error.message.includes('permissão negada')) {
+            if (error.message.includes('RLS') || error.message.includes('recursion') || error.message.includes('permissão negada')) {
                 setIsRlsError(true);
-                setPageError("Falha de permissão. Verifique as instruções abaixo para configurar as Políticas de Segurança (RLS).");
+                setPageError(error.message);
                 setIsModalOpen(false); // Close modal to show the page-level error card
             } else {
                 setFormError(error.message); // Set form error to display in the modal
@@ -155,7 +161,7 @@ const UsuariosPage: React.FC = () => {
         });
     };
     
-    if(loading) return <div className="text-center p-8">Carregando usuários...</div>;
+    if(loading && !isRlsError) return <div className="text-center p-8">Carregando usuários...</div>;
 
     return (
         <div className="space-y-6">
@@ -166,84 +172,85 @@ const UsuariosPage: React.FC = () => {
                     <span>Novo Usuário</span>
                 </Button>
             </div>
-            {pageError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
+            {pageError && !isRlsError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
             
             {isRlsError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
                     <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Permissão de Acesso Negada (RLS)</h4>
-                    <p className="text-red-700">A operação falhou. Para que um <strong>Administrador</strong> possa gerenciar outros usuários (ver a lista e editar), as <strong>Políticas de Segurança (RLS)</strong> da sua tabela <code>profiles</code> no Supabase precisam ser ajustadas.</p>
-                    <p className="text-red-700 mt-2">No seu painel do Supabase, vá para <strong>Authentication &rarr; Policies</strong> e, na tabela <strong>profiles</strong>, garanta que as seguintes políticas existam e estejam ativas. Elas substituem políticas mais simples que permitem apenas o acesso ao próprio perfil.</p>
+                    <p className="text-red-700">A operação falhou. Para que um <strong>Administrador</strong> possa gerenciar outros usuários, as <strong>Políticas de Segurança (RLS)</strong> da sua tabela <code>profiles</code> no Supabase precisam ser ajustadas para evitar um erro de recursão.</p>
+                    <p className="text-red-700 mt-2">Execute o script SQL abaixo no <strong>SQL Editor</strong> do seu painel Supabase para corrigir o problema de forma definitiva.</p>
                     
                     <div className="mt-4">
-                        <h5 className="font-bold text-red-700">1. Política para Visualizar (SELECT)</h5>
-                        <p className="text-red-700 text-xs mb-1">Permite que Admins vejam todos os usuários e outros vejam apenas a si mesmos.</p>
-                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto">
+                        <h5 className="font-bold text-red-700">1. (Obrigatório) Crie uma Função Auxiliar Segura</h5>
+                        <p className="text-red-700 text-xs mb-1">Esta função verifica a permissão do usuário de forma segura, evitando o loop de recursão.</p>
+                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-    {`-- NOME: Admins can view all profiles
--- OPERAÇÃO: SELECT
--- EXPRESSÃO (USING):
-(auth.uid() = id) OR (( SELECT profiles.role
-    FROM profiles
-    WHERE (profiles.id = auth.uid())) = 'Admin'::text)`}
+{`CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT LANGUAGE SQL SECURITY DEFINER AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
+$$;`}
                             </code>
                         </pre>
                     </div>
 
                     <div className="mt-4">
-                        <h5 className="font-bold text-red-700">2. Política para Atualizar (UPDATE)</h5>
-                        <p className="text-red-700 text-xs mb-1">Permite que Admins atualizem o perfil de qualquer usuário.</p>
-                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto">
+                        <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
+                        <p className="text-red-700 text-xs mb-1">Crie estas duas políticas para a tabela <code>profiles</code>. Elas usarão a função acima e são seguras.</p>
+                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-    {`-- NOME: Admins can update any profile
--- OPERAÇÃO: UPDATE
--- EXPRESSÃO (USING):
-(( SELECT profiles.role
-    FROM profiles
-    WHERE (profiles.id = auth.uid())) = 'Admin'::text)`}
+{`-- Política para Visualizar (SELECT)
+CREATE POLICY "Admins can view all profiles" ON public.profiles
+FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
+
+-- Política para Atualizar (UPDATE)
+CREATE POLICY "Admins and users can update profiles" ON public.profiles
+FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                             </code>
                         </pre>
                     </div>
-                    <p className="text-red-700 mt-3">Após adicionar/atualizar estas políticas, a edição e visualização de usuários funcionará corretamente.</p>
+                    <p className="text-red-700 mt-3">Após executar estes comandos, a página de usuários funcionará corretamente.</p>
                 </Card>
             )}
 
-            <Card>
-                <div className="overflow-x-auto">
-                     <table className="w-full text-left">
-                        <thead className="border-b-2 border-brand-light-gray">
-                            <tr>
-                                <th className="p-4 text-brand-blue font-semibold">Nome</th>
-                                <th className="p-4 text-brand-blue font-semibold">Email</th>
-                                <th className="p-4 text-brand-blue font-semibold">Permissão</th>
-                                <th className="p-4 text-brand-blue font-semibold">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(user => (
-                                <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
-                                    <td className="p-4 font-bold text-brand-blue">{user.name}</td>
-                                    <td className="p-4 text-gray-700">{user.email}</td>
-                                    <td className="p-4">
-                                        <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                                            user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :
-                                            user.role === UserRole.Encarregado ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-blue-100 text-blue-800'
-                                        }`}>
-                                            {user.role}
-                                        </span>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex space-x-2">
-                                            <button onClick={() => handleOpenModal(user)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
-                                            <button onClick={() => triggerDeleteUser(user.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
-                                        </div>
-                                    </td>
+            {!isRlsError && (
+                 <Card>
+                    <div className="overflow-x-auto">
+                         <table className="w-full text-left">
+                            <thead className="border-b-2 border-brand-light-gray">
+                                <tr>
+                                    <th className="p-4 text-brand-blue font-semibold">Nome</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Email</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Permissão</th>
+                                    <th className="p-4 text-brand-blue font-semibold">Ações</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
+                            </thead>
+                            <tbody>
+                                {users.map(user => (
+                                    <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
+                                        <td className="p-4 font-bold text-brand-blue">{user.name}</td>
+                                        <td className="p-4 text-gray-700">{user.email}</td>
+                                        <td className="p-4">
+                                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                                                user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :
+                                                user.role === UserRole.Encarregado ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex space-x-2">
+                                                <button onClick={() => handleOpenModal(user)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
+                                                <button onClick={() => triggerDeleteUser(user.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            )}
             
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? "Editar Usuário" : "Criar Novo Usuário"}>
                  <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
