@@ -71,12 +71,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </form>
-                <div className="mt-6 text-center text-white/70 text-sm">
-                    <p>Para acesso administrativo, utilize:</p>
-                    <p><strong>Email:</strong> admin@diariodeobra.pro</p>
-                    <p><strong>Senha Padrão:</strong> 12345678</p>
-                    <p className="mt-2 text-xs italic">Lembre-se de alterar a senha após o primeiro login.</p>
-                </div>
             </div>
         </div>
     );
