@@ -1,5 +1,5 @@
-// FIX: Replaced remote type reference with a direct reference to the Deno namespace library to resolve type definition errors.
-/// <reference lib="deno.ns" />
+// Fix: Use a URL-based type reference for Deno to resolve type definition errors.
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
