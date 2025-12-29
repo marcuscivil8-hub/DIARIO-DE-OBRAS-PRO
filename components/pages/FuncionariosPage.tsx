@@ -115,10 +115,11 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     };
     
     const visibleFuncionarios = useMemo(() => 
+        // FIX: Show all active employees regardless of their default obra, allowing them to be marked on any project.
         funcionarios
-            .filter(f => f.ativo && (selectedObraId === 'all' || f.obraId === selectedObraId))
+            .filter(f => f.ativo)
             .sort((a, b) => a.name.localeCompare(b.name)), 
-    [funcionarios, selectedObraId]);
+    [funcionarios]);
 
     const custoSemanal = useMemo(() => {
         const activeFuncionarioIds = new Set(funcionarios.filter(f => f.ativo).map(f => f.id));
