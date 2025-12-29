@@ -417,6 +417,11 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState<{ diarioId: string; photoIndex: number; url: string } | null>(null);
+    
+    // State for editing an existing diary entry
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingDiario, setEditingDiario] = useState<DiarioObra | null>(null);
+    const [currentDiarioEdit, setCurrentDiarioEdit] = useState({ clima: Clima.Ensolarado, observacoes: '' });
 
     const fetchPageData = useCallback(async () => {
         setLoading(true);
@@ -459,7 +464,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
 
     const confirmDeleteExistingPhoto = async () => {
         if (!photoToDelete) return;
-        const { diarioId, photoIndex, url } = photoToDelete;
+        const { diarioId, url } = photoToDelete;
         
         const diarioToUpdate = diarios.find(d => d.id === diarioId);
         if (diarioToUpdate) {
@@ -467,10 +472,16 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
             const filePath = new URL(url).pathname.split('/fotos-diario/')[1];
             await supabase.storage.from('fotos-diario').remove([filePath]);
 
-            // Update DB
-            const updatedFotos = diarioToUpdate.fotos.filter((_, index) => index !== photoIndex);
-            await apiService.diarios.update(diarioId, { fotos: updatedFotos });
-            await fetchPageData();
+            const updatedFotos = diarioToUpdate.fotos.filter(foto => foto.url !== url);
+
+            // AUTO-DELETE LOGIC: if no photos left and no text, delete the whole entry
+            if (updatedFotos.length === 0 && diarioToUpdate.observacoes.trim() === '') {
+                await apiService.diarios.delete(diarioId);
+            } else {
+                // Otherwise, just update the photos array
+                await apiService.diarios.update(diarioId, { fotos: updatedFotos });
+            }
+            await fetchPageData(); // Refresh data from server
         }
         
         setIsConfirmModalOpen(false);
@@ -500,6 +511,38 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setNewDiario({ data: '', clima: Clima.Ensolarado, observacoes: '' });
         setPhotos([]);
         await fetchPageData();
+    };
+
+    const handleOpenEditModal = (diario: DiarioObra) => {
+        setEditingDiario(diario);
+        setCurrentDiarioEdit({ clima: diario.clima, observacoes: diario.observacoes });
+        setIsEditModalOpen(true);
+    };
+    
+    const handleUpdateDiario = async () => {
+        if (!editingDiario) return;
+    
+        const updatedData = {
+            clima: currentDiarioEdit.clima,
+            observacoes: currentDiarioEdit.observacoes,
+        };
+    
+        try {
+            // AUTO-DELETE LOGIC: if text is cleared and no photos exist, delete the entry
+            if (updatedData.observacoes.trim() === '' && editingDiario.fotos.length === 0) {
+                await apiService.diarios.delete(editingDiario.id);
+            } else {
+                // Otherwise, just update the entry
+                await apiService.diarios.update(editingDiario.id, updatedData);
+            }
+        } catch (error) {
+            console.error("Failed to update or delete diary entry", error);
+            // Optionally, set an error state to show in the UI
+        } finally {
+            setIsEditModalOpen(false);
+            setEditingDiario(null);
+            await fetchPageData(); // Refresh data from server
+        }
     };
     
     const handleGeneratePdf = () => {
@@ -569,6 +612,11 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                                 <div className="flex items-center space-x-2 text-brand-gray">
                                     {ICONS.weather}
                                     <span>{diario.clima}</span>
+                                    {canEdit && (
+                                        <button onClick={() => handleOpenEditModal(diario)} className="text-blue-600 hover:text-blue-800 p-1 ml-2">
+                                            {React.cloneElement(ICONS.edit, { className: "h-4 w-4" })}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <p className="text-gray-700 mb-4 whitespace-pre-wrap">{diario.observacoes}</p>
@@ -648,6 +696,24 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                     <Button type="submit" className="w-full">Salvar Registro</Button>
                 </form>
             </Modal>
+            
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Registro do Diário">
+                <form onSubmit={e => { e.preventDefault(); handleUpdateDiario(); }} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-gray">Clima</label>
+                        <select value={currentDiarioEdit.clima} onChange={e => setCurrentDiarioEdit({ ...currentDiarioEdit, clima: (e.target as HTMLSelectElement).value as Clima })} className="w-full p-2 border rounded mt-1">
+                            {Object.values(Clima).map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-brand-gray">Observações e Serviços</label>
+                        <textarea value={currentDiarioEdit.observacoes} onChange={e => setCurrentDiarioEdit({ ...currentDiarioEdit, observacoes: (e.target as HTMLTextAreaElement).value })} rows={5} className="w-full p-2 border rounded mt-1" placeholder="Descreva os serviços realizados, ocorrências, etc."></textarea>
+                    </div>
+                    <p className="text-sm text-gray-500 pt-2 border-t">Para adicionar ou remover fotos, use os controles na página principal.</p>
+                    <Button type="submit" className="w-full">Salvar Alterações</Button>
+                </form>
+            </Modal>
+
 
             <ConfirmationModal
                 isOpen={isConfirmModalOpen}
