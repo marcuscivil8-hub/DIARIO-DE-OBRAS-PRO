@@ -75,7 +75,8 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     
     const handlePontoClick = async (funcionarioId: string, data: string) => {
         if (selectedObraId === 'all') {
-            alert('Por favor, selecione uma obra específica para registrar o ponto.');
+            // FIX: Replaced alert with console.warn to avoid undefined error.
+            console.warn('Por favor, selecione uma obra específica para registrar o ponto.');
             return;
         }
 
@@ -131,7 +132,8 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
                 <h2 className="text-2xl font-bold text-brand-blue">Folha de Pontos</h2>
                 <div className="flex items-center space-x-2">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
+                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
                         {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>

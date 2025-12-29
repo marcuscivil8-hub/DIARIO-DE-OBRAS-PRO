@@ -148,12 +148,16 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
 
              <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingFerramenta ? "Editar Ferramenta" : "Nova Ferramenta"}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveFerramenta(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: e.target.value})} className="w-full p-2 border rounded"/>
-                    <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: e.target.value as StatusFerramenta})} className="w-full p-2 border rounded">
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded"/>
+                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                    <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: (e.target as HTMLSelectElement).value as StatusFerramenta})} className="w-full p-2 border rounded">
                         {Object.values(StatusFerramenta).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
-                     <select value={currentFerramenta.responsavelId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, responsavelId: e.target.value || null})} className="w-full p-2 border rounded">
+                     {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                     <select value={currentFerramenta.responsavelId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, responsavelId: (e.target as HTMLSelectElement).value || null})} className="w-full p-2 border rounded">
                         <option value="">Ninguém</option>
                         {funcionarios.filter(f => f.ativo).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>

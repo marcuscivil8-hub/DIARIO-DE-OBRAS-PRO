@@ -261,7 +261,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                         <textarea
                             id="lembretes"
                             value={lembretesEdit}
-                            onChange={(e) => setLembretesEdit(e.target.value)}
+                            // FIX: Cast event target to HTMLTextAreaElement to access value property.
+                            onChange={(e) => setLembretesEdit((e.target as HTMLTextAreaElement).value)}
                             rows={6}
                             className="w-full p-2 border rounded"
                         />

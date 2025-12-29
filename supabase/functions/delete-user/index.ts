@@ -1,7 +1,6 @@
-// Fix: Directly reference Deno's built-in library types to resolve type definition errors.
-/// <reference no-default-lib="true" />
-/// <reference lib="deno.ns" />
-/// <reference lib="esnext" />
+
+// FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
+declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -13,7 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   // Trata a requisição pre-flight de CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

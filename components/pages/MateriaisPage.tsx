@@ -127,9 +127,12 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingMaterial ? "Editar Material" : "Novo Material"}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveMaterial(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome do Material" value={currentMaterial.nome} onChange={e => setCurrentMaterial({...currentMaterial, nome: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={currentMaterial.unidade} onChange={e => setCurrentMaterial({...currentMaterial, unidade: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="number" placeholder="Estoque Mínimo" value={currentMaterial.estoqueMinimo} onChange={e => setCurrentMaterial({...currentMaterial, estoqueMinimo: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Nome do Material" value={currentMaterial.nome} onChange={e => setCurrentMaterial({...currentMaterial, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={currentMaterial.unidade} onChange={e => setCurrentMaterial({...currentMaterial, unidade: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="number" placeholder="Estoque Mínimo" value={currentMaterial.estoqueMinimo} onChange={e => setCurrentMaterial({...currentMaterial, estoqueMinimo: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required/>
                     <Button type="submit" className="w-full">Salvar</Button>
                 </form>
             </Modal>

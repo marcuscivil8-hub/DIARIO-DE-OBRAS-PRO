@@ -1,7 +1,6 @@
-// Fix: Directly reference Deno's built-in library types to resolve type definition errors.
-/// <reference no-default-lib="true" />
-/// <reference lib="deno.ns" />
-/// <reference lib="esnext" />
+
+// FIX: Removed reference directives that were causing lib definition errors and added a Deno declaration.
+declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -11,7 +10,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -61,15 +60,23 @@ Deno.serve(async (req) => {
         .from('profiles')
         .insert({
             id: authUser.id,
-            email: email, // <<< CORREÇÃO ADICIONADA AQUI
+            email: email,
             name: name,
             username: username,
             role: role,
-            obra_ids: obraIds,
+            obra_ids: obraIds || [], // Garante que seja sempre um array
         });
 
     if (profileError) {
-        // Se a inserção do perfil falhar, joga um erro para acionar o rollback.
+        // Log do erro detalhado para depuração nos logs da Supabase Function
+        console.error('Erro detalhado do Supabase Profile Insert:', profileError);
+
+        // Verifica erros específicos para dar um feedback melhor ao cliente
+        if (profileError.code === '23505' && profileError.message.includes('username')) {
+             throw new Error('Este nome de usuário já está em uso.');
+        }
+
+        // Erro genérico, mas mais informativo, do perfil
         throw new Error(`Erro ao criar o perfil do usuário: ${profileError.message}`);
     }
 
@@ -87,10 +94,11 @@ Deno.serve(async (req) => {
       await supabaseAdmin.auth.admin.deleteUser(authUser.id);
     }
 
-    console.error('Erro no processo de criação:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Erro final no processo de criação:', error.message);
+    // Garante que a resposta seja sempre um JSON com uma chave 'error'
+    return new Response(JSON.stringify({ error: error.message || 'Ocorreu um erro desconhecido.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 400, // Use 400 para erros do lado do cliente (ex: usuário duplicado)
     })
   }
 })

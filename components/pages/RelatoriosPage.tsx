@@ -417,7 +417,8 @@ const RelatoriosPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 items-end gap-4">
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Tipo de Relatório</label>
-                        <select value={reportType} onChange={e => setReportType(e.target.value as any)} className="w-full p-3 border rounded-lg">
+                        {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                        <select value={reportType} onChange={e => setReportType((e.target as HTMLSelectElement).value as any)} className="w-full p-3 border rounded-lg">
                             <option value="fotografico">Fotográfico</option>
                             <option value="financeiro">Financeiro</option>
                             <option value="folhaPagamento">Folha de Pagamento</option>
@@ -428,7 +429,8 @@ const RelatoriosPage: React.FC = () => {
                     { (reportType !== 'almoxarifado') &&
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Filtrar por Obra</label>
-                        <select value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="w-full p-3 border rounded-lg">
+                        {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                        <select value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="w-full p-3 border rounded-lg">
                              <option value="all">Todas as Obras</option>
                             {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                         </select>
@@ -437,7 +439,8 @@ const RelatoriosPage: React.FC = () => {
                     {reportType === 'folhaPagamento' && (
                         <div className="md:col-span-1">
                             <label className="text-sm font-medium text-brand-gray">Período da Folha</label>
-                            <select value={periodoFolha} onChange={e => setPeriodoFolha(e.target.value as any)} className="w-full p-3 border rounded-lg">
+                            {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                            <select value={periodoFolha} onChange={e => setPeriodoFolha((e.target as HTMLSelectElement).value as any)} className="w-full p-3 border rounded-lg">
                                 <option value="semanal">Semanal</option>
                                 <option value="quinzenal">Quinzenal</option>
                                 <option value="mensal">Mensal</option>

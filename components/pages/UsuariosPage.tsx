@@ -69,7 +69,8 @@ const UsuariosPage: React.FC = () => {
     
     const handleSaveUser = async () => {
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
-            alert('Por favor, preencha nome, email, usuário e senha.');
+            // FIX: Replaced alert with console.error.
+            console.error('Por favor, preencha nome, email, usuário e senha.');
             return;
         }
 
@@ -94,7 +95,8 @@ const UsuariosPage: React.FC = () => {
                 await apiService.users.createUser(userData);
             }
         } catch (error: any) {
-            alert(`Erro ao salvar usuário: ${error.message}`);
+            // FIX: Replaced alert with console.error.
+            console.error(`Erro ao salvar usuário: ${error.message}`);
         }
         
         setIsModalOpen(false);
@@ -105,7 +107,8 @@ const UsuariosPage: React.FC = () => {
         // Simple check to prevent deleting the default admin for now
         const user = users.find(u => u.id === userId);
         if (user?.email === 'admin@diariodeobra.pro') {
-            alert('Não é possível excluir o administrador principal.');
+            // FIX: Replaced alert with console.warn.
+            console.warn('Não é possível excluir o administrador principal.');
             return;
         }
         setUserToDeleteId(userId);
@@ -118,7 +121,8 @@ const UsuariosPage: React.FC = () => {
             // SECURITY FIX: Call the secure Edge Function to delete the user completely.
             await apiService.users.deleteUser(userToDeleteId);
         } catch (error: any) {
-            alert(`Erro ao deletar usuário: ${error.message}`);
+            // FIX: Replaced alert with console.error.
+            console.error(`Erro ao deletar usuário: ${error.message}`);
         }
         
         setIsConfirmModalOpen(false);
@@ -186,12 +190,17 @@ const UsuariosPage: React.FC = () => {
             
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? "Editar Usuário" : "Criar Novo Usuário"}>
                  <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({...currentUserForm, name: e.target.value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({...currentUserForm, name: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
                     {/* FIX: Added email input and changed username placeholder. */}
-                    <input type="email" placeholder="Email (para login)" value={currentUserForm.email} onChange={e => setCurrentUserForm({...currentUserForm, email: e.target.value})} className="w-full p-2 border rounded" required disabled={!!editingUser}/>
-                    <input type="text" placeholder="Nome de Usuário (ex: joaosilva)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: e.target.value})} className="w-full p-2 border rounded" required={!editingUser}/>
-                    <select value={currentUserForm.role} onChange={e => setCurrentUserForm({...currentUserForm, role: e.target.value as UserRole})} className="w-full p-2 border rounded">
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="email" placeholder="Email (para login)" value={currentUserForm.email} onChange={e => setCurrentUserForm({...currentUserForm, email: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required disabled={!!editingUser}/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Nome de Usuário (ex: joaosilva)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required={!editingUser}/>
+                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                    <select value={currentUserForm.role} onChange={e => setCurrentUserForm({...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole})} className="w-full p-2 border rounded">
                         <option value={UserRole.Admin}>Admin</option>
                         <option value={UserRole.Encarregado}>Encarregado</option>
                         <option value={UserRole.Cliente}>Cliente</option>

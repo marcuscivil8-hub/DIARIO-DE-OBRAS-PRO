@@ -175,14 +175,18 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 {currentItem && (
                     <form onSubmit={e => {e.preventDefault(); handleSaveMovimentacao();}} className="space-y-4">
                         {currentItem.type === 'material' && (
-                            <div><label>Quantidade</label><input type="number" min="1" value={formData.quantidade} onChange={e => setFormData({...formData, quantidade: Number(e.target.value)})} className="w-full p-2 border rounded" required /></div>
+                            // FIX: Cast event target to HTMLInputElement to access value property.
+                            <div><label>Quantidade</label><input type="number" min="1" value={formData.quantidade} onChange={e => setFormData({...formData, quantidade: Number((e.target as HTMLInputElement).value)})} className="w-full p-2 border rounded" required /></div>
                         )}
                         {modalType === 'entrada' && (
-                            <div><label>Descrição (Ex: Nota Fiscal, Fornecedor)</label><input type="text" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} className="w-full p-2 border rounded" /></div>
+                            // FIX: Cast event target to HTMLInputElement to access value property.
+                            <div><label>Descrição (Ex: Nota Fiscal, Fornecedor)</label><input type="text" value={formData.descricao} onChange={e => setFormData({...formData, descricao: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" /></div>
                         )}
                         {modalType === 'saida' && (<>
-                            <div><label>Obra de Destino</label><select value={formData.obraDestinoId} onChange={e => setFormData({...formData, obraDestinoId: e.target.value})} className="w-full p-2 border rounded" required>{obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                            <div><label>Responsável pela Retirada</label><select value={formData.responsavelRetiradaId} onChange={e => setFormData({...formData, responsavelRetiradaId: e.target.value})} className="w-full p-2 border rounded" required>{funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
+                            {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                            <div><label>Obra de Destino</label><select value={formData.obraDestinoId} onChange={e => setFormData({...formData, obraDestinoId: (e.target as HTMLSelectElement).value})} className="w-full p-2 border rounded" required>{obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+                            {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                            <div><label>Responsável pela Retirada</label><select value={formData.responsavelRetiradaId} onChange={e => setFormData({...formData, responsavelRetiradaId: (e.target as HTMLSelectElement).value})} className="w-full p-2 border rounded" required>{funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
                         </>)}
                         <Button type="submit" className="w-full">Salvar Movimentação</Button>
                     </form>
@@ -191,9 +195,12 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             
             <Modal isOpen={isNewMaterialModalOpen} onClose={() => setIsNewMaterialModalOpen(false)} title="Cadastrar Novo Material no Catálogo">
                  <form onSubmit={e => { e.preventDefault(); handleSaveNewMaterial(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome do Material" value={newMaterialData.nome} onChange={e => setNewMaterialData({...newMaterialData, nome: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={newMaterialData.unidade} onChange={e => setNewMaterialData({...newMaterialData, unidade: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="number" placeholder="Estoque Mínimo" value={newMaterialData.estoqueMinimo} onChange={e => setNewMaterialData({...newMaterialData, estoqueMinimo: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Nome do Material" value={newMaterialData.nome} onChange={e => setNewMaterialData({...newMaterialData, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={newMaterialData.unidade} onChange={e => setNewMaterialData({...newMaterialData, unidade: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
+                    <input type="number" placeholder="Estoque Mínimo" value={newMaterialData.estoqueMinimo} onChange={e => setNewMaterialData({...newMaterialData, estoqueMinimo: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required/>
                     <Button type="submit" className="w-full">Salvar Novo Material</Button>
                 </form>
             </Modal>

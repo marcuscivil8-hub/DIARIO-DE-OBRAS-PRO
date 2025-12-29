@@ -120,7 +120,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <Card>
                 <div className="flex items-center space-x-4">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Filtrar por Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
+                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
                         {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
