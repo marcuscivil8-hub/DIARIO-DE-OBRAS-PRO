@@ -168,9 +168,11 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => Number(b) - Number(a)).map(([categoria, valor]) => (
+                         {/* FIX: Explicitly cast sort parameters to numbers to resolve potential type inference issues. */}
+                         {Object.entries(saidasPorCategoria).sort(([,a], [,b]) => (b as number) - (a as number)).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
+                                {/* FIX: Explicitly cast sort parameters to numbers to resolve potential type inference issues. */}
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {(valor as number).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </li>
                          ))}

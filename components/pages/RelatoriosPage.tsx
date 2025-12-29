@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -17,9 +18,11 @@ const RelatorioConsumo: React.FC<{
     const materiaisUsados = useMemo(() => {
         const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
         const movimentosUso = movimentacoes.filter(m => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
-        const materiaisMap = new Map(materiais.map(m => [m.id, m]));
+        // FIX: Add explicit type annotation for the map callback parameter to ensure correct type inference.
+        const materiaisMap = new Map(materiais.map((m: Material) => [m.id, m]));
 
-        movimentosUso.forEach(mov => {
+        // FIX: Add explicit type annotation for the forEach callback parameter to ensure correct type inference.
+        movimentosUso.forEach((mov: MovimentacaoAlmoxarifado) => {
             const material = materiaisMap.get(mov.itemId);
             if (material) {
                 if (!consumo[material.id]) {
@@ -37,7 +40,8 @@ const RelatorioConsumo: React.FC<{
     }, [obra.id, ferramentas]);
 
     const custoTotalMateriais = materiaisUsados.reduce((sum, item) => sum + item.valorTotal, 0);
-    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item) => sum + (item.valor || 0), 0);
+    // FIX: Add explicit type annotation for the reduce callback parameter to ensure correct type inference.
+    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item: Ferramenta) => sum + (item.valor || 0), 0);
 
     return (
         <div className="p-8 bg-white text-gray-800 font-sans">
