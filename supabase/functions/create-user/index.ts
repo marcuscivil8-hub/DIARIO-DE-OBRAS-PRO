@@ -60,6 +60,7 @@ Deno.serve(async (req: any) => {
         .insert({
             id: authUser.id,
             name: name,
+            email: email,
             username: username,
             role: role,
             obra_ids: obraIds || [], // Garante que seja sempre um array
@@ -73,6 +74,9 @@ Deno.serve(async (req: any) => {
         // Verifica erros específicos para dar um feedback melhor ao cliente
         if (profileError.code === '23505' && profileError.message.includes('username')) {
              throw new Error('Este nome de usuário já está em uso.');
+        }
+        if (profileError.code === '23505' && profileError.message.includes('email')) {
+             throw new Error('Este email já está em uso na tabela de perfis.');
         }
 
         // Erro genérico, mas mais informativo, do perfil
