@@ -1,9 +1,16 @@
-// FIX: Using a more specific esm.sh URL with a build version to prevent potential type resolution issues.
-// This ensures that the Deno global object and its methods like `serve` and `env` are correctly typed.
-/// <reference types="https://esm.sh/v135/@supabase/functions-js@2.4.1/deno/edge-runtime.d.ts" />
+// FIX: Updated the Deno type reference to use the recommended Supabase URL for edge functions. This fixes errors where the type definition file could not be found and properties like `Deno.serve` and `Deno.env` were not recognized.
+// Corrected the Deno type reference to a valid, versioned URL for Supabase functions to resolve type errors.
+/// <reference types="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// FIX: CORS headers are now defined directly inside the function
+// to remove the dependency on the missing _shared/cors.ts file.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

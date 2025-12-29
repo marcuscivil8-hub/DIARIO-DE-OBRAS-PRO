@@ -2,6 +2,16 @@
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
+// FIX: Aprimorado o tratamento de erros para Edge Functions para extrair a mensagem de erro específica.
+const handleFunctionError = (error: any, context: string) => {
+    if (error) {
+        console.error(`Error in Edge Function ${context}:`, error);
+        // A mensagem de erro real da função geralmente está no objeto 'context'.
+        const specificMessage = error.context?.error || error.message;
+        throw new Error(specificMessage);
+    }
+}
+
 const handleSupabaseError = (error: any, context: string) => {
     if (error) {
         console.error(`Error in ${context}:`, error.message);
@@ -197,26 +207,23 @@ export const apiService = {
 
     users: {
         ...createCrudService<User>('profiles'),
-        // SECURITY FIX: User creation is moved to a secure Edge Function.
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', {
                 body: userData,
             });
-            handleSupabaseError(error, 'createUser Edge Function');
+            handleFunctionError(error, 'createUser');
             return data;
         },
-        // SECURITY FIX: User updates should also be handled securely.
         async updateUser(userId: string, updates: Partial<User>): Promise<any> {
              const { data, error } = await supabase.from('profiles').update(toSnakeCase(updates)).eq('id', userId).select().single();
              handleSupabaseError(error, `updateUser`);
              return toCamelCase<User>(data);
         },
-        // SECURITY FIX: User deletion is now handled by a secure Edge Function.
         async deleteUser(userId: string): Promise<any> {
             const { data, error } = await supabase.functions.invoke('delete-user', {
                 body: { user_id: userId },
             });
-            handleSupabaseError(error, 'deleteUser Edge Function');
+            handleFunctionError(error, 'deleteUser');
             return data;
         },
     },
