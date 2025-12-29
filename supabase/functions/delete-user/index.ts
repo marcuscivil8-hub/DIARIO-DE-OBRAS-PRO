@@ -1,5 +1,7 @@
-// Fix: Use a URL-based type reference for Deno to resolve type definition errors.
-/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+// Fix: Directly reference Deno's built-in library types to resolve type definition errors.
+/// <reference no-default-lib="true" />
+/// <reference lib="deno.ns" />
+/// <reference lib="esnext" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
