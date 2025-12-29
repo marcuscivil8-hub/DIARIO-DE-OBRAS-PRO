@@ -77,51 +77,47 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     
     const handlePontoClick = async (funcionarioId: string, data: string) => {
         const key = `${funcionarioId}-${data}`;
-        if (updatingPontoKey === key) return; // Prevent concurrent updates for the same cell
-
+        // 1. Trava a célula clicada para evitar cliques múltiplos que podem causar inconsistência de dados.
+        if (updatingPontoKey === key) return;
         setUpdatingPontoKey(key);
         setPontoError(null);
-        
+
         if (selectedObraId === 'all') {
             setPontoError('Por favor, selecione uma obra específica para registrar o ponto.');
-            setUpdatingPontoKey(null);
+            setUpdatingPontoKey(null); // Libera a trava
             return;
         }
     
         const existingPonto = pontos.find(p => p.funcionarioId === funcionarioId && p.data === data && p.obraId === selectedObraId);
     
         try {
+            // 2. Lógica de transição de estado: a cada clique, o status avança no ciclo.
             if (!existingPonto) {
-                // Case 1: Create new entry as 'presente'
+                // Estado: Não existe -> Criar como 'presente'
                 const newPontoData: Omit<Ponto, 'id'> = { funcionarioId, obraId: selectedObraId, data, status: 'presente' };
                 const createdPonto = await apiService.pontos.create(newPontoData);
                 setPontos(prevPontos => [...prevPontos, createdPonto]);
-            } else {
-                // Cycle through existing entry statuses
-                switch (existingPonto.status) {
-                    case 'presente': {
-                        const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
-                        setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
-                        break;
-                    }
-                    case 'falta': {
-                        const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
-                        setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
-                        break;
-                    }
-                    case 'meio-dia': {
-                        await apiService.pontos.delete(existingPonto.id);
-                        setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
-                        break;
-                    }
-                }
+            } else if (existingPonto.status === 'presente') {
+                // Estado: 'presente' -> Atualizar para 'falta'
+                const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
+                setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+            } else if (existingPonto.status === 'falta') {
+                // Estado: 'falta' -> Atualizar para 'meio-dia'
+                const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
+                setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+            } else if (existingPonto.status === 'meio-dia') {
+                // Estado: 'meio-dia' -> Deletar o registro
+                await apiService.pontos.delete(existingPonto.id);
+                setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
             }
         } catch (error) {
             console.error("Falha ao atualizar o ponto:", error);
-            setPontoError("Não foi possível salvar a alteração. Por favor, recarregue a página e tente novamente.");
-            await fetchAllData(); // Re-sync state on error
+            setPontoError("Não foi possível salvar a alteração. A página será recarregada para garantir a consistência dos dados.");
+            // Força a recarga da página em caso de erro para re-sincronizar o estado.
+            setTimeout(() => window.location.reload(), 2500);
         } finally {
-            setUpdatingPontoKey(null); // Release lock
+            // 3. Libera a trava da célula, permitindo novos cliques.
+            setUpdatingPontoKey(null);
         }
     };
     

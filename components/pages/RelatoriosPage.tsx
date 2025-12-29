@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta, Documento } from '../../types';
+import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta, Documento, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
