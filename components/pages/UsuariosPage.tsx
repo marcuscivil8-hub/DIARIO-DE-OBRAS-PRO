@@ -18,6 +18,7 @@ const UsuariosPage: React.FC = () => {
     const [pageError, setPageError] = useState<string | null>(null);
     const [isRlsError, setIsRlsError] = useState(false);
     const [isConfigError, setIsConfigError] = useState(false);
+    const [isRpcError, setIsRpcError] = useState(false); // State for missing RPC function error
     
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
@@ -31,8 +32,9 @@ const UsuariosPage: React.FC = () => {
 
     const fetchData = useCallback(async () => {
         setLoading(true);
-        setIsRlsError(false); // Reset on every fetch
+        setIsRlsError(false);
         setIsConfigError(false);
+        setIsRpcError(false);
         setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
@@ -42,7 +44,10 @@ const UsuariosPage: React.FC = () => {
             setUsers(usersData);
             setObras(obrasData);
         } catch (error: any) {
-             if (error.message.includes('RLS') || error.message.includes('recursion')) {
+             if (error.message.includes('get_users_with_email')) {
+                setIsRpcError(true);
+                setPageError(error.message);
+            } else if (error.message.includes('RLS') || error.message.includes('recursion')) {
                 setIsRlsError(true);
                 setPageError(error.message);
             } else {
@@ -64,6 +69,7 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         setIsRlsError(false);
         setIsConfigError(false);
+        setIsRpcError(false);
         if (user) {
             setEditingUser(user);
             setCurrentUserForm({
@@ -86,6 +92,7 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         setIsRlsError(false);
         setIsConfigError(false);
+        setIsRpcError(false);
 
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
             setFormError('Por favor, preencha nome, email, usuário e senha.');
@@ -131,6 +138,7 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         setIsRlsError(false);
         setIsConfigError(false);
+        setIsRpcError(false);
         const user = users.find(u => u.id === userId);
         if (user?.email === 'admin@diariodeobra.pro') {
             setPageError('Não é possível excluir o administrador principal.');
@@ -182,8 +190,50 @@ const UsuariosPage: React.FC = () => {
                     <span>Novo Usuário</span>
                 </Button>
             </div>
-            {pageError && !isRlsError && !isConfigError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
+            {pageError && !isRlsError && !isConfigError && !isRpcError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
             
+             {isRpcError && (
+                 <Card className="mt-6 text-sm bg-red-50 border border-red-200">
+                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Função do Banco de Dados Ausente</h4>
+                    <p className="text-red-700">A lista de usuários não pôde ser carregada. O aplicativo precisa de uma função especial no banco de dados chamada <code>get_users_with_email</code> para buscar os emails dos usuários de forma segura.</p>
+                    <p className="text-red-700 mt-2">Para corrigir, execute o script SQL abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Isso criará a função necessária e resolverá o problema imediatamente.</p>
+                    
+                    <div className="mt-4">
+                        <h5 className="font-bold text-red-700">Script SQL para Criar a Função</h5>
+                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
+                            <code>
+{`-- Cria a função para buscar perfis de usuário junto com seus emails da tabela de autenticação.
+CREATE OR REPLACE FUNCTION public.get_users_with_email()
+RETURNS TABLE (
+    id uuid,
+    name text,
+    email text,
+    username text,
+    role user_role, -- Certifique-se de que o tipo 'user_role' existe no seu banco de dados
+    obra_ids text[]
+)
+LANGUAGE sql
+SECURITY DEFINER -- Essencial para permitir o acesso à tabela auth.users
+AS $$
+  SELECT
+    p.id,
+    p.name,
+    u.email,
+    p.username,
+    p.role,
+    p.obra_ids
+  FROM
+    public.profiles AS p
+  JOIN
+    auth.users AS u ON p.id = u.id;
+$$;`}
+                            </code>
+                        </pre>
+                         <p className="text-xs text-red-700 mt-2"><strong>Nota:</strong> Se o tipo <code>user_role</code> não existir, você pode criá-lo com: <code>CREATE TYPE user_role AS ENUM ('Admin', 'Encarregado', 'Cliente');</code></p>
+                    </div>
+                </Card>
+            )}
+
             {isConfigError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
                     <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha de Conexão com o Servidor (Edge Function)</h4>
@@ -265,7 +315,7 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                 </Card>
             )}
 
-            {!isRlsError && !isConfigError && (
+            {!isRlsError && !isConfigError && !isRpcError && (
                  <Card>
                     <div className="overflow-x-auto">
                          <table className="w-full text-left">
