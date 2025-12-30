@@ -97,8 +97,7 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
                 <div className="flex items-center gap-4">
                     <div className="flex items-center space-x-2">
                         <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Obra:</label>
-                        {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                        <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
+                        <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
                             <option value="all">Todas as Obras</option>
                             {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                         </select>
@@ -154,26 +153,19 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingFuncionario ? 'Editar Funcionário' : 'Novo Funcionário'}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveFuncionario(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Nome Completo" value={currentFuncionario.name} onChange={e => setCurrentFuncionario({ ...currentFuncionario, name: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Função" value={currentFuncionario.funcao} onChange={e => setCurrentFuncionario({ ...currentFuncionario, funcao: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Telefone" value={currentFuncionario.telefone} onChange={e => setCurrentFuncionario({ ...currentFuncionario, telefone: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" />
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                    <select value={currentFuncionario.tipoPagamento} onChange={e => setCurrentFuncionario({ ...currentFuncionario, tipoPagamento: (e.target as HTMLSelectElement).value as PagamentoTipo })} className="w-full p-2 border rounded">
+                    <input type="text" placeholder="Nome Completo" value={currentFuncionario.name} onChange={e => setCurrentFuncionario({ ...currentFuncionario, name: e.target.value })} className="w-full p-2 border rounded" required />
+                    <input type="text" placeholder="Função" value={currentFuncionario.funcao} onChange={e => setCurrentFuncionario({ ...currentFuncionario, funcao: e.target.value })} className="w-full p-2 border rounded" required />
+                    <input type="text" placeholder="Telefone" value={currentFuncionario.telefone} onChange={e => setCurrentFuncionario({ ...currentFuncionario, telefone: e.target.value })} className="w-full p-2 border rounded" />
+                    <select value={currentFuncionario.tipoPagamento} onChange={e => setCurrentFuncionario({ ...currentFuncionario, tipoPagamento: e.target.value as PagamentoTipo })} className="w-full p-2 border rounded">
                         {Object.values(PagamentoTipo).map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="number" placeholder="Valor" value={currentFuncionario.valor} onChange={e => setCurrentFuncionario({ ...currentFuncionario, valor: parseFloat((e.target as HTMLInputElement).value) || 0 })} className="w-full p-2 border rounded" required />
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                    <select value={currentFuncionario.obraId || ''} onChange={e => setCurrentFuncionario({ ...currentFuncionario, obraId: (e.target as HTMLSelectElement).value || null })} className="w-full p-2 border rounded">
+                    <input type="number" placeholder="Valor" value={currentFuncionario.valor} onChange={e => setCurrentFuncionario({ ...currentFuncionario, valor: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded" required />
+                    <select value={currentFuncionario.obraId || ''} onChange={e => setCurrentFuncionario({ ...currentFuncionario, obraId: e.target.value || null })} className="w-full p-2 border rounded">
                         <option value="">Nenhuma Obra</option>
                         {obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                     </select>
                     <div className="flex items-center">
-                        {/* FIX: Cast event target to HTMLInputElement to access checked property. */}
-                        <input type="checkbox" id="ativo" checked={currentFuncionario.ativo} onChange={e => setCurrentFuncionario({ ...currentFuncionario, ativo: (e.target as HTMLInputElement).checked })} className="h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue" />
+                        <input type="checkbox" id="ativo" checked={currentFuncionario.ativo} onChange={e => setCurrentFuncionario({ ...currentFuncionario, ativo: e.target.checked })} className="h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue" />
                         <label htmlFor="ativo" className="ml-2 block text-sm text-gray-900">Ativo</label>
                     </div>
                     <Button type="submit" className="w-full">Salvar Funcionário</Button>

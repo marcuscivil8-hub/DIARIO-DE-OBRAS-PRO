@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -17,11 +18,9 @@ const RelatorioConsumo: React.FC<{
     const materiaisUsados = useMemo(() => {
         const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
         const movimentosUso = movimentacoes.filter(m => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
-// FIX: Add explicit type annotation for the map callback parameter to ensure correct type inference.
-        const materiaisMap = new Map(materiais.map((m: Material) => [m.id, m]));
+        const materiaisMap = new Map(materiais.map(m => [m.id, m]));
 
-// FIX: Add explicit type annotation for the forEach callback parameter to ensure correct type inference.
-        movimentosUso.forEach((mov: MovimentacaoAlmoxarifado) => {
+        movimentosUso.forEach(mov => {
             const material = materiaisMap.get(mov.itemId);
             if (material) {
                 if (!consumo[material.id]) {
@@ -39,8 +38,7 @@ const RelatorioConsumo: React.FC<{
     }, [obra.id, ferramentas]);
 
     const custoTotalMateriais = materiaisUsados.reduce((sum, item) => sum + item.valorTotal, 0);
-// FIX: Add explicit type annotation for the reduce callback parameter to ensure correct type inference.
-    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item: Ferramenta) => sum + (item.valor || 0), 0);
+    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item) => sum + (item.valor || 0), 0);
 
     return (
         <div className="p-8 bg-white text-gray-800 font-sans">
@@ -359,7 +357,7 @@ const RelatorioAlmoxarifado: React.FC<{
                                 <td className="p-2 border border-gray-300">{new Date(mov.data).toLocaleDateString('pt-BR')}</td>
                                 <td className="p-2 border border-gray-300">{getNomeItem(mov)}</td>
                                 <td className="p-2 border border-gray-300 text-center">{mov.quantidade}</td>
-                                {/* FIX: Changed property from `obraDestinoId` to `obraId`. */}
+                                {/* FIX: Property 'obraDestinoId' does not exist on type 'MovimentacaoAlmoxarifado'. Did you mean 'obraId'? */}
                                 <td className="p-2 border border-gray-300">{obras.find(o => o.id === mov.obraId)?.name || '-'}</td>
                                 <td className="p-2 border border-gray-300">{funcionarios.find(f => f.id === mov.responsavelRetiradaId)?.name || '-'}</td>
                             </tr>
@@ -531,7 +529,7 @@ const RelatoriosPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 items-end gap-4">
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Tipo de Relatório</label>
-                        <select value={reportType} onChange={e => setReportType((e.target as HTMLSelectElement).value as ReportType)} className="w-full p-3 border rounded-lg">
+                        <select value={reportType} onChange={e => setReportType(e.target.value as ReportType)} className="w-full p-3 border rounded-lg">
                             <option value="fotografico">Fotográfico</option>
                             <option value="financeiro">Financeiro</option>
                             <option value="folhaPagamento">Folha de Pagamento</option>
@@ -543,7 +541,7 @@ const RelatoriosPage: React.FC = () => {
                     { (reportType !== 'almoxarifado') &&
                     <div className="md:col-span-1">
                         <label className="text-sm font-medium text-brand-gray">Filtrar por Obra</label>
-                        <select value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="w-full p-3 border rounded-lg">
+                        <select value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="w-full p-3 border rounded-lg">
                              <option value="all">Todas as Obras</option>
                             {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                         </select>
@@ -552,7 +550,7 @@ const RelatoriosPage: React.FC = () => {
                     {reportType === 'folhaPagamento' && (
                         <div className="md:col-span-1">
                             <label className="text-sm font-medium text-brand-gray">Período da Folha</label>
-                            <select value={periodoFolha} onChange={e => setPeriodoFolha((e.target as HTMLSelectElement).value as PeriodoFolha)} className="w-full p-3 border rounded-lg">
+                            <select value={periodoFolha} onChange={e => setPeriodoFolha(e.target.value as PeriodoFolha)} className="w-full p-3 border rounded-lg">
                                 <option value="semanal">Semanal</option>
                                 <option value="quinzenal">Quinzenal</option>
                                 <option value="mensal">Mensal</option>

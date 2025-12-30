@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo, Page } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -108,8 +109,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
                 itemId: currentItem.id,
                 itemType: currentItem.type,
-                // FIX: Mapped local state 'entrada'/'saida' to MovimentacaoTipo enum values 'Entrada'/'Saída' to match the type definition.
-                tipoMovimentacao: modalType === 'entrada' ? MovimentacaoTipo.Entrada : MovimentacaoTipo.Saida,
+                tipoMovimentacao: (modalType.charAt(0).toUpperCase() + modalType.slice(1)) as MovimentacaoTipo,
                 quantidade: movementFormData.quantidade,
                 data: new Date().toISOString().split('T')[0],
                 ...(modalType === 'saida' && {

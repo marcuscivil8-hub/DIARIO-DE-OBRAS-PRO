@@ -153,18 +153,12 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingObra ? "Editar Obra" : "Cadastrar Nova Obra"}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveObra(); }} className="space-y-4">
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Nome da Obra" value={currentObra.name} onChange={e => setCurrentObra({...currentObra, name: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Nome do Cliente" value={currentObra.cliente} onChange={e => setCurrentObra({...currentObra, cliente: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="text" placeholder="Endereço" value={currentObra.endereco} onChange={e => setCurrentObra({...currentObra, endereco: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="date" placeholder="Data de Início" value={currentObra.dataInicio} onChange={e => setCurrentObra({...currentObra, dataInicio: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLInputElement to access value property. */}
-                    <input type="date" placeholder="Data de Fim Previsto" value={currentObra.dataFimPrevista} onChange={e => setCurrentObra({...currentObra, dataFimPrevista: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    {/* FIX: Cast event target to HTMLSelectElement to access value property. */}
-                    <select value={currentObra.status} onChange={e => setCurrentObra({...currentObra, status: (e.target as HTMLSelectElement).value as Obra['status']})} className="w-full p-2 border rounded">
+                    <input type="text" placeholder="Nome da Obra" value={currentObra.name} onChange={e => setCurrentObra({...currentObra, name: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Nome do Cliente" value={currentObra.cliente} onChange={e => setCurrentObra({...currentObra, cliente: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Endereço" value={currentObra.endereco} onChange={e => setCurrentObra({...currentObra, endereco: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="date" placeholder="Data de Início" value={currentObra.dataInicio} onChange={e => setCurrentObra({...currentObra, dataInicio: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <input type="date" placeholder="Data de Fim Previsto" value={currentObra.dataFimPrevista} onChange={e => setCurrentObra({...currentObra, dataFimPrevista: e.target.value})} className="w-full p-2 border rounded" required/>
+                    <select value={currentObra.status} onChange={e => setCurrentObra({...currentObra, status: e.target.value as Obra['status']})} className="w-full p-2 border rounded">
                         <option value="Ativa">Ativa</option>
                         <option value="Pausada">Pausada</option>
                         <option value="Concluída">Concluída</option>

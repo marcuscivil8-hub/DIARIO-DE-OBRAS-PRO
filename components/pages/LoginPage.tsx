@@ -44,8 +44,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             id="email"
                             type="email"
                             value={email}
-                            // FIX: Cast event target to HTMLInputElement to access value property.
-                            onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
                             required
                             disabled={loading}
@@ -59,8 +58,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             id="password"
                             type="password"
                             value={password}
-                            // FIX: Cast event target to HTMLInputElement to access value property.
-                            onChange={(e) => setPassword((e.target as HTMLInputElement).value)}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition"
                             required
                             disabled={loading}

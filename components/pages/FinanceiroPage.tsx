@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -115,7 +116,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <Card>
                 <div className="flex items-center space-x-4">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Filtrar por Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
                         {obras.map((obra: Obra) => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
@@ -156,8 +157,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-{/* FIX: Corrected the typing for the sort/map chain by using standard function parameters (a, b) and accessing properties via index (b[1] - a[1]), which ensures correct type inference. The previous syntax for typing destructured parameters was causing type errors. */}
-                         {Object.entries(saidasPorCategoria).sort((a, b) => b[1] - a[1]).map(([categoria, valor]) => (
+                         {Object.entries(saidasPorCategoria).sort(([, a_val]: [string, number], [, b_val]: [string, number]) => b_val - a_val).map(([categoria, valor]: [string, number]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>

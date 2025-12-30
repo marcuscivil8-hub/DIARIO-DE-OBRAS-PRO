@@ -2,37 +2,11 @@
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
-// FIX: Aprimorado o tratamento de erros para Edge Functions para extrair a mensagem de erro específica.
 const handleFunctionError = (error: any, context: string) => {
     if (error) {
-        console.error(`Raw error from Edge Function '${context}':`, error);
-        
-        // Check for generic network failure, often due to incorrect Supabase URL/key or paused project.
-        if (error.message.includes('Failed to send a request')) {
-             throw new Error('CONFIG_ERROR: Falha de conexão com o servidor. Verifique a configuração do cliente (URL/Chave API) e as variáveis de ambiente da Edge Function (URL/Chave de Serviço) no painel do Supabase.');
-        }
-
-        // Tenta extrair a mensagem de erro específica do corpo da resposta, se disponível.
-        let specificMessage = `Edge Function '${context}' returned a non-2xx status code.`;
-        if (error.context && typeof error.context.error === 'string') {
-            specificMessage = error.context.error;
-        } else if (error.context && typeof error.context.json === 'function') {
-             // Handle cases where the error is in a JSON body
-            error.context.json().then((json: any) => {
-                if(json.error) {
-                    specificMessage = json.error;
-                }
-            }).catch(() => {/* ignore json parsing errors */});
-        } else if (error.context && typeof error.context === 'string') {
-            try {
-                const parsedBody = JSON.parse(error.context);
-                if (parsedBody.error) {
-                    specificMessage = parsedBody.error;
-                }
-            } catch (e) { /* Ignora se não for JSON válido */ }
-        }
-        
-        throw new Error(specificMessage);
+        console.error(`Error in Edge Function ${context}:`, error);
+        const errorMessage = error.context?.error || error.message;
+        throw new Error(errorMessage);
     }
 }
 
@@ -124,8 +98,7 @@ export const apiService = {
         if (profileError || !profileData) {
             console.error('Error fetching profile:', profileError?.message);
             await supabase.auth.signOut();
-            // A mensagem de erro agora é mais direta e informativa, sem prefixos para a UI analisar.
-            throw new Error(`Falha ao buscar perfil do usuário. Verifique se as permissões (RLS) da tabela 'profiles' estão configuradas corretamente.`);
+            throw new Error(`PROFILE_ERROR: ${profileError?.message || 'Perfil não encontrado.'}`);
         }
 
         const user: User = {
@@ -164,30 +137,13 @@ export const apiService = {
     },
 
     async getLembretes(): Promise<string[]> {
-        // FIX: Replaced .single() with .maybeSingle() to prevent an error when the 'configuracoes' table is empty.
-        // .maybeSingle() returns null instead of throwing an error if no row is found, making the function more robust.
-        const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).maybeSingle();
-        
-        // This specific error check is for cases where the table itself might be missing,
-        // which can happen during initial setup. The console warning is helpful for developers.
-        if (error && error.message.includes('relation "public.configuracoes" does not exist')) {
-            console.warn("AVISO: Tabela 'configuracoes' não encontrada. A funcionalidade de lembretes está desativada. Para usá-la, execute o script SQL completo para criar a tabela.");
-            return [];
-        }
-        
-        // Handle any other potential Supabase errors gracefully.
+        const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).single();
         handleSupabaseError(error, 'getLembretes');
-        
-        // If data is null (row not found) or the array is missing, return an empty array.
         return data?.lembretes_encarregado || [];
     },
 
     async updateLembretes(lembretes: string[]): Promise<void> {
         const { error } = await supabase.from('configuracoes').update({ lembretes_encarregado: lembretes }).eq('id', 1);
-        if (error && error.message.includes('configuracoes')) { // More generic check
-            console.warn("AVISO: Tabela 'configuracoes' não encontrada. Não foi possível salvar os lembretes.");
-            return;
-        }
         handleSupabaseError(error, 'updateLembretes');
     },
     
@@ -226,11 +182,20 @@ export const apiService = {
     users: {
         ...createCrudService<User>('profiles'),
         async getAll(): Promise<User[]> {
-            const { data, error } = await supabase.rpc('get_users_with_email');
-            handleSupabaseError(error, 'getAll users with email');
+            const { data: profiles, error: profileError } = await supabase.from('profiles').select('*');
+            handleSupabaseError(profileError, 'getAll profiles');
+            if(!profiles) return [];
 
-            // A RPC retorna snake_case, então usamos o helper para converter consistentemente.
-            return data ? data.map(item => toCamelCase<User>(item)) : [];
+            const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+            handleSupabaseError(authError, 'getAll auth users');
+
+            return profiles.map(profile => {
+                const authUser = authUsers?.users.find(u => u.id === profile.id);
+                return {
+                    ...toCamelCase<User>(profile),
+                    email: authUser?.email || profile.email,
+                };
+            });
         },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', {

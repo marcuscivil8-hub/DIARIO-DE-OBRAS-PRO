@@ -141,12 +141,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             });
 
             const entradas = monthlyTransactions
-// FIX: Corrected property from `tipo` to `tipoTransacao` to match the type definition.
+// FIX: Property 'tipo' does not exist on type 'TransacaoFinanceira'. Did you mean 'tipoTransacao'?
                 .filter(t => t.tipoTransacao === TransacaoTipo.Entrada)
                 .reduce((sum, t) => sum + t.valor, 0);
 
             const saidasFromTransactions = monthlyTransactions
-// FIX: Corrected property from `tipo` to `tipoTransacao` to match the type definition.
+// FIX: Property 'tipo' does not exist on type 'TransacaoFinanceira'. Did you mean 'tipoTransacao'?
                 .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
                 .reduce((sum, t) => sum + t.valor, 0);
             
@@ -287,8 +287,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                         <textarea
                             id="lembretes"
                             value={lembretesEdit}
-                            // FIX: Cast event target to HTMLTextAreaElement to access value property.
-                            onChange={(e) => setLembretesEdit((e.target as HTMLTextAreaElement).value)}
+                            onChange={(e) => setLembretesEdit(e.target.value)}
                             rows={6}
                             className="w-full p-2 border rounded"
                         />

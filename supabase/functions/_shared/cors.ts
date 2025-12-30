@@ -1,3 +1,5 @@
-// Este arquivo foi intencionalmente deixado em branco.
-// Os cabeçalhos CORS agora são definidos dentro de cada função individual
-// para remover a dependência deste arquivo compartilhado.
+
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
