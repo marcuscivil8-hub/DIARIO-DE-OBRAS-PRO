@@ -294,18 +294,21 @@ $$;`}
 
                     <div className="mt-4">
                         <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
-                        <p className="text-red-700 text-xs mb-1">Crie estas duas políticas para a tabela <code>profiles</code>. Este script é seguro para ser executado múltiplas vezes.</p>
+                        <p className="text-red-700 text-xs mb-1">O script abaixo é seguro para ser executado várias vezes. Ele primeiro remove as políticas existentes para evitar o erro "policy already exists" e depois as recria com as permissões corretas.</p>
                         <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-{`-- (Opcional) Limpa políticas antigas para evitar o erro "policy already exists".
+{`-- Remove as políticas antigas para evitar o erro "policy already exists".
+-- É seguro executar este comando mesmo que as políticas não existam.
 DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Admins and users can update profiles" ON public.profiles;
 
--- Política para Visualizar (SELECT)
+-- (Re)Cria a política para Visualizar (SELECT)
+-- Permite que usuários vejam seu próprio perfil ou que Admins vejam todos.
 CREATE POLICY "Admins can view all profiles" ON public.profiles
 FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
 
--- Política para Atualizar (UPDATE)
+-- (Re)Cria a política para Atualizar (UPDATE)
+-- Permite que usuários atualizem seu próprio perfil ou que Admins atualizem qualquer um.
 CREATE POLICY "Admins and users can update profiles" ON public.profiles
 FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
                             </code>
