@@ -148,13 +148,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                             <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
                                     // FIX: Explicitly typed 'percent' to resolve the arithmetic operation error.
-                                    label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                    // FIX: Changed type to 'any' to fix arithmetic operation error with recharts types.
+                                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 {/* FIX: Explicitly typed 'value' to resolve the type mismatch in the formatter. */}
-                                <Tooltip formatter={(value: number) => `R$ ${formatCurrency(value)}`} />
+                                {/* FIX: Changed type to 'any' to fix type mismatch with recharts formatter. */}
+                                <Tooltip formatter={(value: any) => `R$ ${formatCurrency(value)}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>

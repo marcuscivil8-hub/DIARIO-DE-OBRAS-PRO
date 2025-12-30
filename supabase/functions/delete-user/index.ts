@@ -2,7 +2,8 @@
 // FIX: Replaced flaky jsdelivr.net URL with a more reliable CDN from unpkg.com to resolve type definition file errors.
 // FIX: Replaced unpkg.com CDN with esm.sh to resolve type definition file errors.
 // FIX: Pinned Supabase functions types to a specific version for more reliable type resolution.
-/// <reference types="https://esm.sh/@supabase/functions-js@2" />
+// FIX: Updated the Supabase functions type reference to a more specific path to resolve the type definition error.
+/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
 // FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
 declare const Deno: any;
 
@@ -28,7 +29,12 @@ Deno.serve(async (req) => {
         throw new Error("O 'user_id' é obrigatório.")
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id)
 
