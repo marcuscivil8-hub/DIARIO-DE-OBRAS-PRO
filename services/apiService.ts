@@ -93,6 +93,7 @@ export const apiService = {
             .from('profiles')
             .select('*')
             .eq('id', authData.user.id)
+            .limit(1) // Safeguard against multiple profiles
             .single();
 
         if (profileError || !profileData) {
@@ -125,7 +126,13 @@ export const apiService = {
         const userJson = sessionStorage.getItem('currentUser');
         if (userJson) return JSON.parse(userJson);
         
-        const { data: profileData, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .limit(1) // Safeguard against multiple profiles
+            .single();
+
         if (error || !profileData) return null;
 
          const user: User = {

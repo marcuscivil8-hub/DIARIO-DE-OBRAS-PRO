@@ -59,8 +59,9 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
 
         const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
         // FIX: Add explicit types for reduce parameters to prevent type inference errors.
-        const custoMaoDeObra = pontosRelevantes.reduce((total: number, ponto: Ponto) => {
-            const func: Funcionario | undefined = funcionarios.find((f: Funcionario) => f.id === ponto.funcionarioId);
+        // FIX: Removed explicit types from reduce callback parameters to allow for correct type inference, which should resolve the error on this line.
+        const custoMaoDeObra = pontosRelevantes.reduce((total, ponto) => {
+            const func = funcionarios.find((f) => f.id === ponto.funcionarioId);
             if (func) {
                 const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
                 return total + dailyCost;
@@ -75,8 +76,9 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             (isAllObras || m.obraId === selectedObraId)
         );
         // FIX: Add explicit types for reduce parameters and variable to prevent type inference errors.
-        const custoMateriais = movimentosUso.reduce((total: number, mov: MovimentacaoAlmoxarifado) => {
-            const material: Material | undefined = materiaisMap.get(mov.itemId);
+        // FIX: Removed explicit types from reduce callback parameters to allow for correct type inference.
+        const custoMateriais = movimentosUso.reduce((total, mov) => {
+            const material = materiaisMap.get(mov.itemId);
             if (material && typeof material.valor === 'number') {
                 return total + (material.valor * mov.quantidade);
             }
@@ -148,13 +150,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 {/* FIX: Add explicit types to label prop to fix arithmetic operation error. */}
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: { name: string, percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                {/* FIX: Changed prop types to any and used Number() to safely handle potential non-numeric values from recharts library. */}
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: any) => `${name} ${(Number(percent) * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 {/* FIX: Replace toLocaleString with Intl.NumberFormat to avoid lib definition issues. */}
-                                <Tooltip formatter={(value: number) => `R$ ${formatCurrency(value)}`} />
+                                {/* FIX: Changed prop types to any and used Number() to safely handle potential non-numeric values from recharts library. */}
+                                <Tooltip formatter={(value: any) => `R$ ${formatCurrency(Number(value))}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>

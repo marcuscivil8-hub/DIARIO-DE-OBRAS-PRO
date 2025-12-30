@@ -1,5 +1,7 @@
 // FIX: Updated Supabase functions type reference to a more reliable CDN to prevent type resolution errors.
 /// <reference types="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
+// FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
+declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
