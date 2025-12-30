@@ -16,6 +16,13 @@ const handleFunctionError = (error: any, context: string) => {
         let specificMessage = `Edge Function '${context}' returned a non-2xx status code.`;
         if (error.context && typeof error.context.error === 'string') {
             specificMessage = error.context.error;
+        } else if (error.context && typeof error.context.json === 'function') {
+             // Handle cases where the error is in a JSON body
+            error.context.json().then((json: any) => {
+                if(json.error) {
+                    specificMessage = json.error;
+                }
+            }).catch(() => {/* ignore json parsing errors */});
         } else if (error.context && typeof error.context === 'string') {
             try {
                 const parsedBody = JSON.parse(error.context);

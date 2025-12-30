@@ -19,6 +19,7 @@ const UsuariosPage: React.FC = () => {
     const [isRlsError, setIsRlsError] = useState(false);
     const [isConfigError, setIsConfigError] = useState(false);
     const [isRpcError, setIsRpcError] = useState(false); // State for missing/mismatched RPC function error
+    const [copiedSql, setCopiedSql] = useState<string | null>(null); // State for copy button feedback
     
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
@@ -29,6 +30,83 @@ const UsuariosPage: React.FC = () => {
         obraIds: [] as string[],
     };
     const [currentUserForm, setCurrentUserForm] = useState(initialNewUserState);
+
+    // --- SQL FIX SCRIPTS ---
+    const FIX_RPC_SQL = `-- Passo 1: Cria o tipo ENUM 'user_role' se ele ainda não existir.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE public.user_role AS ENUM ('Admin', 'Encarregado', 'Cliente');
+    END IF;
+END$$;
+
+-- Passo 2: LIMPA E PADRONIZA os dados na coluna 'role' ANTES de alterar o tipo.
+-- Isso corrige a causa raiz do seu erro: dados inconsistentes (ex: 'admin' vs 'Admin').
+DO $$
+BEGIN
+    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
+        UPDATE public.profiles
+        SET role =
+            CASE
+                -- Corrige a capitalização para os valores esperados
+                WHEN lower(trim(role)) = 'admin' THEN 'Admin'
+                WHEN lower(trim(role)) = 'encarregado' THEN 'Encarregado'
+                WHEN lower(trim(role)) = 'cliente' THEN 'Cliente'
+                -- Se o valor atual já estiver correto, mantém o valor.
+                WHEN role IN ('Admin', 'Encarregado', 'Cliente') THEN role
+                -- Para QUALQUER OUTRO valor inesperado, define um padrão seguro (Encarregado).
+                ELSE 'Encarregado'
+            END;
+    END IF;
+END $$;
+
+-- Passo 3: Altera a coluna 'role' da tabela 'profiles' para o tipo 'user_role'.
+-- Agora que os dados estão limpos e padronizados, esta operação terá sucesso.
+DO $$
+BEGIN
+    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
+        ALTER TABLE public.profiles
+        ALTER COLUMN role TYPE user_role
+        USING role::user_role;
+    END IF;
+END $$;
+
+-- Passo 4: (Re)Cria a função 'get_users_with_email' para garantir que ela esteja correta.
+CREATE OR REPLACE FUNCTION public.get_users_with_email()
+RETURNS TABLE (
+    id uuid, name text, email text, username text, role user_role, obra_ids text[]
+) LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT p.id, p.name, u.email, p.username, p.role, p.obra_ids
+  FROM public.profiles AS p JOIN auth.users AS u ON p.id = u.id;
+$$;`;
+
+    const FIX_RLS_SQL_FUNC = `CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT LANGUAGE SQL SECURITY DEFINER AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
+$$;`;
+
+    const FIX_RLS_SQL_POLICIES = `-- Remove as políticas antigas para evitar o erro "policy already exists".
+-- É seguro executar este comando mesmo que as políticas não existam.
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins and users can update profiles" ON public.profiles;
+
+-- (Re)Cria a política para Visualizar (SELECT)
+-- Permite que usuários vejam seu próprio perfil ou que Admins vejam todos.
+CREATE POLICY "Admins can view all profiles" ON public.profiles
+FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
+
+-- (Re)Cria a política para Atualizar (UPDATE)
+-- Permite que usuários atualizem seu próprio perfil ou que Admins atualizem qualquer um.
+CREATE POLICY "Admins and users can update profiles" ON public.profiles
+FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
+
+    const handleCopy = (text: string, id: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedSql(id);
+            setTimeout(() => setCopiedSql(null), 2000);
+        });
+    };
+    // --- END SQL FIX SCRIPTS ---
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -44,7 +122,7 @@ const UsuariosPage: React.FC = () => {
             setUsers(usersData);
             setObras(obrasData);
         } catch (error: any) {
-             if (error.message.includes('get_users_with_email') || error.message.includes('return type mismatch') || error.message.includes('operator does not exist: user_role = text')) {
+             if (error.message.includes('get_users_with_email') || error.message.includes('return type mismatch') || error.message.includes('operator does not exist: user_role = text') || error.message.includes('Could not find the function')) {
                 setIsRpcError(true);
                 setPageError(error.message);
             } else if (error.message.includes('RLS') || error.message.includes('recursion')) {
@@ -195,64 +273,19 @@ const UsuariosPage: React.FC = () => {
              {isRpcError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
                     <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Inconsistência de Dados no Banco</h4>
-                    <p className="text-red-700">A lista de usuários não pôde ser carregada. A causa mais provável é uma combinação de problemas:</p>
-                    <ul className="list-disc list-inside text-red-700 space-y-1 mt-2">
-                        <li>A coluna <code>role</code> na sua tabela <code>profiles</code> é do tipo <strong>texto</strong>, mas deveria ser do tipo <strong>user_role (ENUM)</strong>.</li>
-                        <li>Os dados de texto existentes (ex: "admin" em minúsculo) não correspondem exatamente aos valores do ENUM (ex: "Admin" com maiúscula), o que causa o erro <strong>`operator does not exist: user_role = text`</strong>.</li>
-                    </ul>
-                    <p className="text-red-700 mt-3">Para corrigir ambos os problemas de uma vez (inconsistência de dados e tipo de coluna), execute o script SQL completo abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele é seguro para ser executado várias vezes.</p>
+                    <p className="text-red-700">A lista de usuários não pôde ser carregada. A causa mais provável é que a função `get_users_with_email` não existe ou está incorreta no seu banco de dados Supabase.</p>
+                    <p className="text-red-700 mt-3">Para corrigir, execute o script SQL completo abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele é seguro para ser executado várias vezes.</p>
                     
                     <div className="mt-4">
-                        <h5 className="font-bold text-red-700">Script SQL Corretivo Completo</h5>
+                        <div className="flex justify-between items-center mb-2">
+                            <h5 className="font-bold text-red-700">Script SQL Corretivo Completo</h5>
+                            <Button size="sm" variant="secondary" onClick={() => handleCopy(FIX_RPC_SQL, 'rpc-fix')}>
+                                {copiedSql === 'rpc-fix' ? 'Copiado!' : 'Copiar SQL'}
+                            </Button>
+                        </div>
                         <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-{`-- Passo 1: Cria o tipo ENUM 'user_role' se ele ainda não existir.
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-        CREATE TYPE public.user_role AS ENUM ('Admin', 'Encarregado', 'Cliente');
-    END IF;
-END$$;
-
--- Passo 2: LIMPA E PADRONIZA os dados na coluna 'role' ANTES de alterar o tipo.
--- Isso corrige a causa raiz do seu erro: dados inconsistentes (ex: 'admin' vs 'Admin').
-DO $$
-BEGIN
-    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
-        UPDATE public.profiles
-        SET role =
-            CASE
-                -- Corrige a capitalização para os valores esperados
-                WHEN lower(trim(role)) = 'admin' THEN 'Admin'
-                WHEN lower(trim(role)) = 'encarregado' THEN 'Encarregado'
-                WHEN lower(trim(role)) = 'cliente' THEN 'Cliente'
-                -- Se o valor atual já estiver correto, mantém o valor.
-                WHEN role IN ('Admin', 'Encarregado', 'Cliente') THEN role
-                -- Para QUALQUER OUTRO valor inesperado, define um padrão seguro (Encarregado).
-                ELSE 'Encarregado'
-            END;
-    END IF;
-END $$;
-
--- Passo 3: Altera a coluna 'role' da tabela 'profiles' para o tipo 'user_role'.
--- Agora que os dados estão limpos e padronizados, esta operação terá sucesso.
-DO $$
-BEGIN
-    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
-        ALTER TABLE public.profiles
-        ALTER COLUMN role TYPE user_role
-        USING role::user_role;
-    END IF;
-END $$;
-
--- Passo 4: (Re)Cria a função 'get_users_with_email' para garantir que ela esteja correta.
-CREATE OR REPLACE FUNCTION public.get_users_with_email()
-RETURNS TABLE (
-    id uuid, name text, email text, username text, role user_role, obra_ids text[]
-) LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT p.id, p.name, u.email, p.username, p.role, p.obra_ids
-  FROM public.profiles AS p JOIN auth.users AS u ON p.id = u.id;
-$$;`}
+                                {FIX_RPC_SQL}
                             </code>
                         </pre>
                     </div>
@@ -305,37 +338,31 @@ $$;`}
                     <p className="text-red-700 mt-2">Execute o script SQL abaixo no <strong>SQL Editor</strong> do seu painel Supabase para corrigir o problema de forma definitiva.</p>
                     
                     <div className="mt-4">
-                        <h5 className="font-bold text-red-700">1. (Obrigatório) Crie uma Função Auxiliar Segura</h5>
+                        <div className="flex justify-between items-center mb-2">
+                           <h5 className="font-bold text-red-700">1. (Obrigatório) Crie uma Função Auxiliar Segura</h5>
+                           <Button size="sm" variant="secondary" onClick={() => handleCopy(FIX_RLS_SQL_FUNC, 'rls-func')}>
+                                {copiedSql === 'rls-func' ? 'Copiado!' : 'Copiar SQL'}
+                           </Button>
+                        </div>
                         <p className="text-red-700 text-xs mb-1">Esta função verifica a permissão do usuário de forma segura, evitando o loop de recursão.</p>
                         <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-{`CREATE OR REPLACE FUNCTION get_my_role()
-RETURNS TEXT LANGUAGE SQL SECURITY DEFINER AS $$
-  SELECT role FROM public.profiles WHERE id = auth.uid()
-$$;`}
+                                {FIX_RLS_SQL_FUNC}
                             </code>
                         </pre>
                     </div>
 
                     <div className="mt-4">
-                        <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
+                        <div className="flex justify-between items-center mb-2">
+                            <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
+                             <Button size="sm" variant="secondary" onClick={() => handleCopy(FIX_RLS_SQL_POLICIES, 'rls-policies')}>
+                                {copiedSql === 'rls-policies' ? 'Copiado!' : 'Copiar SQL'}
+                           </Button>
+                        </div>
                         <p className="text-red-700 text-xs mb-1">O script abaixo é seguro para ser executado várias vezes. Ele primeiro remove as políticas existentes para evitar o erro "policy already exists" e depois as recria com as permissões corretas.</p>
                         <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-{`-- Remove as políticas antigas para evitar o erro "policy already exists".
--- É seguro executar este comando mesmo que as políticas não existam.
-DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Admins and users can update profiles" ON public.profiles;
-
--- (Re)Cria a política para Visualizar (SELECT)
--- Permite que usuários vejam seu próprio perfil ou que Admins vejam todos.
-CREATE POLICY "Admins can view all profiles" ON public.profiles
-FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
-
--- (Re)Cria a política para Atualizar (UPDATE)
--- Permite que usuários atualizem seu próprio perfil ou que Admins atualizem qualquer um.
-CREATE POLICY "Admins and users can update profiles" ON public.profiles
-FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`}
+                                {FIX_RLS_SQL_POLICIES}
                             </code>
                         </pre>
                     </div>
