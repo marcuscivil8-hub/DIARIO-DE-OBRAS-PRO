@@ -51,24 +51,21 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
             return data ? data.map(item => toCamelCase<T>(item)) : [];
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).insert(toSnakeCase(itemData)).select();
+            const { data, error } = await supabase.from(tableName).insert(toSnakeCase(itemData)).select().single();
             handleSupabaseError(error, `create ${tableName}`);
-            if (!data || data.length !== 1) {
-                console.error(`Supabase create did not return a single row for table ${tableName}.`, data);
-                throw new Error(`Falha ao criar item na tabela '${tableName}'. A inserção não retornou o registro esperado.`);
+            if (!data) {
+                console.error(`Supabase create did not return a row for table ${tableName}.`, data);
+                throw new Error(`Falha ao criar item na tabela '${tableName}'.`);
             }
-            return toCamelCase<T>(data[0]);
+            return toCamelCase<T>(data);
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).update(toSnakeCase(updates)).eq('id', itemId).select();
+            const { data, error } = await supabase.from(tableName).update(toSnakeCase(updates)).eq('id', itemId).select().single();
             handleSupabaseError(error, `update ${tableName}`);
-            if (!data || data.length === 0) {
+             if (!data) {
                 throw new Error(`Nenhum item encontrado na tabela '${tableName}' para atualizar, ou permissão negada.`);
             }
-            if (data.length > 1) {
-                console.warn(`A atualização na tabela '${tableName}' afetou múltiplas linhas. Retornando o primeiro resultado.`, data);
-            }
-            return toCamelCase<T>(data[0]);
+            return toCamelCase<T>(data);
         },
         async delete(itemId: string): Promise<void> {
             const { error } = await supabase.from(tableName).delete().eq('id', itemId);
@@ -81,30 +78,33 @@ export const apiService = {
     async login(email: string, password: string): Promise<User> {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) {
-            // A mensagem de erro padrão do Supabase para credenciais erradas é "Invalid login credentials".
-            // Retornar a mensagem original pode ajudar na depuração.
             throw new Error(authError.message === 'Invalid login credentials' ? 'Email ou senha inválidos.' : authError.message);
         }
         if (!authData.user) {
             throw new Error("Login falhou: Nenhum usuário retornado após a autenticação.");
         }
 
-        const { data: profileData, error: profileError } = await supabase
+        const { data: profiles, error: profileError } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', authData.user.id)
-            .limit(1) // Safeguard against multiple profiles
-            .single();
+            .eq('id', authData.user.id);
 
-        if (profileError || !profileData) {
-            console.error('Error fetching profile:', profileError?.message);
+        if (profileError) {
+            console.error('Error fetching profile:', profileError.message);
             await supabase.auth.signOut();
-            throw new Error(`PROFILE_ERROR: ${profileError?.message || 'Perfil não encontrado.'}`);
+            throw new Error(`PROFILE_ERROR: ${profileError.message}`);
         }
 
+        if (!profiles || profiles.length === 0) {
+            console.error('Error fetching profile: Profile not found for user.');
+            await supabase.auth.signOut();
+            throw new Error('PROFILE_ERROR: Perfil não encontrado.');
+        }
+
+        const profileData = profiles[0];
         const user: User = {
             ...toCamelCase<User>(profileData),
-            email: authData.user.email || '', // O email do Auth é a fonte da verdade
+            email: authData.user.email || '',
         };
         
         sessionStorage.setItem('currentUser', JSON.stringify(user));
@@ -126,18 +126,20 @@ export const apiService = {
         const userJson = sessionStorage.getItem('currentUser');
         if (userJson) return JSON.parse(userJson);
         
-        const { data: profileData, error } = await supabase
+        const { data: profiles, error: profileError } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
-            .limit(1) // Safeguard against multiple profiles
-            .single();
+            .eq('id', session.user.id);
+        
+        if (profileError || !profiles || profiles.length === 0) {
+            if(profileError) console.error("Error checking session profile:", profileError.message);
+            return null;
+        }
 
-        if (error || !profileData) return null;
-
-         const user: User = {
+        const profileData = profiles[0];
+        const user: User = {
             ...toCamelCase<User>(profileData),
-            email: session.user.email || '', // O email do Auth é a fonte da verdade
+            email: session.user.email || '',
         };
         sessionStorage.setItem('currentUser', JSON.stringify(user));
         return user;
@@ -177,10 +179,19 @@ export const apiService = {
             return toCamelCase<Documento>(data);
         },
          async delete(docId: string): Promise<void> {
-            const { data: doc } = await supabase.from('documentos').select('url').eq('id', docId).single<{ url: string }>();
-            if (doc?.url) {
-                const filePath = new URL(doc.url).pathname.split('/documentos/')[1];
-                await supabase.storage.from('documentos').remove([filePath]);
+            const { data: docs, error: fetchError } = await supabase.from('documentos').select('url').eq('id', docId);
+            handleSupabaseError(fetchError, 'fetch document for deletion');
+
+            if (docs && docs.length > 0) {
+                const doc = docs[0];
+                if (doc?.url) {
+                    try {
+                        const filePath = new URL(doc.url).pathname.split('/documentos/')[1];
+                        await supabase.storage.from('documentos').remove([filePath]);
+                    } catch(e) {
+                        console.error("Could not parse or remove file from storage:", e);
+                    }
+                }
             }
             await supabase.from('documentos').delete().eq('id', docId);
         }
@@ -189,23 +200,17 @@ export const apiService = {
     users: {
         ...createCrudService<User>('profiles'),
         async getAll(): Promise<User[]> {
-            // Use an RPC function for security and efficiency. This avoids calling admin functions from the client.
             const { data, error } = await supabase.rpc('get_users_with_email');
             handleSupabaseError(error, 'getAll users via RPC');
-            // The RPC is expected to return snake_case columns, so we convert them.
             return data ? data.map((item: any) => toCamelCase<User>(item)) : [];
         },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
-            const { data, error } = await supabase.functions.invoke('create-user', {
-                body: userData,
-            });
+            const { data, error } = await supabase.functions.invoke('create-user', { body: userData });
             handleFunctionError(error, 'createUser');
             return data;
         },
         async deleteUser(userId: string): Promise<any> {
-            const { data, error } = await supabase.functions.invoke('delete-user', {
-                body: { user_id: userId },
-            });
+            const { data, error } = await supabase.functions.invoke('delete-user', { body: { user_id: userId } });
             handleFunctionError(error, 'deleteUser');
             return data;
         },

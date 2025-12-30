@@ -81,7 +81,6 @@ export interface Material {
     id: string;
     nome: string;
     unidade: string;
-    quantidade: number; // This will now represent CENTRAL STOCK
     estoqueMinimo: number;
     fornecedor?: string;
     valor?: number;

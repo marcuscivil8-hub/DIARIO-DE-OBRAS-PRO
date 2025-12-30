@@ -34,7 +34,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
 
     // Form states
     const [movementFormData, setMovementFormData] = useState({ quantidade: 1, obraId: '', responsavelRetiradaId: '', descricao: '' });
-    const emptyNewMaterial: Omit<Material, 'id' | 'quantidade'> = { nome: '', unidade: '', estoqueMinimo: 0, fornecedor: '', valor: 0 };
+    const emptyNewMaterial: Omit<Material, 'id'> = { nome: '', unidade: '', estoqueMinimo: 0, fornecedor: '', valor: 0 };
     const [materialFormData, setMaterialFormData] = useState(emptyNewMaterial);
     
 
@@ -157,7 +157,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             if (editingMaterial) {
                 await apiService.materiais.update(editingMaterial.id, materialFormData);
             } else {
-                await apiService.materiais.create({ ...materialFormData, quantidade: 0 });
+                await apiService.materiais.create(materialFormData);
             }
             setIsMaterialModalOpen(false);
             await fetchData();

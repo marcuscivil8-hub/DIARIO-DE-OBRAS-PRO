@@ -58,9 +58,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             : 0;
 
         const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
-        // FIX: Add explicit types for reduce parameters to prevent type inference errors.
-        // FIX: Removed explicit types from reduce callback parameters to allow for correct type inference, which should resolve the error on this line.
-        const custoMaoDeObra = pontosRelevantes.reduce((total, ponto) => {
+        const custoMaoDeObra = pontosRelevantes.reduce((total: number, ponto: Ponto) => {
             const func = funcionarios.find((f) => f.id === ponto.funcionarioId);
             if (func) {
                 const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
@@ -69,15 +67,14 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             return total;
         }, 0);
 
-        const materiaisMap = new Map(materiais.map((m: Material) => [m.id, m]));
+        // FIX: Explicitly type Map to avoid type inference issues.
+        const materiaisMap = new Map<string, Material>(materiais.map((m: Material) => [m.id, m]));
         const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => 
             m.itemType === 'material' && 
             m.tipoMovimentacao === MovimentacaoTipo.Uso &&
             (isAllObras || m.obraId === selectedObraId)
         );
-        // FIX: Add explicit types for reduce parameters and variable to prevent type inference errors.
-        // FIX: Removed explicit types from reduce callback parameters to allow for correct type inference.
-        const custoMateriais = movimentosUso.reduce((total, mov) => {
+        const custoMateriais = movimentosUso.reduce((total: number, mov: MovimentacaoAlmoxarifado) => {
             const material = materiaisMap.get(mov.itemId);
             if (material && typeof material.valor === 'number') {
                 return total + (material.valor * mov.quantidade);
@@ -149,16 +146,14 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                     <div className="h-96">
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                {/* FIX: Add explicit types to label prop to fix arithmetic operation error. */}
-                                {/* FIX: Changed prop types to any and used Number() to safely handle potential non-numeric values from recharts library. */}
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: any) => `${name} ${(Number(percent) * 100).toFixed(0)}%`}>
+                                {/* FIX: Safely handle potentially non-numeric or undefined values from recharts library. */}
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: any) => `${name} ${(Number(percent || 0) * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                {/* FIX: Replace toLocaleString with Intl.NumberFormat to avoid lib definition issues. */}
-                                {/* FIX: Changed prop types to any and used Number() to safely handle potential non-numeric values from recharts library. */}
-                                <Tooltip formatter={(value: any) => `R$ ${formatCurrency(Number(value))}`} />
+                                {/* FIX: Safely handle potentially non-numeric or undefined values from recharts library. */}
+                                <Tooltip formatter={(value: any) => `R$ ${formatCurrency(Number(value || 0))}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
@@ -169,7 +164,6 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          {Object.entries(saidasPorCategoria).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                {/* FIX: Replace toLocaleString with Intl.NumberFormat to avoid lib definition issues. */}
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {formatCurrency(valor)}</p>
                             </li>
                          ))}
