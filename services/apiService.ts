@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
@@ -122,12 +123,8 @@ export const apiService = {
         }
 
         const user: User = {
-            id: authData.user.id,
-            name: profileData.name,
-            email: authData.user.email || '',
-            username: profileData.username,
-            role: profileData.role,
-            obraIds: profileData.obra_ids || [],
+            ...toCamelCase<User>(profileData),
+            email: authData.user.email || '', // O email do Auth é a fonte da verdade
         };
         
         sessionStorage.setItem('currentUser', JSON.stringify(user));
@@ -153,12 +150,8 @@ export const apiService = {
         if (error || !profileData) return null;
 
          const user: User = {
-            id: session.user.id,
-            name: profileData.name,
-            email: session.user.email || '',
-            username: profileData.username,
-            role: profileData.role,
-            obraIds: profileData.obra_ids || [],
+            ...toCamelCase<User>(profileData),
+            email: session.user.email || '', // O email do Auth é a fonte da verdade
         };
         sessionStorage.setItem('currentUser', JSON.stringify(user));
         return user;
@@ -221,15 +214,8 @@ export const apiService = {
             const { data, error } = await supabase.rpc('get_users_with_email');
             handleSupabaseError(error, 'getAll users with email');
 
-            // O RPC retorna snake_case, então precisamos converter para camelCase
-            return data ? data.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                email: item.email,
-                username: item.username,
-                role: item.role,
-                obraIds: item.obra_ids,
-            })) : [];
+            // A RPC retorna snake_case, então usamos o helper para converter consistentemente.
+            return data ? data.map(item => toCamelCase<User>(item)) : [];
         },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', {
