@@ -18,7 +18,7 @@ const UsuariosPage: React.FC = () => {
     const [pageError, setPageError] = useState<string | null>(null);
     const [isRlsError, setIsRlsError] = useState(false);
     const [isConfigError, setIsConfigError] = useState(false);
-    const [isRpcError, setIsRpcError] = useState(false); // State for missing RPC function error
+    const [isRpcError, setIsRpcError] = useState(false); // State for missing/mismatched RPC function error
     
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
@@ -44,7 +44,7 @@ const UsuariosPage: React.FC = () => {
             setUsers(usersData);
             setObras(obrasData);
         } catch (error: any) {
-             if (error.message.includes('get_users_with_email')) {
+             if (error.message.includes('get_users_with_email') || error.message.includes('return type mismatch')) {
                 setIsRpcError(true);
                 setPageError(error.message);
             } else if (error.message.includes('RLS') || error.message.includes('recursion')) {
@@ -194,42 +194,47 @@ const UsuariosPage: React.FC = () => {
             
              {isRpcError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Função do Banco de Dados Ausente</h4>
-                    <p className="text-red-700">A lista de usuários não pôde ser carregada. O aplicativo precisa de uma função especial no banco de dados chamada <code>get_users_with_email</code> para buscar os emails dos usuários de forma segura.</p>
-                    <p className="text-red-700 mt-2">Para corrigir, execute o script SQL abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Isso criará a função necessária e resolverá o problema imediatamente.</p>
+                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Função do Banco de Dados Incorreta</h4>
+                    <p className="text-red-700">A lista de usuários não pôde ser carregada. Isso geralmente ocorre por um dos seguintes motivos:</p>
+                    <ul className="list-disc list-inside text-red-700 space-y-1 mt-2">
+                        <li>A função <code>get_users_with_email</code> não foi criada no banco de dados.</li>
+                        <li>A coluna <code>role</code> na sua tabela <code>profiles</code> é do tipo <strong>texto</strong>, mas a função espera o tipo <strong>user_role (ENUM)</strong>. Isso causa o erro de "return type mismatch".</li>
+                    </ul>
+                    <p className="text-red-700 mt-3">Para corrigir ambos os problemas de uma vez, execute o script SQL completo abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele é seguro para ser executado várias vezes.</p>
                     
                     <div className="mt-4">
-                        <h5 className="font-bold text-red-700">Script SQL para Criar a Função</h5>
+                        <h5 className="font-bold text-red-700">Script SQL Corretivo Completo</h5>
                         <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
                             <code>
-{`-- Cria a função para buscar perfis de usuário junto com seus emails da tabela de autenticação.
+{`-- Passo 1: Cria o tipo ENUM 'user_role' se ele ainda não existir.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE public.user_role AS ENUM ('Admin', 'Encarregado', 'Cliente');
+    END IF;
+END$$;
+
+-- Passo 2: Altera a coluna 'role' da tabela 'profiles' para o tipo 'user_role'.
+-- Esta é a correção principal para o erro de "type mismatch".
+DO $$
+BEGIN
+    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
+        ALTER TABLE public.profiles
+        ALTER COLUMN role TYPE user_role
+        USING role::user_role;
+    END IF;
+END $$;
+
+-- Passo 3: (Re)Cria a função 'get_users_with_email' para garantir que ela esteja correta.
 CREATE OR REPLACE FUNCTION public.get_users_with_email()
 RETURNS TABLE (
-    id uuid,
-    name text,
-    email text,
-    username text,
-    role user_role, -- Certifique-se de que o tipo 'user_role' existe no seu banco de dados
-    obra_ids text[]
-)
-LANGUAGE sql
-SECURITY DEFINER -- Essencial para permitir o acesso à tabela auth.users
-AS $$
-  SELECT
-    p.id,
-    p.name,
-    u.email,
-    p.username,
-    p.role,
-    p.obra_ids
-  FROM
-    public.profiles AS p
-  JOIN
-    auth.users AS u ON p.id = u.id;
+    id uuid, name text, email text, username text, role user_role, obra_ids text[]
+) LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT p.id, p.name, u.email, p.username, p.role, p.obra_ids
+  FROM public.profiles AS p JOIN auth.users AS u ON p.id = u.id;
 $$;`}
                             </code>
                         </pre>
-                         <p className="text-xs text-red-700 mt-2"><strong>Nota:</strong> Se o tipo <code>user_role</code> não existir, você pode criá-lo com: <code>CREATE TYPE user_role AS ENUM ('Admin', 'Encarregado', 'Cliente');</code></p>
                     </div>
                 </Card>
             )}

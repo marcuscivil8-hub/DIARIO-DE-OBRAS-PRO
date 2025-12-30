@@ -521,7 +521,7 @@ const RelatoriosPage: React.FC = () => {
 
     if (pageLoading) return <div className="text-center p-8">Carregando dados para relatórios...</div>;
 
-    const needsObraSelection = ['fotografico', 'financeiro', 'folhaPagamento', 'documentos', 'consumo'].includes(reportType) && selectedObraId === 'all' && reportType !== 'financeiro';
+    const needsObraSelection = ['fotografico', 'folhaPagamento', 'documentos', 'consumo'].includes(reportType) && selectedObraId === 'all';
 
     return (
         <div className="space-y-6">
