@@ -165,12 +165,21 @@ export const apiService = {
     },
 
     async getLembretes(): Promise<string[]> {
-        const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).single();
-        if (error && error.message.includes('configuracoes')) { // More generic check
-            console.warn("AVISO: Tabela 'configuracoes' não encontrada. A funcionalidade de lembretes está desativada. Para usá-la, crie a tabela no Supabase com uma coluna 'lembretes_encarregado' do tipo text[].");
+        // FIX: Replaced .single() with .maybeSingle() to prevent an error when the 'configuracoes' table is empty.
+        // .maybeSingle() returns null instead of throwing an error if no row is found, making the function more robust.
+        const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).maybeSingle();
+        
+        // This specific error check is for cases where the table itself might be missing,
+        // which can happen during initial setup. The console warning is helpful for developers.
+        if (error && error.message.includes('relation "public.configuracoes" does not exist')) {
+            console.warn("AVISO: Tabela 'configuracoes' não encontrada. A funcionalidade de lembretes está desativada. Para usá-la, execute o script SQL completo para criar a tabela.");
             return [];
         }
+        
+        // Handle any other potential Supabase errors gracefully.
         handleSupabaseError(error, 'getLembretes');
+        
+        // If data is null (row not found) or the array is missing, return an empty array.
         return data?.lembretes_encarregado || [];
     },
 

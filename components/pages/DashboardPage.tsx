@@ -51,8 +51,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                 setMovimentacoes(movimentacoesData);
                 setLembretes(lembretesData);
                 setLembretesEdit(lembretesData.join('\n'));
-            } catch (error) {
-                console.error("Failed to fetch dashboard data", error);
+            } catch (error: any) {
+                // FIX: Added type annotation and logged error.message for more descriptive error logging in the console.
+                console.error("Failed to fetch dashboard data:", error.message);
             } finally {
                 setLoading(false);
             }
