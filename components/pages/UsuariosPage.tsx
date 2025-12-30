@@ -44,7 +44,7 @@ const UsuariosPage: React.FC = () => {
             setUsers(usersData);
             setObras(obrasData);
         } catch (error: any) {
-             if (error.message.includes('get_users_with_email') || error.message.includes('return type mismatch')) {
+             if (error.message.includes('get_users_with_email') || error.message.includes('return type mismatch') || error.message.includes('operator does not exist: user_role = text')) {
                 setIsRpcError(true);
                 setPageError(error.message);
             } else if (error.message.includes('RLS') || error.message.includes('recursion')) {
@@ -194,13 +194,13 @@ const UsuariosPage: React.FC = () => {
             
              {isRpcError && (
                  <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Função do Banco de Dados Incorreta</h4>
-                    <p className="text-red-700">A lista de usuários não pôde ser carregada. Isso geralmente ocorre por um dos seguintes motivos:</p>
+                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Inconsistência de Dados no Banco</h4>
+                    <p className="text-red-700">A lista de usuários não pôde ser carregada. A causa mais provável é uma combinação de problemas:</p>
                     <ul className="list-disc list-inside text-red-700 space-y-1 mt-2">
-                        <li>A função <code>get_users_with_email</code> não foi criada no banco de dados.</li>
-                        <li>A coluna <code>role</code> na sua tabela <code>profiles</code> é do tipo <strong>texto</strong>, mas a função espera o tipo <strong>user_role (ENUM)</strong>. Isso causa o erro de "return type mismatch".</li>
+                        <li>A coluna <code>role</code> na sua tabela <code>profiles</code> é do tipo <strong>texto</strong>, mas deveria ser do tipo <strong>user_role (ENUM)</strong>.</li>
+                        <li>Os dados de texto existentes (ex: "admin" em minúsculo) não correspondem exatamente aos valores do ENUM (ex: "Admin" com maiúscula), o que causa o erro <strong>`operator does not exist: user_role = text`</strong>.</li>
                     </ul>
-                    <p className="text-red-700 mt-3">Para corrigir ambos os problemas de uma vez, execute o script SQL completo abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele é seguro para ser executado várias vezes.</p>
+                    <p className="text-red-700 mt-3">Para corrigir ambos os problemas de uma vez (inconsistência de dados e tipo de coluna), execute o script SQL completo abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele é seguro para ser executado várias vezes.</p>
                     
                     <div className="mt-4">
                         <h5 className="font-bold text-red-700">Script SQL Corretivo Completo</h5>
@@ -214,8 +214,28 @@ BEGIN
     END IF;
 END$$;
 
--- Passo 2: Altera a coluna 'role' da tabela 'profiles' para o tipo 'user_role'.
--- Esta é a correção principal para o erro de "type mismatch".
+-- Passo 2: LIMPA E PADRONIZA os dados na coluna 'role' ANTES de alterar o tipo.
+-- Isso corrige a causa raiz do seu erro: dados inconsistentes (ex: 'admin' vs 'Admin').
+DO $$
+BEGIN
+    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
+        UPDATE public.profiles
+        SET role =
+            CASE
+                -- Corrige a capitalização para os valores esperados
+                WHEN lower(trim(role)) = 'admin' THEN 'Admin'
+                WHEN lower(trim(role)) = 'encarregado' THEN 'Encarregado'
+                WHEN lower(trim(role)) = 'cliente' THEN 'Cliente'
+                -- Se o valor atual já estiver correto, mantém o valor.
+                WHEN role IN ('Admin', 'Encarregado', 'Cliente') THEN role
+                -- Para QUALQUER OUTRO valor inesperado, define um padrão seguro (Encarregado).
+                ELSE 'Encarregado'
+            END;
+    END IF;
+END $$;
+
+-- Passo 3: Altera a coluna 'role' da tabela 'profiles' para o tipo 'user_role'.
+-- Agora que os dados estão limpos e padronizados, esta operação terá sucesso.
 DO $$
 BEGIN
     IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
@@ -225,7 +245,7 @@ BEGIN
     END IF;
 END $$;
 
--- Passo 3: (Re)Cria a função 'get_users_with_email' para garantir que ela esteja correta.
+-- Passo 4: (Re)Cria a função 'get_users_with_email' para garantir que ela esteja correta.
 CREATE OR REPLACE FUNCTION public.get_users_with_email()
 RETURNS TABLE (
     id uuid, name text, email text, username text, role user_role, obra_ids text[]
