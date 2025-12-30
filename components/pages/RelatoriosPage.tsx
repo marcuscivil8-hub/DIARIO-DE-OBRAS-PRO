@@ -18,8 +18,8 @@ const RelatorioConsumo: React.FC<{
         const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
         // FIX: Add explicit type to filter callback parameter to avoid 'unknown' type inference.
         const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
-        // FIX: Add explicit type to map callback parameter to avoid 'unknown' type inference.
-        const materiaisMap = new Map(materiais.map((m: Material) => [m.id, m]));
+        // FIX: Explicitly type the Map to ensure correct type inference for `material`.
+        const materiaisMap: Map<string, Material> = new Map(materiais.map((m: Material) => [m.id, m]));
 
         // FIX: Add explicit type to forEach callback parameter to avoid 'unknown' type inference.
         movimentosUso.forEach((mov: MovimentacaoAlmoxarifado) => {
@@ -44,10 +44,10 @@ const RelatorioConsumo: React.FC<{
     const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item) => sum + (item.valor || 0), 0);
 
     return (
-        <div className="p-8 bg-white text-gray-800 font-sans">
+        <div className="p-8 bg-white text-black font-sans">
             <header className="text-right border-b-2 border-black pb-4 mb-8">
                 <h1 className="text-3xl font-bold text-brand-blue">{obra.construtora}</h1>
-                <p className="text-gray-600">Relatório de Consumo da Obra</p>
+                <p className="text-gray-800">Relatório de Consumo da Obra</p>
             </header>
             <main>
                 <div className="mb-8 p-4 border border-gray-300 rounded">
@@ -153,10 +153,10 @@ const getPeriodDates = (periodo: 'semanal' | 'quinzenal' | 'mensal') => {
 
 // --- Relatório Fotográfico Component ---
 const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({ obra, diarios }) => (
-    <div className="p-8 bg-white text-gray-800 font-sans">
+    <div className="p-8 bg-white text-black font-sans">
         <header className="text-right border-b-2 border-black pb-4 mb-8">
             <h1 className="text-3xl font-bold text-brand-blue">{obra.construtora}</h1>
-            <p className="text-gray-600">Relatório Fotográfico de Obra</p>
+            <p className="text-gray-800">Relatório Fotográfico de Obra</p>
         </header>
         <main>
             <div className="mb-8 p-4 border border-gray-300 rounded">
@@ -176,7 +176,7 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
                             {diario.fotos.map((foto, index) => (
                                  <div key={index} className="border p-2 rounded">
                                     <img src={foto.url} alt={foto.legenda} className="w-full rounded" />
-                                    <p className="text-center text-sm mt-1 text-gray-600">{foto.legenda}</p>
+                                    <p className="text-center text-sm mt-1 text-gray-800">{foto.legenda}</p>
                                 </div>
                             ))}
                         </div>
@@ -194,10 +194,10 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
     const balanco = totalEntradas - totalSaidas;
 
     return (
-        <div className="p-8 bg-white text-gray-800 font-sans">
+        <div className="p-8 bg-white text-black font-sans">
             <header className="text-right border-b-2 border-black pb-4 mb-8">
                 <h1 className="text-3xl font-bold text-brand-blue">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
-                <p className="text-gray-600">Relatório Financeiro de Obra</p>
+                <p className="text-gray-800">Relatório Financeiro de Obra</p>
             </header>
             <main>
                 <div className="mb-8 p-4 border border-gray-300 rounded">
@@ -234,9 +234,9 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
                     </thead>
                     <tbody>
                         {transacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida).map(t => (
-                            <tr key={t.id} className="text-gray-800"><td className="p-2 border border-gray-300">{new Date(t.data).toLocaleDateString('pt-BR')}</td><td className="p-2 border border-gray-300">{t.descricao}</td><td className="p-2 border border-gray-300">{t.categoria}</td><td className="p-2 border border-gray-300 text-right">- R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>
+                            <tr key={t.id} className="text-black"><td className="p-2 border border-gray-300">{new Date(t.data).toLocaleDateString('pt-BR')}</td><td className="p-2 border border-gray-300">{t.descricao}</td><td className="p-2 border border-gray-300">{t.categoria}</td><td className="p-2 border border-gray-300 text-right">- R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>
                         ))}
-                        {custoMaoDeObra > 0 && <tr className="font-bold bg-gray-100 text-gray-800"><td className="p-2 border border-gray-300" colSpan={3}>Custo com Mão de Obra (do Ponto)</td><td className="p-2 border border-gray-300 text-right">- R$ {custoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>}
+                        {custoMaoDeObra > 0 && <tr className="font-bold bg-gray-100 text-black"><td className="p-2 border border-gray-300" colSpan={3}>Custo com Mão de Obra (do Ponto)</td><td className="p-2 border border-gray-300 text-right">- R$ {custoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>}
                     </tbody>
                 </table>
             </main>
@@ -273,10 +273,10 @@ const RelatorioFolhaPagamento: React.FC<{ obra: Obra | null, funcionarios: Funci
     const totalFolha = payrollData.reduce((sum, data) => sum + data.valorAPagar, 0);
 
     return (
-        <div className="p-8 bg-white text-gray-800 font-sans">
+        <div className="p-8 bg-white text-black font-sans">
             <header className="text-right border-b-2 border-black pb-4 mb-8">
                  <h1 className="text-3xl font-bold text-brand-blue">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
-                <p className="text-gray-600">Relatório de Folha de Pagamento</p>
+                <p className="text-gray-800">Relatório de Folha de Pagamento</p>
             </header>
              <main>
                 <div className="mb-8 p-4 border border-gray-300 rounded">
@@ -295,7 +295,7 @@ const RelatorioFolhaPagamento: React.FC<{ obra: Obra | null, funcionarios: Funci
                     </thead>
                     <tbody>
                         {payrollData.map(data => (
-                            <tr key={data.id} className="text-gray-800">
+                            <tr key={data.id} className="text-black">
                                 <td className="p-2 border border-gray-300">{data.name}</td>
                                 <td className="p-2 border border-gray-300 text-center">{data.diasTrabalhados}</td>
                                 <td className="p-2 border border-gray-300 text-center">{data.faltas}</td>
@@ -303,7 +303,7 @@ const RelatorioFolhaPagamento: React.FC<{ obra: Obra | null, funcionarios: Funci
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot className="bg-gray-200 font-bold text-gray-800">
+                    <tfoot className="bg-gray-200 font-bold text-black">
                         <tr>
                             <td className="p-2 border border-gray-300 text-right" colSpan={3}>Total da Folha</td>
                             <td className="p-2 border border-gray-300 text-right">R$ {totalFolha.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -334,10 +334,10 @@ const RelatorioAlmoxarifado: React.FC<{
     const saidas = movimentacoes.filter(m => m.tipoMovimentacao === MovimentacaoTipo.Saida).sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     return (
-        <div className="p-8 bg-white text-gray-800 font-sans">
+        <div className="p-8 bg-white text-black font-sans">
             <header className="text-right border-b-2 border-black pb-4 mb-8">
                  <h1 className="text-3xl font-bold text-brand-blue">Engetch Engenharia e Projetos</h1>
-                <p className="text-gray-600">Relatório de Saídas do Almoxarifado</p>
+                <p className="text-gray-800">Relatório de Saídas do Almoxarifado</p>
             </header>
              <main>
                 <div className="mb-8 p-4 border border-gray-300 rounded">
@@ -356,7 +356,7 @@ const RelatorioAlmoxarifado: React.FC<{
                     </thead>
                     <tbody>
                         {saidas.map(mov => (
-                            <tr key={mov.id} className="text-gray-800">
+                            <tr key={mov.id} className="text-black">
                                 <td className="p-2 border border-gray-300">{new Date(mov.data).toLocaleDateString('pt-BR')}</td>
                                 <td className="p-2 border border-gray-300">{getNomeItem(mov)}</td>
                                 <td className="p-2 border border-gray-300 text-center">{mov.quantidade}</td>
@@ -381,10 +381,10 @@ const RelatorioDocumentos: React.FC<{ obra: Obra | null, documentos: Documento[]
     const groupOrder: Documento['tipoDocumento'][] = ['Contrato', 'Comprovante de Pagamento', 'Projeto', 'Outro'];
 
     return (
-        <div className="p-8 bg-white text-gray-800 font-sans">
+        <div className="p-8 bg-white text-black font-sans">
             <header className="text-right border-b-2 border-black pb-4 mb-8">
                 <h1 className="text-3xl font-bold text-brand-blue">{obra?.construtora || 'Engetch Engenharia e Projetos'}</h1>
-                <p className="text-gray-600">Relatório de Documentos da Obra</p>
+                <p className="text-gray-800">Relatório de Documentos da Obra</p>
             </header>
             <main>
                 <div className="mb-8 p-4 border border-gray-300 rounded">
@@ -399,7 +399,7 @@ const RelatorioDocumentos: React.FC<{ obra: Obra | null, documentos: Documento[]
                         <table className="w-full text-sm border-collapse">
                             <tbody>
                                 {groupedDocs[group].map(doc => (
-                                    <tr key={doc.id} className="text-gray-800 border-b">
+                                    <tr key={doc.id} className="text-black border-b">
                                         <td className="p-2">{doc.nome}</td>
                                         <td className="p-2 text-right">{new Date(doc.dataUpload).toLocaleDateString('pt-BR')}</td>
                                     </tr>

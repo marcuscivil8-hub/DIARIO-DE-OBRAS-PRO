@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo, CategoriaSaida, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
+import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo, CategoriaSaida, MovimentacaoAlmoxarifado, MovimentacaoTipo, Ferramenta } from '../../types';
 import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -17,6 +17,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
     const [obras, setObras] = useState<Obra[]>([]);
     const [servicos, setServicos] = useState<Servico[]>([]);
     const [materiais, setMateriais] = useState<Material[]>([]);
+    const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
     const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
     const [pontos, setPontos] = useState<Ponto[]>([]);
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
@@ -32,7 +33,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData, movimentacoesData, lembretesData] = await Promise.all([
+                const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData, movimentacoesData, lembretesData, ferramentasData] = await Promise.all([
                     apiService.obras.getAll(),
                     apiService.servicos.getAll(),
                     apiService.materiais.getAll(),
@@ -41,6 +42,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                     apiService.funcionarios.getAll(),
                     apiService.movimentacoesAlmoxarifado.getAll(),
                     apiService.getLembretes(),
+                    apiService.ferramentas.getAll(),
                 ]);
                 setObras(obrasData);
                 setServicos(servicosData);
@@ -51,6 +53,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                 setMovimentacoes(movimentacoesData);
                 setLembretes(lembretesData);
                 setLembretesEdit(lembretesData.join('\n'));
+                setFerramentas(ferramentasData);
             } catch (error: any) {
                 console.error("Failed to fetch dashboard data:", error.message);
             } finally {
@@ -80,27 +83,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         return userObraIds.includes(s.obraId) && isDelayed;
     }).length;
 
-    const estoqueCentral = useMemo(() => {
-        const estoque: Record<string, number> = {};
+    const { estoqueMateriais, estoqueFerramentas } = useMemo(() => {
+        const estoqueMat: Record<string, number> = {};
+        const estoqueFer: Record<string, number> = {};
         movimentacoes.forEach(mov => {
-            if (mov.itemType === 'material') {
-                let change = 0;
-                if (mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
-                    change = mov.quantidade;
-                } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) {
-                    change = -mov.quantidade;
-                }
-                if (change !== 0) {
-                   estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
+            let change = 0;
+            if (mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
+                change = mov.quantidade;
+            } else if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) {
+                change = -mov.quantidade;
+            }
+            
+            if (change !== 0) {
+                if (mov.itemType === 'material') {
+                    estoqueMat[mov.itemId] = (estoqueMat[mov.itemId] || 0) + change;
+                } else if (mov.itemType === 'ferramenta') {
+                    estoqueFer[mov.itemId] = (estoqueFer[mov.itemId] || 0) + change;
                 }
             }
         });
-        return estoque;
+        return { estoqueMateriais: estoqueMat, estoqueFerramentas: estoqueFer };
     }, [movimentacoes]);
 
-    const lowStockMaterials = useMemo(() => {
-        return materiais.filter(m => (estoqueCentral[m.id] || 0) <= m.estoqueMinimo).length;
-    }, [materiais, estoqueCentral]);
+    const lowStockItems = useMemo(() => {
+        const lowMaterials = materiais.filter(m => (estoqueMateriais[m.id] || 0) <= m.estoqueMinimo).length;
+        const lowTools = ferramentas.filter(f => (f.estoqueMinimo ?? 0) > 0 && (estoqueFerramentas[f.id] || 0) <= (f.estoqueMinimo ?? 0)).length;
+        return lowMaterials + lowTools;
+    }, [materiais, ferramentas, estoqueMateriais, estoqueFerramentas]);
     
     const funcionariosHoje = useMemo(() => {
         const todayString = new Date().toISOString().split('T')[0];
@@ -166,27 +175,47 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         return <div className="text-center p-8">Carregando dashboard...</div>;
     }
 
+    const canNavigateToAlmoxarifado = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
+
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-brand-blue">Bem-vindo, {user.name}!</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="bg-gradient-to-br from-brand-blue to-blue-800 text-white">
+                <Card className="bg-gradient-to-br from-brand-blue to-blue-800 text-white h-full">
                     <h3 className="text-lg font-semibold">Obras Ativas</h3>
                     <p className="text-5xl font-bold">{activeObras}</p>
                     <p className="text-white/80">de {userObras.length} no total</p>
                 </Card>
-                 <Card className="bg-gradient-to-br from-brand-yellow to-amber-500 text-brand-blue">
-                    <h3 className="text-lg font-semibold">Serviços Atrasados</h3>
-                    <p className="text-5xl font-bold">{delayedServices}</p>
-                    <p className="text-black/70">Precisam de atenção</p>
-                </Card>
-                 <Card>
-                    <h3 className="text-lg font-semibold text-brand-blue">Alerta de Estoque</h3>
-                    <p className="text-5xl font-bold text-red-500">{lowStockMaterials}</p>
-                    <p className="text-brand-gray">Materiais com estoque baixo</p>
-                </Card>
-                 <Card>
+                 <div 
+                    className="cursor-pointer transition-transform transform hover:scale-105" 
+                    onClick={() => navigateTo('Obras')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && navigateTo('Obras')}
+                    aria-label="Ver serviços atrasados"
+                >
+                    <Card className="bg-gradient-to-br from-brand-yellow to-amber-500 text-brand-blue h-full">
+                        <h3 className="text-lg font-semibold">Serviços Atrasados</h3>
+                        <p className="text-5xl font-bold">{delayedServices}</p>
+                        <p className="text-black/70">Precisam de atenção</p>
+                    </Card>
+                </div>
+                 <div 
+                    className={canNavigateToAlmoxarifado ? "cursor-pointer transition-transform transform hover:scale-105" : ""} 
+                    onClick={() => canNavigateToAlmoxarifado && navigateTo('Almoxarifado')}
+                    role={canNavigateToAlmoxarifado ? "button" : undefined}
+                    tabIndex={canNavigateToAlmoxarifado ? 0 : undefined}
+                    onKeyDown={(e) => canNavigateToAlmoxarifado && e.key === 'Enter' && navigateTo('Almoxarifado')}
+                    aria-label={canNavigateToAlmoxarifado ? "Ver alertas de estoque" : undefined}
+                >
+                    <Card className="h-full">
+                        <h3 className="text-lg font-semibold text-brand-blue">Alerta de Estoque</h3>
+                        <p className="text-5xl font-bold text-red-500">{lowStockItems}</p>
+                        <p className="text-brand-gray">Itens com estoque baixo</p>
+                    </Card>
+                </div>
+                 <Card className="h-full">
                     <h3 className="text-lg font-semibold text-brand-blue">Funcionários Hoje</h3>
                     <p className="text-5xl font-bold">{funcionariosHoje}</p>
                     <p className="text-brand-gray">Presentes nas obras</p>

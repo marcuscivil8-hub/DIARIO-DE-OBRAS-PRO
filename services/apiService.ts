@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
@@ -70,7 +69,7 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
         async delete(itemId: string): Promise<void> {
             const { error } = await supabase.from(tableName).delete().eq('id', itemId);
             handleSupabaseError(error, `delete ${tableName}`);
-        },
+        }
     };
 };
 
@@ -213,7 +212,7 @@ export const apiService = {
             const { data, error } = await supabase.functions.invoke('delete-user', { body: { user_id: userId } });
             handleFunctionError(error, 'deleteUser');
             return data;
-        },
+        }
     },
     get obras() { return createCrudService<Obra>('obras'); },
     get funcionarios() { return createCrudService<Funcionario>('funcionarios'); },
@@ -222,5 +221,5 @@ export const apiService = {
     get ferramentas() { return createCrudService<Ferramenta>('ferramentas'); },
     get diarios() { return createCrudService<DiarioObra>('diarios_obra'); },
     get servicos() { return createCrudService<Servico>('servicos'); },
-    get movimentacoesAlmoxarifado() { return createCrudService<MovimentacaoAlmoxarifado>('movimentacoes_almoxarifado'); },
+    get movimentacoesAlmoxarifado() { return createCrudService<MovimentacaoAlmoxarifado>('movimentacoes_almoxarifado'); }
 };

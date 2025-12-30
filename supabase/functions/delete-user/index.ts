@@ -1,5 +1,7 @@
 // FIX: Updated Supabase functions type reference to a more reliable CDN to prevent type resolution errors.
-/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
+// FIX: Replaced flaky jsdelivr.net URL with a more reliable CDN from unpkg.com to resolve type definition file errors.
+// FIX: Replaced unpkg.com CDN with esm.sh to resolve type definition file errors.
+/// <reference types="https://esm.sh/@supabase/functions-js@2" />
 // FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
 declare const Deno: any;
 

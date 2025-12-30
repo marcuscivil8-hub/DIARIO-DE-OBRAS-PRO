@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -15,7 +14,7 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
     <div className="p-8 bg-white text-black font-sans" style={{ width: '210mm' }}>
         <header className="text-right border-b-2 border-black pb-4 mb-8">
             <h1 className="text-3xl font-bold">{obra.construtora}</h1>
-            <p>Relatório Fotográfico de Obra</p>
+            <p className="text-gray-800">Relatório Fotográfico de Obra</p>
         </header>
         <main>
             <div className="mb-8 p-4 border">
@@ -34,7 +33,7 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
                         {diario.fotos.map((foto, index) => (
                              <div key={index} className="border p-2">
                                 <img src={foto.url} alt={foto.legenda} className="w-full" />
-                                <p className="text-center text-sm mt-1">{foto.legenda}</p>
+                                <p className="text-center text-sm mt-1 text-gray-800">{foto.legenda}</p>
                             </div>
                         ))}
                     </div>

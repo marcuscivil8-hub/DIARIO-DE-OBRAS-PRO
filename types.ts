@@ -119,6 +119,7 @@ export interface Ferramenta {
     codigo: string;
     status: StatusFerramenta;
     valor?: number;
+    estoqueMinimo?: number;
 }
 
 export enum Clima {
