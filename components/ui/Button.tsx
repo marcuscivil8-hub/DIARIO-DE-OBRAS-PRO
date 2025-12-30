@@ -9,10 +9,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
-    const baseClasses = 'px-6 py-3 font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 focus:outline-none focus:ring-4';
+    const baseClasses = 'font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 focus:outline-none focus:ring-4';
 
     const sizeClasses = {
-        md: '',
+        md: 'px-6 py-3',
         sm: 'px-3 py-1 text-sm',
     };
 

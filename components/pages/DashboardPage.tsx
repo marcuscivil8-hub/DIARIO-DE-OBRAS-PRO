@@ -52,7 +52,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                 setLembretes(lembretesData);
                 setLembretesEdit(lembretesData.join('\n'));
             } catch (error: any) {
-                // FIX: Added type annotation and logged error.message for more descriptive error logging in the console.
                 console.error("Failed to fetch dashboard data:", error.message);
             } finally {
                 setLoading(false);
@@ -108,11 +107,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         const pontosHoje = pontos.filter(p => p.data === todayString && p.status === 'presente');
 
         if (user.role === UserRole.Cliente) {
-            // Correctly counts workers present only in the client's projects.
             return pontosHoje.filter(p => userObraIds.includes(p.obraId)).length;
         }
         
-        // For Admin and Encarregado, count all present workers.
         return pontosHoje.length;
     }, [pontos, userObraIds, user.role]);
 
@@ -141,12 +138,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             });
 
             const entradas = monthlyTransactions
-// FIX: Property 'tipo' does not exist on type 'TransacaoFinanceira'. Did you mean 'tipoTransacao'?
                 .filter(t => t.tipoTransacao === TransacaoTipo.Entrada)
                 .reduce((sum, t) => sum + t.valor, 0);
 
             const saidasFromTransactions = monthlyTransactions
-// FIX: Property 'tipo' does not exist on type 'TransacaoFinanceira'. Did you mean 'tipoTransacao'?
                 .filter(t => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento)
                 .reduce((sum, t) => sum + t.valor, 0);
             
@@ -287,7 +282,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                         <textarea
                             id="lembretes"
                             value={lembretesEdit}
-                            onChange={(e) => setLembretesEdit(e.target.value)}
+                            onChange={(e) => setLembretesEdit((e.target as HTMLTextAreaElement).value)}
                             rows={6}
                             className="w-full p-2 border rounded"
                         />

@@ -137,7 +137,7 @@ export const apiService = {
     },
 
     async getLembretes(): Promise<string[]> {
-        const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).single();
+        const { data, error } = await supabase.from('configuracoes').select('lembretes_encarregado').eq('id', 1).maybeSingle();
         handleSupabaseError(error, 'getLembretes');
         return data?.lembretes_encarregado || [];
     },
@@ -182,20 +182,11 @@ export const apiService = {
     users: {
         ...createCrudService<User>('profiles'),
         async getAll(): Promise<User[]> {
-            const { data: profiles, error: profileError } = await supabase.from('profiles').select('*');
-            handleSupabaseError(profileError, 'getAll profiles');
-            if(!profiles) return [];
-
-            const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-            handleSupabaseError(authError, 'getAll auth users');
-
-            return profiles.map(profile => {
-                const authUser = authUsers?.users.find(u => u.id === profile.id);
-                return {
-                    ...toCamelCase<User>(profile),
-                    email: authUser?.email || profile.email,
-                };
-            });
+            // Use an RPC function for security and efficiency. This avoids calling admin functions from the client.
+            const { data, error } = await supabase.rpc('get_users_with_email');
+            handleSupabaseError(error, 'getAll users via RPC');
+            // The RPC is expected to return snake_case columns, so we convert them.
+            return data ? data.map((item: any) => toCamelCase<User>(item)) : [];
         },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', {

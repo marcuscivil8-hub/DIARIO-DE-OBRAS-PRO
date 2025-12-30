@@ -106,10 +106,12 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         if (!currentItem || !modalType) return;
 
         try {
+            const tipoMovimentacao = modalType === 'entrada' ? MovimentacaoTipo.Entrada : MovimentacaoTipo.Saida;
+
             const newMov: Omit<MovimentacaoAlmoxarifado, 'id'> = {
                 itemId: currentItem.id,
                 itemType: currentItem.type,
-                tipoMovimentacao: (modalType.charAt(0).toUpperCase() + modalType.slice(1)) as MovimentacaoTipo,
+                tipoMovimentacao: tipoMovimentacao,
                 quantidade: movementFormData.quantidade,
                 data: new Date().toISOString().split('T')[0],
                 ...(modalType === 'saida' && {
@@ -273,14 +275,14 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 {currentItem && (
                     <form onSubmit={e => {e.preventDefault(); handleSaveMovimentacao();}} className="space-y-4">
                         {currentItem.type === 'material' && (
-                            <div><label>Quantidade</label><input type="number" min="1" value={movementFormData.quantidade} onChange={e => setMovementFormData({...movementFormData, quantidade: Number(e.target.value)})} className="w-full p-2 border rounded" required /></div>
+                            <div><label>Quantidade</label><input type="number" min="1" value={movementFormData.quantidade} onChange={e => setMovementFormData({...movementFormData, quantidade: Number((e.target as HTMLInputElement).value)})} className="w-full p-2 border rounded" required /></div>
                         )}
                         {modalType === 'entrada' && (
-                            <div><label>Descrição (Ex: Nota Fiscal, Fornecedor)</label><input type="text" value={movementFormData.descricao} onChange={e => setMovementFormData({...movementFormData, descricao: e.target.value})} className="w-full p-2 border rounded" /></div>
+                            <div><label>Descrição (Ex: Nota Fiscal, Fornecedor)</label><input type="text" value={movementFormData.descricao} onChange={e => setMovementFormData({...movementFormData, descricao: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" /></div>
                         )}
                         {modalType === 'saida' && (<>
-                            <div><label>Obra de Destino</label><select value={movementFormData.obraId} onChange={e => setMovementFormData({...movementFormData, obraId: e.target.value})} className="w-full p-2 border rounded" required>{obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                            <div><label>Responsável</label><select value={movementFormData.responsavelRetiradaId} onChange={e => setMovementFormData({...movementFormData, responsavelRetiradaId: e.target.value})} className="w-full p-2 border rounded" required>{funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
+                            <div><label>Obra de Destino</label><select value={movementFormData.obraId} onChange={e => setMovementFormData({...movementFormData, obraId: (e.target as HTMLSelectElement).value})} className="w-full p-2 border rounded" required>{obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+                            <div><label>Responsável</label><select value={movementFormData.responsavelRetiradaId} onChange={e => setMovementFormData({...movementFormData, responsavelRetiradaId: (e.target as HTMLSelectElement).value})} className="w-full p-2 border rounded" required>{funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
                         </>)}
                         {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                         <Button type="submit" className="w-full">Salvar Movimentação</Button>
@@ -290,11 +292,11 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             
             <Modal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} title={editingMaterial ? "Editar Material" : "Novo Material"}>
                  <form onSubmit={e => { e.preventDefault(); handleSaveMaterial(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome do Material" value={materialFormData.nome} onChange={e => setMaterialFormData({...materialFormData, nome: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={materialFormData.unidade} onChange={e => setMaterialFormData({...materialFormData, unidade: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="number" placeholder="Estoque Mínimo" value={materialFormData.estoqueMinimo} onChange={e => setMaterialFormData({...materialFormData, estoqueMinimo: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Fornecedor" value={materialFormData.fornecedor || ''} onChange={e => setMaterialFormData({...materialFormData, fornecedor: e.target.value})} className="w-full p-2 border rounded"/>
-                    <input type="number" step="0.01" placeholder="Valor Unitário" value={materialFormData.valor || ''} onChange={e => setMaterialFormData({...materialFormData, valor: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded"/>
+                    <input type="text" placeholder="Nome do Material" value={materialFormData.nome} onChange={e => setMaterialFormData({...materialFormData, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={materialFormData.unidade} onChange={e => setMaterialFormData({...materialFormData, unidade: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    <input type="number" placeholder="Estoque Mínimo" value={materialFormData.estoqueMinimo} onChange={e => setMaterialFormData({...materialFormData, estoqueMinimo: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Fornecedor" value={materialFormData.fornecedor || ''} onChange={e => setMaterialFormData({...materialFormData, fornecedor: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded"/>
+                    <input type="number" step="0.01" placeholder="Valor Unitário" value={materialFormData.valor || ''} onChange={e => setMaterialFormData({...materialFormData, valor: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded"/>
                     {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                     <Button type="submit" className="w-full">Salvar Material</Button>
                 </form>

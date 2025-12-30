@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -59,8 +58,9 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             : 0;
 
         const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
-        const custoMaoDeObra = pontosRelevantes.reduce((total, ponto: Ponto) => {
-            const func = funcionarios.find((f: Funcionario) => f.id === ponto.funcionarioId);
+        // FIX: Add explicit types for reduce parameters to prevent type inference errors.
+        const custoMaoDeObra = pontosRelevantes.reduce((total: number, ponto: Ponto) => {
+            const func: Funcionario | undefined = funcionarios.find((f: Funcionario) => f.id === ponto.funcionarioId);
             if (func) {
                 const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
                 return total + dailyCost;
@@ -74,9 +74,10 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             m.tipoMovimentacao === MovimentacaoTipo.Uso &&
             (isAllObras || m.obraId === selectedObraId)
         );
-        const custoMateriais = movimentosUso.reduce((total, mov: MovimentacaoAlmoxarifado) => {
-            const material = materiaisMap.get(mov.itemId);
-            if (material && material.valor) {
+        // FIX: Add explicit types for reduce parameters and variable to prevent type inference errors.
+        const custoMateriais = movimentosUso.reduce((total: number, mov: MovimentacaoAlmoxarifado) => {
+            const material: Material | undefined = materiaisMap.get(mov.itemId);
+            if (material && typeof material.valor === 'number') {
                 return total + (material.valor * mov.quantidade);
             }
             return total;
@@ -100,7 +101,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         const totalSaidas = Object.values(saidasConsolidadas).reduce((sum, val) => sum + val, 0);
         const balanco = totalEntradas - totalSaidas;
         
-        const pieDataResult = Object.entries(saidasConsolidadas).map(([name, value]: [string, number]) => ({ name, value }));
+        const pieDataResult = Object.entries(saidasConsolidadas).map(([name, value]) => ({ name, value }));
 
         return { totalEntradas, totalSaidas, balanco, saidasPorCategoria: saidasConsolidadas, pieData: pieDataResult };
     }, [selectedObraId, transacoes, pontos, funcionarios, movimentacoes, materiais, user.role]);
@@ -109,6 +110,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
 
     if (loading) return <div className="text-center p-8">Carregando dados financeiros...</div>;
 
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value);
+
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-brand-blue">Controle Financeiro</h2>
@@ -116,7 +119,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <Card>
                 <div className="flex items-center space-x-4">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Filtrar por Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
                         {obras.map((obra: Obra) => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
@@ -126,15 +129,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <div className={`grid grid-cols-1 ${user.role === UserRole.Admin ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-6`}>
                 {user.role === UserRole.Admin && (
                     <Card title="Entradas" className="text-green-600">
-                        <p className="text-3xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-3xl font-bold">R$ {formatCurrency(totalEntradas)}</p>
                     </Card>
                 )}
                 <Card title="Saídas (Transações + Ponto + Uso de Material)" className="text-red-600">
-                    <p className="text-3xl font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-3xl font-bold">R$ {formatCurrency(totalSaidas)}</p>
                 </Card>
                 {user.role === UserRole.Admin && (
                     <Card title="Balanço" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                        <p className="text-3xl font-bold">R$ {balanco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-3xl font-bold">R$ {formatCurrency(balanco)}</p>
                     </Card>
                 )}
             </div>
@@ -144,12 +147,14 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                     <div className="h-96">
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                    {pieData.map((_entry: {name: string, value: number}, index: number) => (
+                                {/* FIX: Add explicit types to label prop to fix arithmetic operation error. */}
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: { name: string, percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                    {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                                {/* FIX: Replace toLocaleString with Intl.NumberFormat to avoid lib definition issues. */}
+                                <Tooltip formatter={(value: number) => `R$ ${formatCurrency(value)}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
@@ -157,10 +162,11 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort(([, a_val]: [string, number], [, b_val]: [string, number]) => b_val - a_val).map(([categoria, valor]: [string, number]) => (
+                         {Object.entries(saidasPorCategoria).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                {/* FIX: Replace toLocaleString with Intl.NumberFormat to avoid lib definition issues. */}
+                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {formatCurrency(valor)}</p>
                             </li>
                          ))}
                     </ul>

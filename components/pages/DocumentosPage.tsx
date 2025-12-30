@@ -115,7 +115,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
                 <h2 className="text-2xl font-bold text-brand-blue">Documentos da Obra</h2>
                 <div className="flex items-center space-x-2">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
                 </div>
@@ -157,7 +157,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
                 <form onSubmit={e => { e.preventDefault(); handleSaveDocument(); }} className="space-y-4">
                     <div>
                         <label>Tipo de Documento</label>
-                        <select value={formData.tipoDocumento} onChange={e => setFormData({...formData, tipoDocumento: e.target.value as Documento['tipoDocumento']})} className="w-full p-2 border rounded" required>
+                        <select value={formData.tipoDocumento} onChange={e => setFormData({...formData, tipoDocumento: (e.target as HTMLSelectElement).value as Documento['tipoDocumento']})} className="w-full p-2 border rounded" required>
                             <option value="Contrato">Contrato</option>
                             <option value="Comprovante de Pagamento">Comprovante de Pagamento</option>
                             <option value="Projeto">Projeto</option>

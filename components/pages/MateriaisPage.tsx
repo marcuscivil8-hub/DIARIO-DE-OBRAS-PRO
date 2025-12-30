@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Material, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -113,7 +114,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                 <h2 className="text-2xl font-bold text-brand-blue">Estoque de Materiais por Obra</h2>
                 <div className="flex items-center space-x-2">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                         {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
                 </div>
@@ -168,7 +169,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                             type="number"
                             id="quantity"
                             value={actionQuantity}
-                            onChange={e => setActionQuantity(Number(e.target.value))}
+                            onChange={e => setActionQuantity(Number((e.target as HTMLInputElement).value))}
                             className="w-full p-2 border rounded"
                             min="1"
                             max={estoquePorObra[currentMaterial?.id || ''] || 1}

@@ -210,19 +210,19 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingTransacao ? 'Editar Transação' : 'Nova Transação'}>
                 <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="space-y-4">
-                    <input type="text" placeholder="Descrição" value={currentTransacao.descricao} onChange={e => setCurrentTransacao({...currentTransacao, descricao: e.target.value})} className="w-full p-2 border rounded" required />
-                    <input type="number" step="0.01" placeholder="Valor" value={currentTransacao.valor} onChange={e => setCurrentTransacao({...currentTransacao, valor: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" required />
-                    <input type="date" value={currentTransacao.data} onChange={e => setCurrentTransacao({...currentTransacao, data: e.target.value})} className="w-full p-2 border rounded" required />
+                    <input type="text" placeholder="Descrição" value={currentTransacao.descricao} onChange={e => setCurrentTransacao({...currentTransacao, descricao: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required />
+                    <input type="number" step="0.01" placeholder="Valor" value={currentTransacao.valor} onChange={e => setCurrentTransacao({...currentTransacao, valor: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required />
+                    <input type="date" value={currentTransacao.data} onChange={e => setCurrentTransacao({...currentTransacao, data: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required />
                     
                     {user.role === UserRole.Admin && (
-                        <select value={currentTransacao.tipoTransacao} onChange={e => setCurrentTransacao({...currentTransacao, tipoTransacao: e.target.value as TransacaoTipo, categoria: e.target.value === TransacaoTipo.Entrada ? 'Receita' : CategoriaSaida.Outros })} className="w-full p-2 border rounded">
+                        <select value={currentTransacao.tipoTransacao} onChange={e => setCurrentTransacao({...currentTransacao, tipoTransacao: (e.target as HTMLSelectElement).value as TransacaoTipo, categoria: (e.target as HTMLSelectElement).value === TransacaoTipo.Entrada ? 'Receita' : CategoriaSaida.Outros })} className="w-full p-2 border rounded">
                             <option value={TransacaoTipo.Entrada}>Entrada</option>
                             <option value={TransacaoTipo.Saida}>Saída</option>
                         </select>
                     )}
 
                     {currentTransacao.tipoTransacao === TransacaoTipo.Saida && (
-                         <select value={currentTransacao.categoria} onChange={e => setCurrentTransacao({...currentTransacao, categoria: e.target.value as CategoriaSaida})} className="w-full p-2 border rounded">
+                         <select value={currentTransacao.categoria} onChange={e => setCurrentTransacao({...currentTransacao, categoria: (e.target as HTMLSelectElement).value as CategoriaSaida})} className="w-full p-2 border rounded">
                            {Object.values(CategoriaSaida).filter(c => c !== CategoriaSaida.FolhaPagamento).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     )}
@@ -373,9 +373,9 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingServico ? 'Editar Serviço' : 'Novo Serviço'}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveServico(); }} className="space-y-4">
-                    <input type="text" placeholder="Descrição do Serviço" value={currentServico.descricao} onChange={e => setCurrentServico({...currentServico, descricao: e.target.value})} className="w-full p-2 border rounded" required />
-                    <div><label>Data Início Previsto</label><input type="date" value={currentServico.dataInicioPrevista} onChange={e => setCurrentServico({...currentServico, dataInicioPrevista: e.target.value})} className="w-full p-2 border rounded" required /></div>
-                    <div><label>Data Fim Previsto</label><input type="date" value={currentServico.dataFimPrevista} onChange={e => setCurrentServico({...currentServico, dataFimPrevista: e.target.value})} className="w-full p-2 border rounded" required /></div>
+                    <input type="text" placeholder="Descrição do Serviço" value={currentServico.descricao} onChange={e => setCurrentServico({...currentServico, descricao: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required />
+                    <div><label>Data Início Previsto</label><input type="date" value={currentServico.dataInicioPrevista} onChange={e => setCurrentServico({...currentServico, dataInicioPrevista: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required /></div>
+                    <div><label>Data Fim Previsto</label><input type="date" value={currentServico.dataFimPrevista} onChange={e => setCurrentServico({...currentServico, dataFimPrevista: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required /></div>
                     <Button type="submit" className="w-full">Salvar Serviço</Button>
                 </form>
             </Modal>
@@ -645,13 +645,13 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                 <form onSubmit={e => { e.preventDefault(); handleAddDiario(); }} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-brand-gray">Clima</label>
-                        <select value={newDiario.clima} onChange={e => setNewDiario({ ...newDiario, clima: e.target.value as Clima })} className="w-full p-2 border rounded mt-1">
+                        <select value={newDiario.clima} onChange={e => setNewDiario({ ...newDiario, clima: (e.target as HTMLSelectElement).value as Clima })} className="w-full p-2 border rounded mt-1">
                             {Object.values(Clima).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-brand-gray">Observações e Serviços</label>
-                        <textarea value={newDiario.observacoes} onChange={e => setNewDiario({ ...newDiario, observacoes: e.target.value })} rows={5} className="w-full p-2 border rounded mt-1" placeholder="Descreva os serviços realizados, ocorrências, etc." required></textarea>
+                        <textarea value={newDiario.observacoes} onChange={e => setNewDiario({ ...newDiario, observacoes: (e.target as HTMLTextAreaElement).value })} rows={5} className="w-full p-2 border rounded mt-1" placeholder="Descreva os serviços realizados, ocorrências, etc." required></textarea>
                     </div>
                     <div>
                          <label className="block text-sm font-medium text-brand-gray mb-2">Fotos</label>
@@ -665,7 +665,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                                      <img src={URL.createObjectURL(p.file)} alt="preview" className="w-16 h-16 object-cover rounded"/>
                                      <input type="text" placeholder="Legenda (opcional)" value={p.legenda} onChange={e => {
                                          const newPhotos = [...photos];
-                                         newPhotos[i].legenda = e.target.value;
+                                         newPhotos[i].legenda = (e.target as HTMLInputElement).value;
                                          setPhotos(newPhotos);
                                      }} className="w-full p-2 border rounded"/>
                                      <button
@@ -688,13 +688,13 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
                 <form onSubmit={e => { e.preventDefault(); handleUpdateDiario(); }} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-brand-gray">Clima</label>
-                        <select value={currentDiarioEdit.clima} onChange={e => setCurrentDiarioEdit({ ...currentDiarioEdit, clima: (e.target.value as Clima) })} className="w-full p-2 border rounded mt-1">
+                        <select value={currentDiarioEdit.clima} onChange={e => setCurrentDiarioEdit({ ...currentDiarioEdit, clima: (e.target as HTMLSelectElement).value as Clima })} className="w-full p-2 border rounded mt-1">
                             {Object.values(Clima).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-brand-gray">Observações e Serviços</label>
-                        <textarea value={currentDiarioEdit.observacoes} onChange={e => setCurrentDiarioEdit({ ...currentDiarioEdit, observacoes: e.target.value })} rows={5} className="w-full p-2 border rounded mt-1" placeholder="Descreva os serviços realizados, ocorrências, etc."></textarea>
+                        <textarea value={currentDiarioEdit.observacoes} onChange={e => setCurrentDiarioEdit({ ...currentDiarioEdit, observacoes: (e.target as HTMLTextAreaElement).value })} rows={5} className="w-full p-2 border rounded mt-1" placeholder="Descreva os serviços realizados, ocorrências, etc."></textarea>
                     </div>
                     <p className="text-sm text-gray-500 pt-2 border-t">Para adicionar ou remover fotos, use os controles na página principal.</p>
                     <Button type="submit" className="w-full">Salvar Alterações</Button>

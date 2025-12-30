@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ferramenta, Funcionario, StatusFerramenta, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -158,7 +159,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                 <div className="flex items-center gap-4">
                      <div className="flex items-center space-x-2">
                         <label htmlFor="location-filter" className="font-semibold text-brand-blue">Local:</label>
-                        <select id="location-filter" value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className="p-2 border rounded-lg">
+                        <select id="location-filter" value={selectedLocation} onChange={e => setSelectedLocation((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
                             <option value="all">Todos os Locais</option>
                             <option value="almoxarifado">Almoxarifado Central</option>
                             {obras.map(obra => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
@@ -212,17 +213,17 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
 
              <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingFerramenta ? "Editar Ferramenta" : "Nova Ferramenta"}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveFerramenta(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: e.target.value})} className="w-full p-2 border rounded" required/>
-                    <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: e.target.value})} className="w-full p-2 border rounded"/>
-                    <input type="number" step="0.01" placeholder="Valor da Ferramenta" value={currentFerramenta.valor || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, valor: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded"/>
-                    <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: e.target.value as StatusFerramenta})} className="w-full p-2 border rounded">
+                    <input type="text" placeholder="Nome da Ferramenta" value={currentFerramenta.nome} onChange={e => setCurrentFerramenta({...currentFerramenta, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Código/Identificador" value={currentFerramenta.codigo} onChange={e => setCurrentFerramenta({...currentFerramenta, codigo: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded"/>
+                    <input type="number" step="0.01" placeholder="Valor da Ferramenta" value={currentFerramenta.valor || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, valor: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded"/>
+                    <select value={currentFerramenta.status} onChange={e => setCurrentFerramenta({...currentFerramenta, status: (e.target as HTMLSelectElement).value as StatusFerramenta})} className="w-full p-2 border rounded">
                         {Object.values(StatusFerramenta).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
-                     <select value={currentFerramenta.obraId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, obraId: e.target.value || null})} className="w-full p-2 border rounded">
+                     <select value={currentFerramenta.obraId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, obraId: (e.target as HTMLSelectElement).value || null})} className="w-full p-2 border rounded">
                         <option value="">Almoxarifado Central</option>
                         {obras.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                     </select>
-                     <select value={currentFerramenta.responsavelId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, responsavelId: e.target.value || null})} className="w-full p-2 border rounded">
+                     <select value={currentFerramenta.responsavelId || ''} onChange={e => setCurrentFerramenta({...currentFerramenta, responsavelId: (e.target as HTMLSelectElement).value || null})} className="w-full p-2 border rounded">
                         <option value="">Ninguém</option>
                         {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
@@ -235,7 +236,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                 <form onSubmit={e => { e.preventDefault(); handleConfirmReturn(); }} className="space-y-4">
                     <div>
                         <label htmlFor="manager" className="block text-sm font-medium text-brand-gray mb-1">Recebido por (Chefe de Depósito)</label>
-                        <select id="manager" value={depositoManagerId} onChange={e => setDepositoManagerId(e.target.value)} className="w-full p-2 border rounded" required>
+                        <select id="manager" value={depositoManagerId} onChange={e => setDepositoManagerId((e.target as HTMLSelectElement).value)} className="w-full p-2 border rounded" required>
                             {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                         </select>
                     </div>
