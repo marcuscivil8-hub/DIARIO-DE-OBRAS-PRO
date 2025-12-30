@@ -1,14 +1,15 @@
-// FIX: Updated Supabase functions type reference to a more reliable CDN to prevent type resolution errors.
-// FIX: Replaced flaky jsdelivr.net URL with a more reliable CDN from unpkg.com to resolve type definition file errors.
-// FIX: Replaced unpkg.com CDN with esm.sh to resolve type definition file errors.
-// FIX: Pinned Supabase functions types to a specific version for more reliable type resolution.
-// FIX: Updated the Supabase functions type reference to a more specific path to resolve the type definition error.
-/// <reference types="https://esm.sh/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
+// FIX: Updated the Supabase functions type reference to a version-agnostic path to resolve the type definition error.
+/// <reference types="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
 // FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// Objeto corsHeaders movido para dentro do arquivo para corrigir o erro de deploy.
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 Deno.serve(async (req) => {
   // This is needed if you're planning to invoke your function from a browser.
