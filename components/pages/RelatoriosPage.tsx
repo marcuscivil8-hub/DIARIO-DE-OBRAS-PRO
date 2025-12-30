@@ -68,7 +68,7 @@ const RelatorioConsumo: React.FC<{
                         </thead>
                         <tbody>
                             {materiaisUsados.map(item => (
-                                <tr key={item.nome}>
+                                <tr key={item.nome} className="text-gray-900">
                                     <td className="p-2 border">{item.nome}</td>
                                     <td className="p-2 border text-center">{item.quantidade} {item.unidade}</td>
                                     <td className="p-2 border text-right">R$ {item.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -76,7 +76,7 @@ const RelatorioConsumo: React.FC<{
                             ))}
                         </tbody>
                         <tfoot className="bg-gray-200 font-bold">
-                             <tr>
+                             <tr className="text-gray-900">
                                 <td colSpan={2} className="p-2 border text-right">Custo Total de Materiais</td>
                                 <td className="p-2 border text-right">R$ {custoTotalMateriais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
@@ -96,7 +96,7 @@ const RelatorioConsumo: React.FC<{
                         </thead>
                         <tbody>
                             {ferramentasNaObra.map(item => (
-                                <tr key={item.id}>
+                                <tr key={item.id} className="text-gray-900">
                                     <td className="p-2 border">{item.nome}</td>
                                     <td className="p-2 border">{item.codigo}</td>
                                     <td className="p-2 border text-right">R$ {item.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</td>
@@ -104,7 +104,7 @@ const RelatorioConsumo: React.FC<{
                             ))}
                         </tbody>
                          <tfoot className="bg-gray-200 font-bold">
-                             <tr>
+                             <tr className="text-gray-900">
                                 <td colSpan={2} className="p-2 border text-right">Valor Total de Ferramentas</td>
                                 <td className="p-2 border text-right">R$ {custoTotalFerramentas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>

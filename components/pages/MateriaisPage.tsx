@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Material, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -24,6 +23,12 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
     const [currentMaterial, setCurrentMaterial] = useState<Material | null>(null);
     const [actionQuantity, setActionQuantity] = useState(1);
     const [modalError, setModalError] = useState<string | null>(null);
+
+    // State for editing material properties
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+    const emptyMaterialForm: Omit<Material, 'id'> = { nome: '', unidade: '', estoqueMinimo: 0, fornecedor: '', valor: 0 };
+    const [materialFormData, setMaterialFormData] = useState<Omit<Material, 'id'>>(emptyMaterialForm);
 
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
@@ -106,6 +111,32 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         }
     };
     
+    const handleOpenEditModal = (material: Material) => {
+        setModalError(null);
+        setEditingMaterial(material);
+        setMaterialFormData({
+            nome: material.nome,
+            unidade: material.unidade,
+            estoqueMinimo: material.estoqueMinimo,
+            fornecedor: material.fornecedor,
+            valor: material.valor,
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleSaveMaterial = async () => {
+        if (!editingMaterial) return;
+        setModalError(null);
+        try {
+            await apiService.materiais.update(editingMaterial.id, materialFormData);
+            setIsEditModalOpen(false);
+            await fetchData();
+        } catch (error: any) {
+            console.error("Failed to save material:", error);
+            setModalError(error.message || "Ocorreu um erro ao salvar o material.");
+        }
+    };
+    
     if (loading) return <div className="text-center p-8">Carregando estoque de materiais...</div>;
 
     return (
@@ -146,9 +177,12 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                                             </td>
                                             {canEdit && (
                                                 <td className="p-4">
-                                                    <div className="flex space-x-2">
+                                                    <div className="flex items-center space-x-2">
                                                         <Button size="sm" variant="danger" onClick={() => handleOpenActionModal(material, MovimentacaoTipo.Uso)} disabled={estoqueAtual <= 0}>Registrar Uso</Button>
                                                         <Button size="sm" variant="secondary" onClick={() => handleOpenActionModal(material, MovimentacaoTipo.Retorno)} disabled={estoqueAtual <= 0}>Devolver</Button>
+                                                        <button onClick={() => handleOpenEditModal(material)} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-100 transition">
+                                                            {ICONS.edit}
+                                                        </button>
                                                     </div>
                                                 </td>
                                             )}
@@ -178,6 +212,18 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                     </div>
                     {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
                     <Button type="submit" className="w-full">Confirmar {modalAction}</Button>
+                </form>
+            </Modal>
+            
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Material do Catálogo">
+                <form onSubmit={e => { e.preventDefault(); handleSaveMaterial(); }} className="space-y-4">
+                    <input type="text" placeholder="Nome do Material" value={materialFormData.nome} onChange={e => setMaterialFormData({...materialFormData, nome: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Unidade (ex: un, m³, kg)" value={materialFormData.unidade} onChange={e => setMaterialFormData({...materialFormData, unidade: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    <input type="number" placeholder="Estoque Mínimo (Alerta)" value={materialFormData.estoqueMinimo} onChange={e => setMaterialFormData({...materialFormData, estoqueMinimo: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded" required/>
+                    <input type="text" placeholder="Fornecedor" value={materialFormData.fornecedor || ''} onChange={e => setMaterialFormData({...materialFormData, fornecedor: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded"/>
+                    <input type="number" step="0.01" placeholder="Valor Unitário" value={materialFormData.valor || ''} onChange={e => setMaterialFormData({...materialFormData, valor: parseFloat((e.target as HTMLInputElement).value) || 0})} className="w-full p-2 border rounded"/>
+                    {modalError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{modalError}</p>}
+                    <Button type="submit" className="w-full">Salvar Alterações</Button>
                 </form>
             </Modal>
         </div>

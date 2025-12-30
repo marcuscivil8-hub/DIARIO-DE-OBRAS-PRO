@@ -147,14 +147,14 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
-                                    // FIX: The 'percent' property can be inferred as 'unknown', causing an arithmetic error. Explicitly typing it as a number resolves this.
-                                    label={({ name, percent }: { name: string, percent: any }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                    // FIX: Explicitly typed 'percent' to resolve the arithmetic operation error.
+                                    label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                {/* FIX: The 'value' property from the formatter can be inferred as 'unknown'. Explicitly typing it as a number resolves this. */}
-                                <Tooltip formatter={(value: any) => `R$ ${formatCurrency(value)}`} />
+                                {/* FIX: Explicitly typed 'value' to resolve the type mismatch in the formatter. */}
+                                <Tooltip formatter={(value: number) => `R$ ${formatCurrency(value)}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
