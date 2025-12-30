@@ -124,9 +124,8 @@ export const apiService = {
         if (profileError || !profileData) {
             console.error('Error fetching profile:', profileError?.message);
             await supabase.auth.signOut();
-            // Lança um erro genérico que será capturado pela UI para exibir instruções detalhadas.
-            // A mensagem específica (ex: 'infinite recursion') é passada para a UI.
-            throw new Error(`RLS_POLICY_ERROR: ${profileError?.message || "Falha ao buscar perfil do usuário."}`);
+            // A mensagem de erro agora é mais direta e informativa, sem prefixos para a UI analisar.
+            throw new Error(`Falha ao buscar perfil do usuário. Verifique se as permissões (RLS) da tabela 'profiles' estão configuradas corretamente.`);
         }
 
         const user: User = {

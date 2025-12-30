@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -16,10 +17,6 @@ const UsuariosPage: React.FC = () => {
     const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null); // State for modal errors
     const [pageError, setPageError] = useState<string | null>(null);
-    const [isRlsError, setIsRlsError] = useState(false);
-    const [isConfigError, setIsConfigError] = useState(false);
-    const [isRpcError, setIsRpcError] = useState(false); // State for missing/mismatched RPC function error
-    const [copiedSql, setCopiedSql] = useState<string | null>(null); // State for copy button feedback
     
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
@@ -31,88 +28,8 @@ const UsuariosPage: React.FC = () => {
     };
     const [currentUserForm, setCurrentUserForm] = useState(initialNewUserState);
 
-    // --- SQL FIX SCRIPTS ---
-    const FIX_RPC_SQL = `-- Passo 1: Cria o tipo ENUM 'user_role' se ele ainda não existir.
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-        CREATE TYPE public.user_role AS ENUM ('Admin', 'Encarregado', 'Cliente');
-    END IF;
-END$$;
-
--- Passo 2: LIMPA E PADRONIZA os dados na coluna 'role' ANTES de alterar o tipo.
--- Isso corrige a causa raiz do seu erro: dados inconsistentes (ex: 'admin' vs 'Admin').
-DO $$
-BEGIN
-    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
-        UPDATE public.profiles
-        SET role =
-            CASE
-                -- Corrige a capitalização para os valores esperados
-                WHEN lower(trim(role)) = 'admin' THEN 'Admin'
-                WHEN lower(trim(role)) = 'encarregado' THEN 'Encarregado'
-                WHEN lower(trim(role)) = 'cliente' THEN 'Cliente'
-                -- Se o valor atual já estiver correto, mantém o valor.
-                WHEN role IN ('Admin', 'Encarregado', 'Cliente') THEN role
-                -- Para QUALQUER OUTRO valor inesperado, define um padrão seguro (Encarregado).
-                ELSE 'Encarregado'
-            END;
-    END IF;
-END $$;
-
--- Passo 3: Altera a coluna 'role' da tabela 'profiles' para o tipo 'user_role'.
--- Agora que os dados estão limpos e padronizados, esta operação terá sucesso.
-DO $$
-BEGIN
-    IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') = 'text' THEN
-        ALTER TABLE public.profiles
-        ALTER COLUMN role TYPE user_role
-        USING role::user_role;
-    END IF;
-END $$;
-
--- Passo 4: (Re)Cria a função 'get_users_with_email' para garantir que ela esteja correta.
-CREATE OR REPLACE FUNCTION public.get_users_with_email()
-RETURNS TABLE (
-    id uuid, name text, email text, username text, role user_role, obra_ids text[]
-) LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT p.id, p.name, u.email, p.username, p.role, p.obra_ids
-  FROM public.profiles AS p JOIN auth.users AS u ON p.id = u.id;
-$$;`;
-
-    const FIX_RLS_SQL_FUNC = `CREATE OR REPLACE FUNCTION get_my_role()
-RETURNS TEXT LANGUAGE SQL SECURITY DEFINER AS $$
-  SELECT role FROM public.profiles WHERE id = auth.uid()
-$$;`;
-
-    const FIX_RLS_SQL_POLICIES = `-- Remove as políticas antigas para evitar o erro "policy already exists".
--- É seguro executar este comando mesmo que as políticas não existam.
-DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Admins and users can update profiles" ON public.profiles;
-
--- (Re)Cria a política para Visualizar (SELECT)
--- Permite que usuários vejam seu próprio perfil ou que Admins vejam todos.
-CREATE POLICY "Admins can view all profiles" ON public.profiles
-FOR SELECT USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));
-
--- (Re)Cria a política para Atualizar (UPDATE)
--- Permite que usuários atualizem seu próprio perfil ou que Admins atualizem qualquer um.
-CREATE POLICY "Admins and users can update profiles" ON public.profiles
-FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
-
-    const handleCopy = (text: string, id: string) => {
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedSql(id);
-            setTimeout(() => setCopiedSql(null), 2000);
-        });
-    };
-    // --- END SQL FIX SCRIPTS ---
-
     const fetchData = useCallback(async () => {
         setLoading(true);
-        setIsRlsError(false);
-        setIsConfigError(false);
-        setIsRpcError(false);
         setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
@@ -122,15 +39,7 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
             setUsers(usersData);
             setObras(obrasData);
         } catch (error: any) {
-             if (error.message.includes('get_users_with_email') || error.message.includes('return type mismatch') || error.message.includes('operator does not exist: user_role = text') || error.message.includes('Could not find the function')) {
-                setIsRpcError(true);
-                setPageError(error.message);
-            } else if (error.message.includes('RLS') || error.message.includes('recursion')) {
-                setIsRlsError(true);
-                setPageError(error.message);
-            } else {
-                setPageError("Falha ao carregar dados dos usuários.");
-            }
+            setPageError(error.message || "Falha ao carregar dados dos usuários.");
             console.error("Failed to fetch data for user management", error);
         } finally {
             setLoading(false);
@@ -145,9 +54,6 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
     const handleOpenModal = (user: User | null = null) => {
         setFormError(null); // Reset error on modal open
         setPageError(null);
-        setIsRlsError(false);
-        setIsConfigError(false);
-        setIsRpcError(false);
         if (user) {
             setEditingUser(user);
             setCurrentUserForm({
@@ -168,9 +74,6 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
     const handleSaveUser = async () => {
         setFormError(null);
         setPageError(null);
-        setIsRlsError(false);
-        setIsConfigError(false);
-        setIsRpcError(false);
 
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
             setFormError('Por favor, preencha nome, email, usuário e senha.');
@@ -198,25 +101,12 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
             await fetchData();
         } catch (error: any) {
             console.error(`Erro ao salvar usuário: ${error.message}`);
-            if (error.message.includes('CONFIG_ERROR')) {
-                setIsConfigError(true);
-                setPageError(error.message);
-                setIsModalOpen(false);
-            } else if (error.message.includes('RLS') || error.message.includes('recursion') || error.message.includes('permissão negada')) {
-                setIsRlsError(true);
-                setPageError(error.message);
-                setIsModalOpen(false);
-            } else {
-                setFormError(error.message);
-            }
+            setFormError(error.message);
         }
     };
 
     const triggerDeleteUser = (userId: string) => {
         setPageError(null);
-        setIsRlsError(false);
-        setIsConfigError(false);
-        setIsRpcError(false);
         const user = users.find(u => u.id === userId);
         if (user?.email === 'admin@diariodeobra.pro') {
             setPageError('Não é possível excluir o administrador principal.');
@@ -233,12 +123,7 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
             await apiService.users.deleteUser(userToDeleteId);
         } catch (error: any) {
             hadError = true;
-            if (error.message.includes('CONFIG_ERROR')) {
-                setIsConfigError(true);
-                setPageError(error.message);
-            } else {
-                setPageError(`Erro ao deletar usuário: ${error.message}`);
-            }
+            setPageError(`Erro ao deletar usuário: ${error.message}`);
         }
         
         setIsConfirmModalOpen(false);
@@ -257,7 +142,7 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
         });
     };
     
-    if(loading && !isRlsError) return <div className="text-center p-8">Carregando usuários...</div>;
+    if(loading) return <div className="text-center p-8">Carregando usuários...</div>;
 
     return (
         <div className="space-y-6">
@@ -268,149 +153,47 @@ FOR UPDATE USING ((auth.uid() = id) OR (get_my_role() = 'Admin'));`;
                     <span>Novo Usuário</span>
                 </Button>
             </div>
-            {pageError && !isRlsError && !isConfigError && !isRpcError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
+            {pageError && <div className="p-3 bg-red-50 text-red-700 rounded-lg mb-4">{pageError}</div>}
             
-             {isRpcError && (
-                 <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Inconsistência de Dados no Banco</h4>
-                    <p className="text-red-700">A lista de usuários não pôde ser carregada. A causa mais provável é que a função `get_users_with_email` não existe ou está incorreta no seu banco de dados Supabase.</p>
-                    <p className="text-red-700 mt-3">Para corrigir, execute o script SQL completo abaixo no <strong>SQL Editor</strong> do seu painel Supabase. Ele é seguro para ser executado várias vezes.</p>
-                    
-                    <div className="mt-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <h5 className="font-bold text-red-700">Script SQL Corretivo Completo</h5>
-                            <Button size="sm" variant="secondary" onClick={() => handleCopy(FIX_RPC_SQL, 'rpc-fix')}>
-                                {copiedSql === 'rpc-fix' ? 'Copiado!' : 'Copiar SQL'}
-                            </Button>
-                        </div>
-                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
-                            <code>
-                                {FIX_RPC_SQL}
-                            </code>
-                        </pre>
-                    </div>
-                </Card>
-            )}
-
-            {isConfigError && (
-                 <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Falha de Conexão com o Servidor (Edge Function)</h4>
-                    <p className="text-red-700">A criação ou exclusão de usuários falhou. Isso ocorre porque as funções do servidor (`create-user`, `delete-user`) não foram implantadas (deploy) ou não foram configuradas corretamente no Supabase.</p>
-                    
-                    <div className="mt-4 pt-3 border-t border-red-200">
-                        <h5 className="font-bold text-red-700">Como Corrigir (Guia Completo):</h5>
-                        
-                        <div className="mt-3 p-3 bg-red-100 rounded-lg">
-                             <h6 className="font-bold text-red-800">Passo 0: Implante (Deploy) as Funções</h6>
-                             <p className="text-red-700 text-xs mt-1">Antes de adicionar "Secrets", as funções precisam existir. Se você não vir `create-user` e `delete-user` na sua lista de Edge Functions, siga estes passos para cada uma:</p>
-                             <ol className="list-decimal list-inside text-red-700 space-y-1 mt-2 text-xs">
-                                <li>No painel do Supabase, vá para <strong>Edge Functions</strong>.</li>
-                                <li>Clique em <strong>"Deploy a new function"</strong>.</li>
-                                <li>Dê o nome exato da função (ex: `create-user`).</li>
-                                <li>Apague o código de exemplo e **cole o conteúdo completo** do arquivo correspondente que está na pasta `supabase/functions` do seu projeto.</li>
-                                <li>Clique em <strong>"Save and Deploy"</strong> e aguarde a conclusão.</li>
-                             </ol>
-                        </div>
-
-                        <div className="mt-4">
-                            <h6 className="font-bold text-red-800">Passo 1: Configure os "Secrets" das Funções</h6>
-                            <ol className="list-decimal list-inside text-red-700 space-y-2 mt-2">
-                                <li>No menu <strong>Edge Functions</strong>, clique na função (ex: `create-user`).</li>
-                                <li>Vá para a aba <strong>Secrets</strong>.</li>
-                                <li>Adicione os dois "Secrets" abaixo (repita para `create-user` e `delete-user`):
-                                    <ul className="list-disc list-inside ml-6 my-2 font-mono bg-red-100 p-2 rounded">
-                                        <li className="font-bold">Nome: <code className="bg-gray-200 text-black px-1 rounded">PROJECT_URL</code>, Valor: <code className="bg-gray-200 text-black px-1 rounded">https://yaaqffcvpghdamtkzvea.supabase.co</code></li>
-                                        <li className="font-bold">Nome: <code className="bg-gray-200 text-black px-1 rounded">SERVICE_ROLE_KEY</code>, Valor: <span className="italic">(Sua chave service_role)</span></li>
-                                    </ul>
-                                </li>
-                                 <li>Para encontrar a chave <code className="font-mono bg-gray-200 text-black px-1 rounded">service_role</code>: vá em <strong>Project Settings</strong> (ícone de engrenagem) &rarr; <strong>API</strong> &rarr; copie o valor do campo <strong>`service_role` (secret)</strong>.</li>
-                            </ol>
-                        </div>
-                        <p className="text-red-800 font-semibold mt-3">Após implantar as funções e configurar os Secrets, a funcionalidade será restaurada imediatamente.</p>
-                    </div>
-                </Card>
-            )}
-
-            {isRlsError && (
-                 <Card className="mt-6 text-sm bg-red-50 border border-red-200">
-                    <h4 className="font-bold text-red-800 mb-2 text-base">Erro Crítico: Permissão de Acesso Negada (RLS)</h4>
-                    <p className="text-red-700">A operação falhou. Para que um <strong>Administrador</strong> possa gerenciar outros usuários, as <strong>Políticas de Segurança (RLS)</strong> da sua tabela <code>profiles</code> no Supabase precisam ser ajustadas para evitar um erro de recursão.</p>
-                    <p className="text-red-700 mt-2">Execute o script SQL abaixo no <strong>SQL Editor</strong> do seu painel Supabase para corrigir o problema de forma definitiva.</p>
-                    
-                    <div className="mt-4">
-                        <div className="flex justify-between items-center mb-2">
-                           <h5 className="font-bold text-red-700">1. (Obrigatório) Crie uma Função Auxiliar Segura</h5>
-                           <Button size="sm" variant="secondary" onClick={() => handleCopy(FIX_RLS_SQL_FUNC, 'rls-func')}>
-                                {copiedSql === 'rls-func' ? 'Copiado!' : 'Copiar SQL'}
-                           </Button>
-                        </div>
-                        <p className="text-red-700 text-xs mb-1">Esta função verifica a permissão do usuário de forma segura, evitando o loop de recursão.</p>
-                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
-                            <code>
-                                {FIX_RLS_SQL_FUNC}
-                            </code>
-                        </pre>
-                    </div>
-
-                    <div className="mt-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <h5 className="font-bold text-red-700">2. (Obrigatório) Crie as Políticas de Acesso</h5>
-                             <Button size="sm" variant="secondary" onClick={() => handleCopy(FIX_RLS_SQL_POLICIES, 'rls-policies')}>
-                                {copiedSql === 'rls-policies' ? 'Copiado!' : 'Copiar SQL'}
-                           </Button>
-                        </div>
-                        <p className="text-red-700 text-xs mb-1">O script abaixo é seguro para ser executado várias vezes. Ele primeiro remove as políticas existentes para evitar o erro "policy already exists" e depois as recria com as permissões corretas.</p>
-                        <pre className="bg-gray-800 text-white p-3 rounded-md text-xs overflow-x-auto my-2">
-                            <code>
-                                {FIX_RLS_SQL_POLICIES}
-                            </code>
-                        </pre>
-                    </div>
-                    <p className="text-red-700 mt-3">Após executar estes comandos, a página de usuários funcionará corretamente.</p>
-                </Card>
-            )}
-
-            {!isRlsError && !isConfigError && !isRpcError && (
-                 <Card>
-                    <div className="overflow-x-auto">
-                         <table className="w-full text-left">
-                            <thead className="border-b-2 border-brand-light-gray">
-                                <tr>
-                                    <th className="p-4 text-brand-blue font-semibold">Nome</th>
-                                    <th className="p-4 text-brand-blue font-semibold">Email</th>
-                                    <th className="p-4 text-brand-blue font-semibold">Usuário</th>
-                                    <th className="p-4 text-brand-blue font-semibold">Permissão</th>
-                                    <th className="p-4 text-brand-blue font-semibold">Ações</th>
+             <Card>
+                <div className="overflow-x-auto">
+                     <table className="w-full text-left">
+                        <thead className="border-b-2 border-brand-light-gray">
+                            <tr>
+                                <th className="p-4 text-brand-blue font-semibold">Nome</th>
+                                <th className="p-4 text-brand-blue font-semibold">Email</th>
+                                <th className="p-4 text-brand-blue font-semibold">Usuário</th>
+                                <th className="p-4 text-brand-blue font-semibold">Permissão</th>
+                                <th className="p-4 text-brand-blue font-semibold">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {users.map(user => (
+                                <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
+                                    <td className="p-4 font-bold text-brand-blue">{user.name}</td>
+                                    <td className="p-4 text-gray-700">{user.email}</td>
+                                    <td className="p-4 text-gray-700">{user.username}</td>
+                                    <td className="p-4">
+                                        <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                                            user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :
+                                            user.role === UserRole.Encarregado ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-blue-100 text-blue-800'
+                                        }`}>
+                                            {user.role}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => handleOpenModal(user)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
+                                            <button onClick={() => triggerDeleteUser(user.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {users.map(user => (
-                                    <tr key={user.id} className="border-b border-brand-light-gray hover:bg-gray-50">
-                                        <td className="p-4 font-bold text-brand-blue">{user.name}</td>
-                                        <td className="p-4 text-gray-700">{user.email}</td>
-                                        <td className="p-4 text-gray-700">{user.username}</td>
-                                        <td className="p-4">
-                                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                                                user.role === UserRole.Admin ? 'bg-red-100 text-red-800' :
-                                                user.role === UserRole.Encarregado ? 'bg-yellow-100 text-yellow-800' :
-                                                'bg-blue-100 text-blue-800'
-                                            }`}>
-                                                {user.role}
-                                            </span>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex space-x-2">
-                                                <button onClick={() => handleOpenModal(user)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
-                                                <button onClick={() => triggerDeleteUser(user.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            )}
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
             
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? "Editar Usuário" : "Criar Novo Usuário"}>
                  <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
