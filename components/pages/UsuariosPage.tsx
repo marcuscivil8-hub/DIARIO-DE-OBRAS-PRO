@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -77,6 +76,11 @@ const UsuariosPage: React.FC = () => {
 
         if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
             setFormError('Por favor, preencha nome, email, usuário e senha.');
+            return;
+        }
+
+        if (!editingUser && currentUserForm.password && currentUserForm.password.length < 6) {
+            setFormError('A senha deve ter no mínimo 6 caracteres.');
             return;
         }
 

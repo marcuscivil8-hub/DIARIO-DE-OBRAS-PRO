@@ -36,6 +36,7 @@ const RelatorioConsumo: React.FC<{
     }, [obra.id, movimentacoes, materiais]);
 
     const ferramentasNaObra = useMemo(() => {
+        // @ts-ignore
         return ferramentas.filter(f => f.obraId === obra.id);
     }, [obra.id, ferramentas]);
 

@@ -99,7 +99,7 @@ export interface MovimentacaoAlmoxarifado {
     itemId: string; // Can be material or ferramenta id
     itemType: 'material' | 'ferramenta';
     tipoMovimentacao: MovimentacaoTipo;
-    quantidade: number; // For materials, 1 for tools
+    quantidade: number;
     data: string; // YYYY-MM-DD
     obraId?: string; // Used for Saida, Uso, Retorno
     responsavelRetiradaId?: string;
@@ -118,8 +118,6 @@ export interface Ferramenta {
     nome: string;
     codigo: string;
     status: StatusFerramenta;
-    responsavelId: string | null;
-    obraId: string | null; // Current location of the tool
     valor?: number;
 }
 

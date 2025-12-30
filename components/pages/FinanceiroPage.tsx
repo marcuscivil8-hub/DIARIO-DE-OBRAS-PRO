@@ -147,13 +147,13 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 {/* FIX: Safely handle potentially non-numeric or undefined values from recharts library. */}
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: any) => `${name} ${(Number(percent || 0) * 100).toFixed(0)}%`}>
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ name, percent }: { name: string, percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 {/* FIX: Safely handle potentially non-numeric or undefined values from recharts library. */}
-                                <Tooltip formatter={(value: any) => `R$ ${formatCurrency(Number(value || 0))}`} />
+                                <Tooltip formatter={(value: number | string) => `R$ ${formatCurrency(Number(value || 0))}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>

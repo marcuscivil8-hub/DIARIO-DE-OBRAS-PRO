@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo, Page } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -65,10 +64,10 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         fetchData();
     }, [fetchData]);
 
-    const estoqueCalculadoMateriais = useMemo(() => {
+    const calculateStock = (itemType: 'material' | 'ferramenta') => {
         const estoque: Record<string, number> = {};
         movimentacoes.forEach(mov => {
-            if (mov.itemType === 'material') {
+            if (mov.itemType === itemType) {
                 let change = 0;
                 if (mov.tipoMovimentacao === MovimentacaoTipo.Entrada || mov.tipoMovimentacao === MovimentacaoTipo.Retorno) {
                     change = mov.quantidade;
@@ -82,11 +81,10 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             }
         });
         return estoque;
-    }, [movimentacoes]);
-    
-    const ferramentasEmEstoque = useMemo(() => {
-        return ferramentas.filter(f => !f.obraId);
-    }, [ferramentas]);
+    };
+
+    const estoqueCalculadoMateriais = useMemo(() => calculateStock('material'), [movimentacoes]);
+    const estoqueCalculadoFerramentas = useMemo(() => calculateStock('ferramenta'), [movimentacoes]);
     
     const handleOpenMovementModal = (type: 'entrada' | 'saida', item: {id: string, type: 'material' | 'ferramenta'}) => {
         setModalError(null);
@@ -123,13 +121,6 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 })
             };
             await apiService.movimentacoesAlmoxarifado.create(newMov);
-            
-            if (currentItem.type === 'ferramenta' && modalType === 'saida') {
-                await apiService.ferramentas.update(currentItem.id, {
-                    obraId: movementFormData.obraId,
-                    responsavelId: movementFormData.responsavelRetiradaId
-                });
-            }
             
             setIsMovementModalOpen(false);
             await fetchData();
@@ -204,7 +195,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 <div className="flex gap-2">
                     <Button onClick={() => navigateTo('Ferramentas')} variant="secondary" className="flex items-center space-x-2">
                         {ICONS.ferramentas}
-                        <span>Gerenciar Ferramentas</span>
+                        <span>Catálogo de Ferramentas</span>
                     </Button>
                     <Button onClick={() => handleOpenMaterialModal()} className="flex items-center space-x-2">
                         {ICONS.add}
@@ -252,16 +243,19 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                             <tr className="border-b-2 bg-brand-light-gray">
                                 <th className="p-4 text-brand-blue font-semibold">Ferramenta</th>
                                 <th className="p-4 text-brand-blue font-semibold">Código</th>
+                                <th className="p-4 text-brand-blue font-semibold">Estoque</th>
                                 <th className="p-4 text-brand-blue font-semibold">Ações</th>
                             </tr>
                         </thead>
-                        <tbody>{ferramentasEmEstoque.map(f => (
+                        <tbody>{ferramentas.map(f => (
                             <tr key={f.id} className="border-b hover:bg-gray-50">
                                 <td className="p-4 font-bold text-brand-blue">{f.nome}</td>
                                 <td className="p-4 text-brand-gray">{f.codigo}</td>
+                                <td className="p-4 font-bold text-brand-blue">{estoqueCalculadoFerramentas[f.id] || 0} un</td>
                                 <td className="p-4">
                                     <div className="flex items-center space-x-2">
-                                         <Button size="sm" variant="secondary" onClick={() => handleOpenMovementModal('saida', {id: f.id, type: 'ferramenta'})}>- Saída</Button>
+                                         <Button size="sm" onClick={() => handleOpenMovementModal('entrada', {id: f.id, type: 'ferramenta'})}>+ Entrada</Button>
+                                         <Button size="sm" variant="secondary" onClick={() => handleOpenMovementModal('saida', {id: f.id, type: 'ferramenta'})} disabled={(estoqueCalculadoFerramentas[f.id] || 0) <= 0}>- Saída</Button>
                                          <button onClick={() => triggerDelete(f.id, 'ferramenta')} className="p-2 text-red-600 hover:text-red-800">{ICONS.delete}</button>
                                     </div>
                                 </td>
@@ -274,9 +268,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             <Modal isOpen={isMovementModalOpen} onClose={() => setIsMovementModalOpen(false)} title={currentItem ? `${modalType === 'entrada' ? 'Registrar Entrada' : 'Registrar Saída'} de ${getNomeItem(currentItem)}` : 'Registrar Movimentação'}>
                 {currentItem && (
                     <form onSubmit={e => {e.preventDefault(); handleSaveMovimentacao();}} className="space-y-4">
-                        {currentItem.type === 'material' && (
-                            <div><label>Quantidade</label><input type="number" min="1" value={movementFormData.quantidade} onChange={e => setMovementFormData({...movementFormData, quantidade: Number((e.target as HTMLInputElement).value)})} className="w-full p-2 border rounded" required /></div>
-                        )}
+                        <div><label>Quantidade</label><input type="number" min="1" value={movementFormData.quantidade} onChange={e => setMovementFormData({...movementFormData, quantidade: Number((e.target as HTMLInputElement).value)})} className="w-full p-2 border rounded" required /></div>
                         {modalType === 'entrada' && (
                             <div><label>Descrição (Ex: Nota Fiscal, Fornecedor)</label><input type="text" value={movementFormData.descricao} onChange={e => setMovementFormData({...movementFormData, descricao: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" /></div>
                         )}
