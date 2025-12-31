@@ -70,15 +70,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </form>
-
-                 <div className="text-center mt-4 text-white/80 text-sm">
-                    <p className="font-bold">Usuários de Teste (se o banco estiver populado):</p>
-                    <p>admin@diariodeobra.pro</p>
-                    <p>joao@diariodeobra.pro</p>
-                    <p>maria@cliente.com</p>
-                    <p>Senha para todos: <strong>password</strong></p>
-                </div>
-
             </div>
         </div>
     );

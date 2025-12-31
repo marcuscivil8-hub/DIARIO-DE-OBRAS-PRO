@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -52,7 +53,7 @@ const RelatorioConsumo: React.FC<{
         for (const itemId in estoque) {
             if (estoque[itemId] > 0) {
                 const ferramenta = ferramentasMap.get(itemId);
-                // FIX: Add a type guard to ensure `ferramenta` is an object before spreading its properties.
+                // Add a type guard to ensure `ferramenta` is an object before spreading its properties.
                 // This prevents the "Spread types may only be created from object types" error if `ferramentasMap.get` returns undefined.
                 if (ferramenta) {
                     result.push({ ...ferramenta, quantidade: estoque[itemId] });
