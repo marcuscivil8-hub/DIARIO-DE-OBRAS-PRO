@@ -1,6 +1,11 @@
-// FIX: Using a version-pinned unpkg URL for Supabase function types to ensure stability and resolve Deno namespace errors.
-/// <reference types="https://unpkg.com/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
+// FIX: Add a minimal Deno type definition to make Deno.env available to TypeScript.
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined;
+  };
+};
 
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // FIX: Declarando corsHeaders internamente para eliminar o erro "Module not found"
@@ -10,7 +15,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Lida com a requisição de pre-flight do navegador
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
