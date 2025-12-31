@@ -1,4 +1,5 @@
-/// <reference path="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
+// FIX: Replaced the unpkg.com URL for Deno types with the more standard esm.sh URL. This should resolve the type definition errors for the Deno global object.
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
