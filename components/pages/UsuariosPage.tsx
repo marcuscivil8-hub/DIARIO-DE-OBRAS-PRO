@@ -13,10 +13,15 @@ const UsuariosPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isSaving, setIsSaving] = useState(false); // For modal save state
     
     const [formError, setFormError] = useState<string | null>(null); // State for modal errors
     const [pageError, setPageError] = useState<string | null>(null);
     
+    // State for delete confirmation
+    const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
     const initialNewUserState: Omit<User, 'id'> = {
         name: '',
         email: '',
@@ -89,6 +94,7 @@ const UsuariosPage: React.FC = () => {
             return;
         }
         
+        setIsSaving(true);
         try {
             if (editingUser) {
                 // UPDATE USER PROFILE
@@ -125,6 +131,8 @@ const UsuariosPage: React.FC = () => {
             const errorMessage = error.message || "Ocorreu um erro desconhecido.";
             console.error("Failed to save user:", errorMessage);
             setFormError(errorMessage);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -135,6 +143,27 @@ const UsuariosPage: React.FC = () => {
             : [...currentIds, obraId];
         setCurrentUserForm({ ...currentUserForm, obraIds: newIds });
     };
+
+    const triggerDeleteUser = (user: User) => {
+        setUserToDelete(user);
+        setIsConfirmDeleteOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!userToDelete) return;
+        setPageError(null);
+        try {
+            await authService.deleteUser(userToDelete.id);
+            await fetchData(); // Refresh data
+        } catch (error: any) {
+            console.error("Failed to delete user:", error);
+            setPageError(error.message || "Falha ao excluir o usuário. Tente novamente.");
+        } finally {
+            setIsConfirmDeleteOpen(false);
+            setUserToDelete(null);
+        }
+    };
+
 
     if (loading) return <div className="text-center p-8">Carregando usuários...</div>;
 
@@ -170,7 +199,7 @@ const UsuariosPage: React.FC = () => {
                                     <td className="p-4">
                                         <div className="flex space-x-2">
                                             <button onClick={() => handleOpenModal(user)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
-                                             <p className="text-sm text-gray-400">(Excluir no painel Supabase)</p>
+                                            <button onClick={() => triggerDeleteUser(user)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -182,36 +211,56 @@ const UsuariosPage: React.FC = () => {
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? 'Editar Usuário' : 'Novo Usuário'}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
-                    <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({ ...currentUserForm, name: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
-                    <input type="email" placeholder="Email" disabled={!!editingUser} value={currentUserForm.email} onChange={e => setCurrentUserForm({ ...currentUserForm, email: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded disabled:bg-gray-200" required />
-                    <input type="text" placeholder="Nome de usuário" value={currentUserForm.username} onChange={e => setCurrentUserForm({ ...currentUserForm, username: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
-                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({ ...currentUserForm, password: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" />
-                    <select value={currentUserForm.role} onChange={e => setCurrentUserForm({ ...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole })} className="w-full p-2 border rounded">
+                    <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({ ...currentUserForm, name: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required disabled={isSaving}/>
+                    <input type="email" placeholder="Email" disabled={!!editingUser || isSaving} value={currentUserForm.email} onChange={e => setCurrentUserForm({ ...currentUserForm, email: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded disabled:bg-gray-200" required />
+                    <input type="text" placeholder="Nome de usuário" value={currentUserForm.username} onChange={e => setCurrentUserForm({ ...currentUserForm, username: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required disabled={isSaving}/>
+                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({ ...currentUserForm, password: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" disabled={isSaving}/>
+                    <select value={currentUserForm.role} onChange={e => setCurrentUserForm({ ...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole })} className="w-full p-2 border rounded" disabled={isSaving}>
                         {Object.values(UserRole).map(role => <option key={role} value={role}>{role}</option>)}
                     </select>
                     {currentUserForm.role === UserRole.Cliente && (
                         <div>
                             <label className="block text-sm font-medium text-brand-gray mb-2">Obras Associadas</label>
-                            <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-2">
-                                {obras.map(obra => (
-                                    <div key={obra.id} className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            id={`obra-${obra.id}`}
-                                            checked={currentUserForm.obraIds?.includes(obra.id)}
-                                            onChange={() => handleObraSelection(obra.id)}
-                                            className="h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
-                                        />
-                                        <label htmlFor={`obra-${obra.id}`} className="ml-2 text-sm text-gray-700">{obra.name}</label>
-                                    </div>
-                                ))}
-                            </div>
+                            <fieldset disabled={isSaving}>
+                                <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-2">
+                                    {obras.map(obra => (
+                                        <div key={obra.id} className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id={`obra-${obra.id}`}
+                                                checked={currentUserForm.obraIds?.includes(obra.id)}
+                                                onChange={() => handleObraSelection(obra.id)}
+                                                className="h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
+                                            />
+                                            <label htmlFor={`obra-${obra.id}`} className="ml-2 text-sm text-gray-700">{obra.name}</label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </fieldset>
                         </div>
                     )}
                     {formError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{formError}</p>}
-                    <Button type="submit" className="w-full">Salvar Usuário</Button>
+                    <Button type="submit" className="w-full" disabled={isSaving}>
+                        {isSaving ? 'Salvando...' : 'Salvar Usuário'}
+                    </Button>
                 </form>
             </Modal>
+            
+            <ConfirmationModal
+                isOpen={isConfirmDeleteOpen}
+                onClose={() => setIsConfirmDeleteOpen(false)}
+                onConfirm={handleConfirmDelete}
+                title="Confirmar Exclusão de Usuário"
+                message={
+                    <>
+                        <p>Tem certeza que deseja excluir o usuário <strong>{userToDelete?.name}</strong>?</p>
+                        <p className="mt-2 text-sm text-red-600">Esta ação é irreversível. O usuário e todos os seus dados de acesso serão removidos permanentemente.</p>
+                    </>
+                }
+                confirmText="Excluir Usuário"
+                confirmVariant="danger"
+            />
+
         </div>
     );
 };

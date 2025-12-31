@@ -66,6 +66,19 @@ export const authService = {
 
         // A segunda etapa de criação do perfil foi removida, pois agora é gerenciada atomicamente pelo gatilho do Supabase.
     },
+
+    async deleteUser(userId: string): Promise<void> {
+        const { error } = await supabase.functions.invoke('delete-user', {
+            body: { userId },
+        });
+
+        if (error) {
+            console.error('Error deleting user function:', error);
+            // Tenta extrair a mensagem de erro específica da função.
+            const errorBody = await error.context?.json().catch(() => ({ error: 'Falha ao excluir usuário. Verifique os logs da função no Supabase.' }));
+            throw new Error(errorBody.error || 'Falha ao excluir usuário.');
+        }
+    },
     
     async getCurrentUser(): Promise<User | null> {
         const { data: { session }, error } = await supabase.auth.getSession();

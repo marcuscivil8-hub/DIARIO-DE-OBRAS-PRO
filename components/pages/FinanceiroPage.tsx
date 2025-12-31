@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -146,15 +147,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
-                                    // FIX: The 'percent' property from recharts can be undefined.
-                                    // Using `(percent || 0)` ensures we are performing an arithmetic operation on a number, preventing a type error.
+                                    // FIX: The 'percent' property from recharts can be undefined, causing an arithmetic error on multiplication.
+                                    // Using `(percent || 0)` ensures the operation is always performed on a number.
                                     label={({ name, percent }: { name: string; percent?: number }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                {/* FIX: The 'value' from the formatter can be inferred as 'any' or 'string'.
-                                Explicitly typing it as 'number' ensures the correct 'toLocaleString' function with arguments is used. */}
+                                {/* FIX: The 'value' from the formatter can be inferred as 'any'. Explicitly typing it as a 'number'
+                                ensures the correct `toLocaleString` method with arguments is used, preventing a type error. */}
                                 <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                                 <Legend />
                             </PieChart>
