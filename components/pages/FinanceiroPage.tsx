@@ -67,8 +67,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             return total;
         }, 0);
 
-        // FIX: Explicitly type Map to avoid type inference issues.
-        const materiaisMap = new Map<string, Material>(materiais.map((m: Material) => [m.id, m]));
+        const materiaisMap: Map<string, Material> = new Map(materiais.map((m: Material) => [m.id, m]));
         const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => 
             m.itemType === 'material' && 
             m.tipoMovimentacao === MovimentacaoTipo.Uso &&
@@ -147,13 +146,11 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
-                                    // FIX: Explicitly typed props to resolve the arithmetic operation error.
                                     label={({ name, percent }: { name: string, percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                {/* FIX: Explicitly typed 'value' to resolve the type mismatch in the formatter. */}
                                 <Tooltip formatter={(value: number) => `R$ ${formatCurrency(value)}`} />
                                 <Legend />
                             </PieChart>

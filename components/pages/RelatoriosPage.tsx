@@ -16,12 +16,9 @@ const RelatorioConsumo: React.FC<{
 
     const materiaisUsados = useMemo(() => {
         const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
-        // FIX: Add explicit type to filter callback parameter to avoid 'unknown' type inference.
         const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
-        // FIX: Explicitly type the Map to ensure correct type inference for `material`.
         const materiaisMap: Map<string, Material> = new Map(materiais.map((m: Material) => [m.id, m]));
 
-        // FIX: Add explicit type to forEach callback parameter to avoid 'unknown' type inference.
         movimentosUso.forEach((mov: MovimentacaoAlmoxarifado) => {
             const material = materiaisMap.get(mov.itemId);
             if (material) {
