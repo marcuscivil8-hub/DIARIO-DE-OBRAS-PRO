@@ -23,23 +23,37 @@ const App: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simula a verificação de sessão ao carregar o app
-        const user = authService.getCurrentUser();
-        if (user) {
-            setCurrentUser(user);
-        }
-        setLoading(false);
+        setLoading(true);
+        // Ouve as mudanças de estado de autenticação (login, logout)
+        const subscription = authService.onAuthStateChange(setCurrentUser);
+
+        // Verifica a sessão inicial quando o app carrega
+        authService.getSession().then(session => {
+            if (session) {
+                authService.getUserFromSession(session).then(user => {
+                    setCurrentUser(user);
+                    setLoading(false);
+                });
+            } else {
+                setLoading(false);
+            }
+        });
+
+        // Limpa a inscrição ao desmontar o componente
+        return () => {
+            subscription?.unsubscribe();
+        };
     }, []);
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
-        const user = await authService.login(email, password);
-        setCurrentUser(user);
+        await authService.login(email, password);
+        // O onAuthStateChange cuidará de atualizar o estado do usuário
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
-        setCurrentUser(null);
+        // O onAuthStateChange cuidará de limpar o estado do usuário
         setCurrentPage('Dashboard'); // Redireciona para o login
     };
 

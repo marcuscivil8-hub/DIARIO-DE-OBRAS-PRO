@@ -50,9 +50,8 @@ const RelatorioConsumo: React.FC<{
             if (estoque[itemId] > 0) {
                 const ferramenta = ferramentasMap.get(itemId);
                 if (ferramenta) {
-                    // FIX: Replaced Object.assign with the spread operator.
-                    // The original comment about spread operator issues appears to be outdated, as the `if (ferramenta)` guard prevents spreading null/undefined.
-                    // This change resolves the type inference error.
+                    // FIX: Use the spread operator to correctly combine the ferramenta object with the new 'quantidade' property.
+                    // This is more readable and type-safe than Object.assign in this context.
                     result.push({ ...ferramenta, quantidade: estoque[itemId] });
                 }
             }
@@ -282,10 +281,12 @@ const RelatorioFolhaPagamento: React.FC<{ obra: Obra | null, funcionarios: Funci
         const faltas = pontosNoPeriodo.filter(p => p.status === 'falta').length;
         
         let valorAPagar = 0;
-        if (func.tipoPagamento === PagamentoTipo.Diaria) {
-            valorAPagar = diasTrabalhados * func.valor;
-        } else { // Salario Mensal
-            valorAPagar = (func.valor / 22) * diasTrabalhados; // Pro-rata
+        if (typeof func.valor === 'number' && func.valor > 0) {
+            if (func.tipoPagamento === PagamentoTipo.Diaria) {
+                valorAPagar = diasTrabalhados * func.valor;
+            } else { // Salario Mensal
+                valorAPagar = (func.valor / 22) * diasTrabalhados; // Pro-rata
+            }
         }
         return { ...func, diasTrabalhados, faltas, valorAPagar };
     });
@@ -502,7 +503,7 @@ const RelatoriosPage: React.FC = () => {
         
         const custoMaoDeObra = pontosRelevantes.reduce((total, ponto) => {
             const func = funcionarios.find(f => f.id === ponto.funcionarioId);
-            if(func) {
+            if(func && typeof func.valor === 'number' && func.valor > 0) {
                 if(func.tipoPagamento === PagamentoTipo.Diaria) return total + func.valor;
                 if(func.tipoPagamento === PagamentoTipo.Salario) return total + (func.valor / 22);
             }

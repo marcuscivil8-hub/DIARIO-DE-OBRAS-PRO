@@ -138,7 +138,9 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     
         const custoTotal = pontosDaSemana.reduce((total, ponto) => {
             const funcionario = funcionariosMap.get(ponto.funcionarioId) as Funcionario | undefined;
-            if (!funcionario) return total;
+            if (!funcionario || typeof funcionario.valor !== 'number' || funcionario.valor <= 0) {
+                return total;
+            }
     
             let dailyCost = 0;
             const baseDailyValue = funcionario.tipoPagamento === PagamentoTipo.Diaria ? funcionario.valor : (funcionario.valor / 22);

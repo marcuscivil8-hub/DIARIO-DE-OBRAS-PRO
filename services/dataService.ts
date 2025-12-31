@@ -1,75 +1,66 @@
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
-import * as mock from '../data/mockData';
 
-// --- In-memory Data Store ---
-let users = [...mock.mockUsers];
-let obras = [...mock.mockObras];
-let funcionarios = [...mock.mockFuncionarios];
-let pontos = [...mock.mockPontos];
-let transacoes = [...mock.mockTransacoesFinanceiras];
-let materiais = [...mock.mockMateriais];
-let ferramentas = [...mock.mockFerramentas];
-let diarios = [...mock.mockDiariosObra];
-let servicos = [...mock.mockServicos];
-let movimentacoes = [...mock.mockMovimentacoesAlmoxarifado];
-let documentos = [...mock.mockDocumentos];
-let lembretes = [...mock.mockLembretes];
+const handleSupabaseError = (error: any, context: string) => {
+    if (error) {
+        console.error(`Supabase error in ${context}:`, error);
+        throw new Error(error.message);
+    }
+};
 
-// --- Generic CRUD Service for In-Memory Data ---
-const createCrudService = <T extends { id: string }>(dataStore: T[]) => {
-    
+const createCrudService = <T extends { id: string }>(tableName: string) => {
     return {
         async getAll(): Promise<T[]> {
-            await new Promise(resolve => setTimeout(resolve, 50)); // Simulate latency
-            return JSON.parse(JSON.stringify(dataStore)); // Return a deep copy
+            const { data, error } = await supabase.from(tableName).select('*');
+            handleSupabaseError(error, `getAll from ${tableName}`);
+            return data as T[] || [];
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
-            await new Promise(resolve => setTimeout(resolve, 50));
-            const newItem = { ...itemData, id: uuidv4() } as T;
-            dataStore.push(newItem);
-            return JSON.parse(JSON.stringify(newItem));
+            const { data, error } = await supabase.from(tableName).insert(itemData).select().single();
+            handleSupabaseError(error, `create in ${tableName}`);
+            return data as T;
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
-            await new Promise(resolve => setTimeout(resolve, 50));
-            const itemIndex = dataStore.findIndex(item => item.id === itemId);
-            if (itemIndex === -1) {
-                throw new Error(`Item with id ${itemId} not found.`);
-            }
-            dataStore[itemIndex] = { ...dataStore[itemIndex], ...updates };
-            return JSON.parse(JSON.stringify(dataStore[itemIndex]));
+            const { data, error } = await supabase.from(tableName).update(updates).eq('id', itemId).select().single();
+            handleSupabaseError(error, `update in ${tableName}`);
+            return data as T;
         },
         async delete(itemId: string): Promise<void> {
-            await new Promise(resolve => setTimeout(resolve, 50));
-            const itemIndex = dataStore.findIndex(item => item.id === itemId);
-            if (itemIndex > -1) {
-                dataStore.splice(itemIndex, 1);
-            }
+            const { error } = await supabase.from(tableName).delete().eq('id', itemId);
+            handleSupabaseError(error, `delete in ${tableName}`);
         }
     };
 };
 
-// --- Export all data services ---
 export const dataService = {
-    users: createCrudService<User>(users),
-    obras: createCrudService<Obra>(obras),
-    funcionarios: createCrudService<Funcionario>(funcionarios),
-    pontos: createCrudService<Ponto>(pontos),
-    transacoes: createCrudService<TransacaoFinanceira>(transacoes),
-    materiais: createCrudService<Material>(materiais),
-    ferramentas: createCrudService<Ferramenta>(ferramentas),
-    diarios: createCrudService<DiarioObra>(diarios),
-    servicos: createCrudService<Servico>(servicos),
-    movimentacoesAlmoxarifado: createCrudService<MovimentacaoAlmoxarifado>(movimentacoes),
-    documentos: createCrudService<Documento>(documentos),
+    users: createCrudService<User>('users'),
+    obras: createCrudService<Obra>('obras'),
+    funcionarios: createCrudService<Funcionario>('funcionarios'),
+    pontos: createCrudService<Ponto>('pontos'),
+    transacoes: createCrudService<TransacaoFinanceira>('transacoes'),
+    materiais: createCrudService<Material>('materiais'),
+    ferramentas: createCrudService<Ferramenta>('ferramentas'),
+    diarios: createCrudService<DiarioObra>('diarios'),
+    servicos: createCrudService<Servico>('servicos'),
+    movimentacoesAlmoxarifado: createCrudService<MovimentacaoAlmoxarifado>('movimentacoes_almoxarifado'),
+    documentos: createCrudService<Documento>('documentos'),
     
-    // Special functions that don't fit CRUD
+    // Special functions for 'lembretes'
     async getLembretes(): Promise<string[]> {
-        await new Promise(resolve => setTimeout(resolve, 50));
-        return [...lembretes];
+        // Assuming a table 'lembretes' with a column 'texto'
+        const { data, error } = await supabase.from('lembretes').select('texto');
+        handleSupabaseError(error, 'getLembretes');
+        return data ? data.map((item: { texto: string }) => item.texto) : [];
     },
     async updateLembretes(newLembretes: string[]): Promise<void> {
-        await new Promise(resolve => setTimeout(resolve, 50));
-        lembretes = [...newLembretes];
+        // Deletes all existing and inserts new ones.
+        const { error: deleteError } = await supabase.from('lembretes').delete().not('id', 'is', null);
+        handleSupabaseError(deleteError, 'updateLembretes (delete)');
+        
+        if (newLembretes.length > 0) {
+            const rowsToInsert = newLembretes.map(texto => ({ texto }));
+            const { error: insertError } = await supabase.from('lembretes').insert(rowsToInsert);
+            handleSupabaseError(insertError, 'updateLembretes (insert)');
+        }
     },
 };

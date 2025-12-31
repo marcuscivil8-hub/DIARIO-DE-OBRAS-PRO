@@ -60,7 +60,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
         const custoMaoDeObra = pontosRelevantes.reduce((total: number, ponto: Ponto) => {
             const func = funcionarios.find((f) => f.id === ponto.funcionarioId);
-            if (func) {
+            if (func && typeof func.valor === 'number' && func.valor > 0) {
                 const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
                 return total + dailyCost;
             }

@@ -1,42 +1,76 @@
+import { supabase } from './supabaseClient';
 import { User } from '../types';
-import { mockUsers } from '../data/mockData';
-
-const SESSION_KEY = 'currentUser';
+import { Session, Subscription } from '@supabase/supabase-js';
 
 export const authService = {
     async login(email: string, password: string): Promise<User> {
-        // Simula uma busca no banco de dados local
-        const user = mockUsers.find(u => u.email === email && u.password === password);
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
 
-        // Simula uma pequena latência de rede
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        if (!user) {
-            throw new Error('Credenciais inválidas. Verifique o email e a senha.');
+        if (authError) {
+            throw new Error(authError.message);
+        }
+        if (!authData.user) {
+            throw new Error('Login falhou: nenhum dado de usuário retornado.');
         }
 
-        // Remove a senha antes de salvar na sessão por segurança
-        const { password: _, ...userToStore } = user;
-        
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(userToStore));
-        return userToStore as User;
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+        if (userError) {
+            console.error("Erro ao buscar perfil do usuário:", userError);
+            throw new Error('Não foi possível encontrar o perfil do usuário.');
+        }
+
+        return userData as User;
     },
 
     async logout(): Promise<void> {
-        sessionStorage.removeItem(SESSION_KEY);
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error('Erro ao fazer logout:', error);
+        }
     },
 
-    getCurrentUser(): User | null {
-        const userJson = sessionStorage.getItem(SESSION_KEY);
-        if (userJson) {
-            try {
-                return JSON.parse(userJson);
-            } catch (error) {
-                console.error("Failed to parse user from sessionStorage", error);
-                this.logout();
-                return null;
-            }
+    async getSession(): Promise<Session | null> {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+            console.error("Erro ao obter sessão:", error);
+            return null;
         }
-        return null;
+        return data.session;
+    },
+
+    async getUserFromSession(session: Session | null): Promise<User | null> {
+        if (!session?.user) {
+            return null;
+        }
+
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if (userError) {
+            console.error("Erro ao buscar perfil do usuário:", userError);
+            // Isso pode acontecer se o perfil ainda não foi criado, então retornamos nulo.
+            return null;
+        }
+        
+        return userData as User;
+    },
+
+    onAuthStateChange(callback: (user: User | null) => void): Subscription | undefined {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            const user = await this.getUserFromSession(session);
+            callback(user);
+        });
+        return subscription;
     }
 };

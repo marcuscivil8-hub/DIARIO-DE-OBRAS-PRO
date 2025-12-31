@@ -155,7 +155,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             
             const saidasFromPontos = monthlyPontos.reduce((total, ponto) => {
                 const func = funcionarios.find(f => f.id === ponto.funcionarioId);
-                if (func) {
+                if (func && typeof func.valor === 'number' && func.valor > 0) {
                     if (func.tipoPagamento === PagamentoTipo.Diaria) return total + func.valor;
                     if (func.tipoPagamento === PagamentoTipo.Salario) return total + (func.valor / 22);
                 }
