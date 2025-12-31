@@ -256,6 +256,8 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingServico, setEditingServico] = useState<Servico | null>(null);
+    const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+    const [servicoToDeleteId, setServicoToDeleteId] = useState<string | null>(null);
 
     const emptyServico: Omit<Servico, 'id' | 'obraId'> = {
         descricao: '',
@@ -329,6 +331,20 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
         await dataService.servicos.update(servicoId, updatedServico);
         await fetchServicos();
     };
+
+    const triggerDeleteServico = (id: string) => {
+        setServicoToDeleteId(id);
+        setIsConfirmDeleteOpen(true);
+    };
+
+    const confirmDeleteServico = async () => {
+        if (servicoToDeleteId) {
+            await dataService.servicos.delete(servicoToDeleteId);
+            await fetchServicos();
+        }
+        setIsConfirmDeleteOpen(false);
+        setServicoToDeleteId(null);
+    };
     
     if (loading) return <div>Carregando serviços...</div>;
 
@@ -369,6 +385,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
                                                 {servico.status === 'Não Iniciado' && <Button size="sm" variant="secondary" onClick={() => handleStatusChange(servico.id, 'Em Andamento')}>Iniciar</Button>}
                                                 {servico.status === 'Em Andamento' && <Button size="sm" onClick={() => handleStatusChange(servico.id, 'Concluído')}>Finalizar</Button>}
                                                 <button onClick={() => handleOpenModal(servico)} className="p-2 text-blue-600 hover:text-blue-800">{ICONS.edit}</button>
+                                                <button onClick={() => triggerDeleteServico(servico.id)} className="p-2 text-red-600 hover:text-red-800">{ICONS.delete}</button>
                                             </div>
                                         </td>
                                     )}
@@ -387,6 +404,15 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
                     <Button type="submit" className="w-full">Salvar Serviço</Button>
                 </form>
             </Modal>
+
+             <ConfirmationModal 
+                isOpen={isConfirmDeleteOpen}
+                onClose={() => setIsConfirmDeleteOpen(false)}
+                onConfirm={confirmDeleteServico}
+                title="Confirmar Exclusão"
+                message="Tem certeza que deseja excluir este serviço permanentemente?"
+                confirmText="Excluir Serviço"
+            />
         </div>
     );
 };

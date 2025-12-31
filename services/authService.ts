@@ -1,36 +1,51 @@
 import { User } from '../types';
-import { MOCK_USERS } from '../data/mockData';
+import { supabase } from './supabaseClient';
 
 const SESSION_KEY = 'currentUser';
 
-const getLocalStorage = <T>(key: string, defaultValue: T): T => {
-    try {
-        const storedValue = localStorage.getItem(key);
-        return storedValue ? JSON.parse(storedValue) : defaultValue;
-    } catch (error) {
-        console.error(`Error reading from localStorage key “${key}”:`, error);
-        return defaultValue;
-    }
-};
-
 export const authService = {
     async login(email: string, password: string): Promise<User> {
-        // Em um app real, aqui você faria uma chamada de API.
-        // Para simulação, vamos buscar os usuários do nosso "banco de dados" local.
-        const users = getLocalStorage<User[]>('db_users', MOCK_USERS);
-        
-        const user = users.find(u => u.email === email && u.password === password);
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
 
-        if (user) {
-            // Salva o usuário na sessionStorage para manter o login na aba atual
-            sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
-            return user;
-        } else {
-            throw new Error('Email ou senha inválidos.');
+        if (authError) {
+            throw new Error(authError.message);
         }
+
+        if (!authData.user) {
+            throw new Error('Usuário não encontrado.');
+        }
+
+        // After successful auth, get user profile from 'users' table
+        const { data: profileData, error: profileError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+        if (profileError || !profileData) {
+            await supabase.auth.signOut(); // Sign out if profile doesn't exist
+            throw new Error(profileError?.message || 'Perfil de usuário não encontrado.');
+        }
+        
+        // Combine auth info (like email) with profile info (role, name)
+        const user: User = {
+            id: profileData.id,
+            name: profileData.name,
+            email: authData.user.email!,
+            username: profileData.username,
+            role: profileData.role,
+            obraIds: profileData.obraIds,
+        };
+
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+        return user;
     },
 
-    logout(): void {
+    async logout(): Promise<void> {
+        await supabase.auth.signOut();
         sessionStorage.removeItem(SESSION_KEY);
     },
 
@@ -41,6 +56,7 @@ export const authService = {
                 return JSON.parse(userJson);
             } catch (error) {
                 console.error("Failed to parse user from sessionStorage", error);
+                this.logout();
                 return null;
             }
         }

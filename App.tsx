@@ -37,8 +37,8 @@ const App: React.FC = () => {
         setCurrentPage('Dashboard');
     };
 
-    const handleLogout = () => {
-        authService.logout();
+    const handleLogout = async () => {
+        await authService.logout();
         setCurrentUser(null);
         setCurrentPage('Dashboard'); // Redireciona para o login
     };

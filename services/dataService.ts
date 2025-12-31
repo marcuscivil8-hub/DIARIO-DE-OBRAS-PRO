@@ -1,77 +1,34 @@
 import { v4 as uuidv4 } from 'uuid';
-import { MOCK_DATA, MOCK_USERS } from '../data/mockData';
+import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
-// --- LocalStorage Helper Functions ---
-const getLocalStorage = <T>(key: string, defaultValue: T): T => {
-    try {
-        const storedValue = localStorage.getItem(key);
-        return storedValue ? JSON.parse(storedValue) : defaultValue;
-    } catch (error) {
-        console.error(`Error reading from localStorage key “${key}”:`, error);
-        return defaultValue;
-    }
-};
 
-const setLocalStorage = <T>(key: string, value: T): void => {
-    try {
-        localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-        console.error(`Error writing to localStorage key “${key}”:`, error);
-    }
-};
-
-// --- Initialize with Mock Data if LocalStorage is Empty ---
-const initializeData = () => {
-    Object.keys(MOCK_DATA).forEach(key => {
-        const localStorageKey = `db_${key}`;
-        if (localStorage.getItem(localStorageKey) === null) {
-            // @ts-ignore
-            setLocalStorage(localStorageKey, MOCK_DATA[key]);
-        }
-    });
-     if (localStorage.getItem('db_users') === null) {
-        setLocalStorage('db_users', MOCK_USERS);
-    }
-};
-
-initializeData();
-
-// --- Generic CRUD Service for LocalStorage ---
+// --- Generic CRUD Service for Supabase ---
 const createCrudService = <T extends { id: string }>(tableName: string) => {
-    const storageKey = `db_${tableName}`;
     
     return {
         async getAll(): Promise<T[]> {
-            return getLocalStorage<T[]>(storageKey, []);
+            const { data, error } = await supabase.from(tableName).select('*');
+            if (error) throw new Error(error.message);
+            return data as T[];
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
-            const items = getLocalStorage<T[]>(storageKey, []);
-            const newItem = { ...itemData, id: uuidv4() } as T;
-            const updatedItems = [...items, newItem];
-            setLocalStorage(storageKey, updatedItems);
-            return newItem;
+            const newItem = { ...itemData, id: uuidv4() } as Omit<T, 'id'>; // Supabase might autogenerate, but we use uuid for consistency with old structure
+            const { data, error } = await supabase.from(tableName).insert([newItem]).select();
+            if (error) throw new Error(error.message);
+            return data[0] as T;
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
-            const items = getLocalStorage<T[]>(storageKey, []);
-            let updatedItem: T | null = null;
-            const updatedItems = items.map(item => {
-                if (item.id === itemId) {
-                    updatedItem = { ...item, ...updates };
-                    return updatedItem;
-                }
-                return item;
-            });
-            if (!updatedItem) {
-                throw new Error(`Item with id ${itemId} not found in ${tableName}.`);
+            const { data, error } = await supabase.from(tableName).update(updates).eq('id', itemId).select();
+            if (error) throw new Error(error.message);
+            if (!data || data.length === 0) {
+                 throw new Error(`Item with id ${itemId} not found in ${tableName}.`);
             }
-            setLocalStorage(storageKey, updatedItems);
-            return updatedItem!;
+            return data[0] as T;
         },
         async delete(itemId: string): Promise<void> {
-            const items = getLocalStorage<T[]>(storageKey, []);
-            const updatedItems = items.filter(item => item.id !== itemId);
-            setLocalStorage(storageKey, updatedItems);
+            const { error } = await supabase.from(tableName).delete().eq('id', itemId);
+            if (error) throw new Error(error.message);
         }
     };
 };
@@ -92,10 +49,25 @@ export const dataService = {
     
     // Special functions that don't fit CRUD
     async getLembretes(): Promise<string[]> {
-        const config = getLocalStorage<{lembretes_encarregado: string[]}>('db_configuracoes', { lembretes_encarregado: [] });
-        return config.lembretes_encarregado;
+        const { data, error } = await supabase
+            .from('configuracoes')
+            .select('lembretes_encarregado')
+            .single();
+
+        if (error) {
+            console.error("Error fetching lembretes:", error.message);
+            return [];
+        }
+        return data?.lembretes_encarregado || [];
     },
     async updateLembretes(lembretes: string[]): Promise<void> {
-        setLocalStorage('db_configuracoes', { lembretes_encarregado: lembretes });
+         const { error } = await supabase
+            .from('configuracoes')
+            .update({ lembretes_encarregado: lembretes })
+            .eq('id', 1); // Assuming a single config row with id 1
+        if(error) {
+            console.error("Error updating lembretes:", error.message);
+            throw new Error(error.message);
+        }
     },
 };

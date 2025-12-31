@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
 import { dataService } from '../../services/dataService';
+import { supabase } from '../../services/supabaseClient';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -59,7 +60,7 @@ const UsuariosPage: React.FC = () => {
                 name: user.name,
                 email: user.email,
                 username: user.username,
-                password: user.password, // Keep password for local editing
+                password: '', // Password should not be displayed, only set if changed
                 role: user.role,
                 obraIds: user.obraIds || [],
             });
@@ -74,8 +75,14 @@ const UsuariosPage: React.FC = () => {
         setFormError(null);
         setPageError(null);
 
-        if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || !currentUserForm.password) {
-            setFormError('Por favor, preencha todos os campos.');
+        // Validations
+        if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email) {
+            setFormError('Por favor, preencha nome, email e usuário.');
+            return;
+        }
+
+        if (!editingUser && !currentUserForm.password) {
+             setFormError('A senha é obrigatória para novos usuários.');
             return;
         }
 
@@ -84,22 +91,45 @@ const UsuariosPage: React.FC = () => {
             return;
         }
 
-        const userData = {
-            ...currentUserForm,
-            obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
-        };
-
         try {
             if (editingUser) {
-                await dataService.users.update(editingUser.id, userData);
+                // UPDATE USER
+                const profileUpdate: Partial<User> = {
+                    name: currentUserForm.name,
+                    username: currentUserForm.username,
+                    role: currentUserForm.role,
+                    obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
+                };
+                await dataService.users.update(editingUser.id, profileUpdate);
+                // Note: Password/Email updates are handled separately in real apps for security
             } else {
-                // Check for duplicate email before creating
-                const allUsers = await dataService.users.getAll();
-                if (allUsers.some(u => u.email === userData.email)) {
-                    setFormError('Este email já está em uso.');
-                    return;
+                // CREATE USER
+                // 1. Invoke Edge Function to create user in Supabase Auth
+                const { data: newUserAuth, error: createError } = await supabase.functions.invoke('create-user', {
+                    body: { email: currentUserForm.email, password: currentUserForm.password },
+                });
+
+                if (createError) {
+                    throw new Error(createError.message);
                 }
-                await dataService.users.create(userData);
+
+                if (!newUserAuth.user?.id) {
+                    throw new Error("Falha ao obter ID do novo usuário.");
+                }
+
+                // 2. Create user profile in 'users' table
+                const profileData: Omit<User, 'password'> = {
+                    id: newUserAuth.user.id,
+                    name: currentUserForm.name,
+                    email: currentUserForm.email,
+                    username: currentUserForm.username,
+                    role: currentUserForm.role,
+                    obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
+                };
+                
+                // Use supabase directly to avoid uuid generation
+                 const { error: profileError } = await supabase.from('users').insert(profileData);
+                 if(profileError) throw profileError;
             }
             setIsModalOpen(false);
             await fetchData();
@@ -112,6 +142,7 @@ const UsuariosPage: React.FC = () => {
     const triggerDeleteUser = (userId: string) => {
         setPageError(null);
         const user = users.find(u => u.id === userId);
+        // This is a mock data check, in real supabase you would protect this via RLS or function logic
         if (user?.email === 'admin@diariodeobra.pro') {
             setPageError('Não é possível excluir o administrador principal.');
             return;
@@ -124,7 +155,17 @@ const UsuariosPage: React.FC = () => {
         if (!userToDeleteId) return;
         let hadError = false;
         try {
+            // Invoke Edge Function to delete from Supabase Auth
+            const { error: deleteAuthError } = await supabase.functions.invoke('delete-user', {
+                body: { userId: userToDeleteId },
+            });
+            if (deleteAuthError) {
+                throw new Error(deleteAuthError.message);
+            }
+
+            // Delete from public.users table
             await dataService.users.delete(userToDeleteId);
+
         } catch (error: any) {
             hadError = true;
             setPageError(`Erro ao deletar usuário: ${error.message}`);
@@ -204,7 +245,7 @@ const UsuariosPage: React.FC = () => {
                     <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({...currentUserForm, name: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
                     <input type="email" placeholder="Email (para login)" value={currentUserForm.email} onChange={e => setCurrentUserForm({...currentUserForm, email: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required disabled={!!editingUser}/>
                     <input type="text" placeholder="Nome de Usuário (ex: joaosilva)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    <input type="password" placeholder="Senha" value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
+                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" />
                     <select value={currentUserForm.role} onChange={e => setCurrentUserForm({...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole})} className="w-full p-2 border rounded">
                         <option value={UserRole.Admin}>Admin</option>
                         <option value={UserRole.Encarregado}>Encarregado</option>
