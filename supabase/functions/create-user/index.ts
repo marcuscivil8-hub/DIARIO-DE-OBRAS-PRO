@@ -1,22 +1,26 @@
-// FIX: Corrected the Supabase functions type reference to point to the actual .d.ts file.
-/// <reference types="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
-// FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
-declare const Deno: any;
+/// <reference path="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// Definindo corsHeaders internamente para evitar erro de módulo ausente
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
 
 Deno.serve(async (req) => {
+  // Lida com a requisição de pre-flight (CORS)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('PROJECT_URL');
-    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? Deno.env.get('PROJECT_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error('As variáveis de ambiente PROJECT_URL e SERVICE_ROLE_KEY não estão configuradas na Edge Function.');
+      throw new Error('Configurações de ambiente (URL/KEY) não encontradas.');
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -35,12 +39,12 @@ Deno.serve(async (req) => {
     const { data: authData, error } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: true, // Auto-confirma o email
+      email_confirm: true,
       user_metadata: {
         name,
         username,
         role,
-        obra_ids: role === 'Cliente' ? (obraIds || []) : []
+        obra_ids: Array.isArray(obraIds) ? obraIds : []
       }
     })
 
@@ -55,12 +59,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,
     })
-  } catch (error) {
-    console.error('Erro na Edge Function (create-user):', error);
-    const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro inesperado na função.';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+
+  } catch (error: any) {
+    console.error('Erro na Edge Function:', error.message);
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400, // FIX: Retorna 400 em caso de erro para o cliente tratar a falha.
+      status: 400,
     });
   }
 })

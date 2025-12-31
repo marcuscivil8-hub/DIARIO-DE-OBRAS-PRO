@@ -1,28 +1,32 @@
-// FIX: Corrected the Supabase functions type reference to point to the actual .d.ts file.
-/// <reference types="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
-// FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
-declare const Deno: any;
+/// <reference path="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// FIX: Declarando corsHeaders internamente para eliminar o erro "Module not found"
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
 
 Deno.serve(async (req) => {
-  // This is needed if you're planning to invoke your function from a browser.
+  // Lida com a requisição de pre-flight do navegador
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('PROJECT_URL')
-    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
+    // Busca as variáveis de ambiente (Tenta o padrão Supabase e o seu personalizado)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? Deno.env.get('PROJECT_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error('As variáveis de ambiente PROJECT_URL e SERVICE_ROLE_KEY não estão configuradas na Edge Function.')
+        throw new Error('As variáveis de ambiente PROJECT_URL e SERVICE_ROLE_KEY não estão configuradas.');
     }
     
     const { user_id } = await req.json()
     if (!user_id) {
-        throw new Error("O 'user_id' é obrigatório.")
+        throw new Error("O 'user_id' é obrigatório para exclusão.")
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -32,6 +36,8 @@ Deno.serve(async (req) => {
       }
     })
 
+    // Deleta o usuário no Auth. O seu SQL com "ON DELETE CASCADE" 
+    // cuidará de remover o registro na tabela public.profiles automaticamente.
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id)
 
     if (error) {
@@ -42,12 +48,11 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
-  } catch (error) {
-    console.error('Erro na Edge Function (delete-user):', error);
-    const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro inesperado na função.';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+  } catch (error: any) {
+    console.error('Erro na Edge Function (delete-user):', error.message);
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400, // FIX: Retorna 400 em caso de erro para o cliente tratar a falha.
+      status: 400,
     });
   }
 })
