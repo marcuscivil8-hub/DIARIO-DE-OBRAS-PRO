@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
+import type { Session } from '@supabase/supabase-js';
 
 const handleSupabaseError = (error: any, context: string) => {
     if (error) {
@@ -68,74 +69,22 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
 };
 
 export const apiService = {
-    async login(email: string, password: string): Promise<User> {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-        if (authError) {
-            throw new Error(authError.message === 'Invalid login credentials' ? 'Email ou senha inválidos.' : authError.message);
+    async login(email: string, password: string): Promise<void> {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            throw new Error(error.message === 'Invalid login credentials' ? 'Email ou senha inválidos.' : error.message);
         }
-        if (!authData.user) {
-            throw new Error("Login falhou: Nenhum usuário retornado após a autenticação.");
-        }
-
-        const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id);
-
-        if (profileError) {
-            console.error('Error fetching profile:', profileError.message);
-            await supabase.auth.signOut();
-            throw new Error(`PROFILE_ERROR: ${profileError.message}`);
-        }
-
-        if (!profiles || profiles.length === 0) {
-            console.error('Error fetching profile: Profile not found for user.');
-            await supabase.auth.signOut();
-            throw new Error('PROFILE_ERROR: Perfil não encontrado.');
-        }
-
-        const profileData = profiles[0];
-        const user: User = {
-            ...toCamelCase<User>(profileData),
-            email: authData.user.email || '',
-        };
-        
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-        return user;
+        // A lógica de atualização do usuário será tratada pelo listener onAuthStateChange
     },
 
     async logout(): Promise<void> {
-        await supabase.auth.signOut();
-        sessionStorage.removeItem('currentUser');
+        const { error } = await supabase.auth.signOut();
+        handleSupabaseError(error, 'logout');
     },
-
-    async checkSession(): Promise<User | null> {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            sessionStorage.removeItem('currentUser');
-            return null;
-        }
-
-        const userJson = sessionStorage.getItem('currentUser');
-        if (userJson) return JSON.parse(userJson);
-        
-        const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id);
-        
-        if (profileError || !profiles || profiles.length === 0) {
-            if(profileError) console.error("Error checking session profile:", profileError.message);
-            return null;
-        }
-
-        const profileData = profiles[0];
-        const user: User = {
-            ...toCamelCase<User>(profileData),
-            email: session.user.email || '',
-        };
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-        return user;
+    
+    onAuthStateChange(callback: (event: string, session: Session | null) => void) {
+        const { data } = supabase.auth.onAuthStateChange(callback);
+        return data;
     },
 
     async getLembretes(): Promise<string[]> {
@@ -192,6 +141,15 @@ export const apiService = {
 
     users: {
         ...createCrudService<User>('profiles'),
+        async getProfile(userId: string): Promise<User | null> {
+            const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found", which is not a fatal error here.
+                handleSupabaseError(error, 'getProfile');
+                return null;
+            }
+            if (!data) return null;
+            return toCamelCase<User>(data);
+        },
         async getAll(): Promise<User[]> {
             const { data, error } = await supabase.rpc('get_users_with_email');
             handleSupabaseError(error, 'getAll users via RPC');

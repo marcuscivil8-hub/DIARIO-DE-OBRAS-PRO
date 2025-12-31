@@ -24,20 +24,34 @@ const App: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check for a logged-in user in session storage on startup
-        const checkSession = async () => {
-            const user = await apiService.checkSession();
-            if (user) {
-                setCurrentUser(user);
+        setLoading(true);
+        const { subscription } = apiService.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                const profile = await apiService.users.getProfile(session.user.id);
+                if (profile) {
+                    setCurrentUser({ ...profile, email: session.user.email || '' });
+                } else {
+                    // This case might happen if the profile hasn't been created yet or there's an issue.
+                    // Forcing a logout prevents the app from being in a broken state.
+                    await apiService.logout();
+                    setCurrentUser(null);
+                }
+            } else {
+                setCurrentUser(null);
             }
             setLoading(false);
+        });
+
+        // Cleanup subscription on component unmount
+        return () => {
+            subscription?.unsubscribe();
         };
-        checkSession();
     }, []);
 
+
     const handleLogin = async (email: string, password: string): Promise<void> => {
-        const user = await apiService.login(email, password); // Lançará um erro em caso de falha
-        setCurrentUser(user);
+        // apiService.login will trigger onAuthStateChange, which handles setting the user.
+        await apiService.login(email, password); 
         setCurrentPage('Dashboard');
     };
 
@@ -57,7 +71,7 @@ const App: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+        return <div className="min-h-screen flex items-center justify-center bg-brand-blue text-white text-xl">Carregando Diário de Obra Pro...</div>;
     }
 
     const renderPage = () => {
