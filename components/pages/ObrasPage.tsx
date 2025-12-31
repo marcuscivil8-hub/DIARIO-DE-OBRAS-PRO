@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Obra, User, UserRole, Page } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -36,7 +35,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     const fetchObras = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await apiService.obras.getAll();
+            const data = await dataService.obras.getAll();
             setObras(data);
         } catch (error) {
             console.error("Failed to fetch obras", error);
@@ -64,9 +63,9 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     const handleSaveObra = async () => {
         try {
             if (editingObra) {
-                await apiService.obras.update(editingObra.id, currentObra);
+                await dataService.obras.update(editingObra.id, currentObra);
             } else {
-                await apiService.obras.create(currentObra);
+                await dataService.obras.create(currentObra);
             }
             setIsModalOpen(false);
             setEditingObra(null);
@@ -85,10 +84,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     const confirmDeleteObra = async () => {
         if (!obraToDeleteId) return;
         try {
-            await apiService.obras.delete(obraToDeleteId);
-            // Cascading delete simulation - in a real API this would be handled by the backend
-            // For now, we assume related data is not deleted, just the obra.
-            // In a full implementation, you'd call apiService.diarios.deleteByObraId(obraToDeleteId), etc.
+            await dataService.obras.delete(obraToDeleteId);
         } catch (error) {
             console.error("Failed to delete obra", error);
         } finally {
@@ -172,7 +168,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={confirmDeleteObra}
                 title="Confirmar Exclusão"
-                message={<>Tem certeza que deseja excluir esta obra? Esta ação removerá a obra principal, mas os dados associados (como diários e finanças) precisarão ser gerenciados separadamente.</>}
+                message={<>Tem certeza que deseja excluir esta obra? Todos os dados associados (diários, finanças, etc.) também serão removidos se a cascata estiver configurada no backend.</>}
                 confirmText="Excluir Obra"
             />
         </div>

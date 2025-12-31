@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -32,8 +32,8 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
-                apiService.users.getAll(),
-                apiService.obras.getAll()
+                dataService.users.getAll(),
+                dataService.obras.getAll()
             ]);
             setUsers(usersData);
             setObras(obrasData);
@@ -59,7 +59,7 @@ const UsuariosPage: React.FC = () => {
                 name: user.name,
                 email: user.email,
                 username: user.username,
-                password: '', // Password field is cleared for editing for security
+                password: user.password, // Keep password for local editing
                 role: user.role,
                 obraIds: user.obraIds || [],
             });
@@ -74,12 +74,12 @@ const UsuariosPage: React.FC = () => {
         setFormError(null);
         setPageError(null);
 
-        if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || (!editingUser && !currentUserForm.password)) {
-            setFormError('Por favor, preencha nome, email, usuário e senha.');
+        if (!currentUserForm.name || !currentUserForm.username || !currentUserForm.email || !currentUserForm.password) {
+            setFormError('Por favor, preencha todos os campos.');
             return;
         }
 
-        if (!editingUser && currentUserForm.password && currentUserForm.password.length < 6) {
+        if (currentUserForm.password && currentUserForm.password.length < 6) {
             setFormError('A senha deve ter no mínimo 6 caracteres.');
             return;
         }
@@ -91,15 +91,15 @@ const UsuariosPage: React.FC = () => {
 
         try {
             if (editingUser) {
-                const updates: Partial<User> = {
-                    name: userData.name,
-                    username: userData.username,
-                    role: userData.role,
-                    obraIds: userData.obraIds,
-                };
-                await apiService.users.update(editingUser.id, updates);
+                await dataService.users.update(editingUser.id, userData);
             } else {
-                await apiService.users.createUser(userData);
+                // Check for duplicate email before creating
+                const allUsers = await dataService.users.getAll();
+                if (allUsers.some(u => u.email === userData.email)) {
+                    setFormError('Este email já está em uso.');
+                    return;
+                }
+                await dataService.users.create(userData);
             }
             setIsModalOpen(false);
             await fetchData();
@@ -124,7 +124,7 @@ const UsuariosPage: React.FC = () => {
         if (!userToDeleteId) return;
         let hadError = false;
         try {
-            await apiService.users.deleteUser(userToDeleteId);
+            await dataService.users.delete(userToDeleteId);
         } catch (error: any) {
             hadError = true;
             setPageError(`Erro ao deletar usuário: ${error.message}`);
@@ -204,7 +204,7 @@ const UsuariosPage: React.FC = () => {
                     <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({...currentUserForm, name: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
                     <input type="email" placeholder="Email (para login)" value={currentUserForm.email} onChange={e => setCurrentUserForm({...currentUserForm, email: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required disabled={!!editingUser}/>
                     <input type="text" placeholder="Nome de Usuário (ex: joaosilva)" value={currentUserForm.username} onChange={e => setCurrentUserForm({...currentUserForm, username: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
-                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required={!editingUser}/>
+                    <input type="password" placeholder="Senha" value={currentUserForm.password} onChange={e => setCurrentUserForm({...currentUserForm, password: (e.target as HTMLInputElement).value})} className="w-full p-2 border rounded" required/>
                     <select value={currentUserForm.role} onChange={e => setCurrentUserForm({...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole})} className="w-full p-2 border rounded">
                         <option value={UserRole.Admin}>Admin</option>
                         <option value={UserRole.Encarregado}>Encarregado</option>

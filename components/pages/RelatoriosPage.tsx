@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta, Documento, MovimentacaoTipo } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
@@ -459,15 +459,15 @@ const RelatoriosPage: React.FC = () => {
             setPageLoading(true);
             try {
                 const [obrasData, diariosData, transacoesData, pontosData, funcionariosData, movsData, materiaisData, ferramentasData, documentosData] = await Promise.all([
-                    apiService.obras.getAll(),
-                    apiService.diarios.getAll(),
-                    apiService.transacoes.getAll(),
-                    apiService.pontos.getAll(),
-                    apiService.funcionarios.getAll(),
-                    apiService.movimentacoesAlmoxarifado.getAll(),
-                    apiService.materiais.getAll(),
-                    apiService.ferramentas.getAll(),
-                    apiService.documentos.getAll()
+                    dataService.obras.getAll(),
+                    dataService.diarios.getAll(),
+                    dataService.transacoes.getAll(),
+                    dataService.pontos.getAll(),
+                    dataService.funcionarios.getAll(),
+                    dataService.movimentacoesAlmoxarifado.getAll(),
+                    dataService.materiais.getAll(),
+                    dataService.ferramentas.getAll(),
+                    dataService.documentos.getAll()
                 ]);
                 setObras(obrasData);
                 setDiarios(diariosData);

@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Funcionario, Obra, User, PagamentoTipo, UserRole } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -28,8 +27,8 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
         setLoading(true);
         try {
             const [funcData, obrasData] = await Promise.all([
-                apiService.funcionarios.getAll(),
-                apiService.obras.getAll()
+                dataService.funcionarios.getAll(),
+                dataService.obras.getAll()
             ]);
             setFuncionarios(funcData);
             setObras(obrasData.filter(o => o.status === 'Ativa'));
@@ -57,9 +56,9 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
 
     const handleSaveFuncionario = async () => {
         if (editingFuncionario) {
-            await apiService.funcionarios.update(editingFuncionario.id, currentFuncionario);
+            await dataService.funcionarios.update(editingFuncionario.id, currentFuncionario);
         } else {
-            await apiService.funcionarios.create(currentFuncionario);
+            await dataService.funcionarios.create(currentFuncionario);
         }
         setIsModalOpen(false);
         await fetchData();
@@ -72,7 +71,7 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
 
     const confirmDeactivateFuncionario = async () => {
         if (!funcionarioToDeactivate) return;
-        await apiService.funcionarios.update(funcionarioToDeactivate.id, { ativo: !funcionarioToDeactivate.ativo });
+        await dataService.funcionarios.update(funcionarioToDeactivate.id, { ativo: !funcionarioToDeactivate.ativo });
         setIsConfirmModalOpen(false);
         setFuncionarioToDeactivate(null);
         await fetchData();

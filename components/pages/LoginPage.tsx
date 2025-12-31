@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -8,8 +7,8 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('admin@diariodeobra.pro');
+    const [password, setPassword] = useState('password');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -21,7 +20,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             await onLogin(email, password);
             // O sucesso é implícito; a navegação é tratada pelo App.tsx
         } catch (err: any) {
-            // A mensagem de erro agora vem diretamente da apiService, mais específica.
+            // A mensagem de erro agora vem diretamente da authService, mais específica.
             setError(err.message);
         } finally {
             setLoading(false);
@@ -71,6 +70,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </form>
+
+                 <div className="text-center mt-4 text-white/80 text-sm">
+                    <p className="font-bold">Usuários de Teste:</p>
+                    <p>admin@diariodeobra.pro (Admin)</p>
+                    <p>joao@diariodeobra.pro (Encarregado)</p>
+                    <p>maria@cliente.com (Cliente)</p>
+                    <p>Senha para todos: <strong>password</strong></p>
+                </div>
 
             </div>
         </div>

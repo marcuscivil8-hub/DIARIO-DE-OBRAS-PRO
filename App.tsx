@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Page } from './types';
 import Layout from './components/layout/Layout';
@@ -15,7 +14,7 @@ import RelatoriosPage from './components/pages/RelatoriosPage';
 import UsuariosPage from './components/pages/UsuariosPage';
 import AlmoxarifadoPage from './components/pages/AlmoxarifadoPage';
 import DocumentosPage from './components/pages/DocumentosPage';
-import { apiService } from './services/apiService';
+import { authService } from './services/authService';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -24,41 +23,24 @@ const App: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setLoading(true);
-        const { subscription } = apiService.onAuthStateChange(async (_event, session) => {
-            if (session?.user) {
-                const profile = await apiService.users.getProfile(session.user.id);
-                if (profile) {
-                    setCurrentUser({ ...profile, email: session.user.email || '' });
-                } else {
-                    // This case might happen if the profile hasn't been created yet or there's an issue.
-                    // Forcing a logout prevents the app from being in a broken state.
-                    await apiService.logout();
-                    setCurrentUser(null);
-                }
-            } else {
-                setCurrentUser(null);
-            }
-            setLoading(false);
-        });
-
-        // Cleanup subscription on component unmount
-        return () => {
-            subscription?.unsubscribe();
-        };
+        // Simula a verificação de sessão ao carregar o app
+        const user = authService.getCurrentUser();
+        if (user) {
+            setCurrentUser(user);
+        }
+        setLoading(false);
     }, []);
 
-
     const handleLogin = async (email: string, password: string): Promise<void> => {
-        // apiService.login will trigger onAuthStateChange, which handles setting the user.
-        await apiService.login(email, password); 
+        const user = await authService.login(email, password);
+        setCurrentUser(user);
         setCurrentPage('Dashboard');
     };
 
-    const handleLogout = async () => {
-        await apiService.logout();
+    const handleLogout = () => {
+        authService.logout();
         setCurrentUser(null);
-        setCurrentPage('Dashboard'); // Should be handled by the component logic
+        setCurrentPage('Dashboard'); // Redireciona para o login
     };
 
     const navigateTo = (page: Page, obraId?: string) => {

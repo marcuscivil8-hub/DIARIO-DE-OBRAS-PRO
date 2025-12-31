@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { User, Obra, UserRole, Page, Servico, Material, TransacaoFinanceira, Ponto, Funcionario, TransacaoTipo, PagamentoTipo, CategoriaSaida, MovimentacaoAlmoxarifado, MovimentacaoTipo, Ferramenta } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
@@ -34,15 +33,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             try {
                 setLoading(true);
                 const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData, movimentacoesData, lembretesData, ferramentasData] = await Promise.all([
-                    apiService.obras.getAll(),
-                    apiService.servicos.getAll(),
-                    apiService.materiais.getAll(),
-                    apiService.transacoes.getAll(),
-                    apiService.pontos.getAll(),
-                    apiService.funcionarios.getAll(),
-                    apiService.movimentacoesAlmoxarifado.getAll(),
-                    apiService.getLembretes(),
-                    apiService.ferramentas.getAll(),
+                    dataService.obras.getAll(),
+                    dataService.servicos.getAll(),
+                    dataService.materiais.getAll(),
+                    dataService.transacoes.getAll(),
+                    dataService.pontos.getAll(),
+                    dataService.funcionarios.getAll(),
+                    dataService.movimentacoesAlmoxarifado.getAll(),
+                    dataService.getLembretes(),
+                    dataService.ferramentas.getAll(),
                 ]);
                 setObras(obrasData);
                 setServicos(servicosData);
@@ -65,7 +64,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
 
     const handleSaveLembretes = async () => {
         const lembretesArray = lembretesEdit.split('\n').filter(l => l.trim() !== '');
-        await apiService.updateLembretes(lembretesArray);
+        await dataService.updateLembretes(lembretesArray);
         setLembretes(lembretesArray);
         setIsLembreteModalOpen(false);
     };

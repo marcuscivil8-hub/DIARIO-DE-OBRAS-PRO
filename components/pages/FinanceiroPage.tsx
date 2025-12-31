@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
@@ -24,12 +24,12 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             setLoading(true);
             try {
                 const [transacoesData, obrasData, pontosData, funcionariosData, movsData, materiaisData] = await Promise.all([
-                    apiService.transacoes.getAll(),
-                    apiService.obras.getAll(),
-                    apiService.pontos.getAll(),
-                    apiService.funcionarios.getAll(),
-                    apiService.movimentacoesAlmoxarifado.getAll(),
-                    apiService.materiais.getAll(),
+                    dataService.transacoes.getAll(),
+                    dataService.obras.getAll(),
+                    dataService.pontos.getAll(),
+                    dataService.funcionarios.getAll(),
+                    dataService.movimentacoesAlmoxarifado.getAll(),
+                    dataService.materiais.getAll(),
                 ]);
                 setTransacoes(transacoesData);
                 setObras(obrasData);

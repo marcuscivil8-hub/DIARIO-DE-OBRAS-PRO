@@ -15,6 +15,7 @@
     "jspdf": "^3.0.4",
     "html2canvas": "^1.4.1",
     "@supabase/supabase-js": "^2.45.0",
+    "uuid": "^9.0.1",
     "deno.ns": "^0.8.0",
     "esnext": "^3.3.1"
   },
