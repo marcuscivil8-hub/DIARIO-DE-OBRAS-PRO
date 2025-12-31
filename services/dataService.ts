@@ -1,83 +1,133 @@
-import { supabase } from './supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
+import { mockUsers, mockObras, mockFuncionarios, mockPontos, mockTransacoesFinanceiras, mockMateriais, mockFerramentas, mockDiariosObra, mockServicos, mockMovimentacoesAlmoxarifado, mockDocumentos, mockLembretes } from '../data/mockData';
 
-const handleSupabaseError = (error: any, context: string) => {
-    if (error) {
-        console.error(`Supabase error in ${context}:`, error);
-        throw new Error(error.message);
+// Helper to simulate network delay
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+// Helper to manage a collection in localStorage
+const createStorageManager = <T extends { id: string }>(key: string, initialData: T[]) => {
+    let items: T[] = [];
+    try {
+        const storedItems = localStorage.getItem(key);
+        if (storedItems) {
+            items = JSON.parse(storedItems);
+        } else {
+            items = initialData;
+            localStorage.setItem(key, JSON.stringify(items));
+        }
+    } catch (e) {
+        console.error(`Could not initialize storage for ${key}`, e);
+        items = initialData;
     }
+    
+    const save = () => {
+        localStorage.setItem(key, JSON.stringify(items));
+    };
+
+    return {
+        getAll: () => items,
+        create: (newItemData: Omit<T, 'id'>) => {
+            const newItem = { ...newItemData, id: uuidv4() } as T;
+            items.push(newItem);
+            save();
+            return newItem;
+        },
+        update: (id: string, updates: Partial<T>) => {
+            const index = items.findIndex(item => item.id === id);
+            if (index > -1) {
+                items[index] = { ...items[index], ...updates };
+                save();
+                return items[index];
+            }
+            return null;
+        },
+        delete: (id: string) => {
+            const initialLength = items.length;
+            items = items.filter(item => item.id !== id);
+            if(items.length < initialLength) {
+                save();
+                return true;
+            }
+            return false;
+        },
+        get: (id: string) => items.find(item => item.id === id) || null,
+    };
 };
 
-const createCrudService = <T extends { id: string }>(tableName: string) => {
+const usersManager = createStorageManager<User>('db_users', mockUsers);
+const obrasManager = createStorageManager<Obra>('db_obras', mockObras);
+const funcionariosManager = createStorageManager<Funcionario>('db_funcionarios', mockFuncionarios);
+const pontosManager = createStorageManager<Ponto>('db_pontos', mockPontos);
+const transacoesManager = createStorageManager<TransacaoFinanceira>('db_transacoes', mockTransacoesFinanceiras);
+const materiaisManager = createStorageManager<Material>('db_materiais', mockMateriais);
+const ferramentasManager = createStorageManager<Ferramenta>('db_ferramentas', mockFerramentas);
+const diariosManager = createStorageManager<DiarioObra>('db_diarios', mockDiariosObra);
+const servicosManager = createStorageManager<Servico>('db_servicos', mockServicos);
+const movimentacoesManager = createStorageManager<MovimentacaoAlmoxarifado>('db_movimentacoes', mockMovimentacoesAlmoxarifado);
+const documentosManager = createStorageManager<Documento>('db_documentos', mockDocumentos);
+
+const createCrudService = <T extends { id: string }>(manager: ReturnType<typeof createStorageManager<T>>) => {
     return {
         async getAll(): Promise<T[]> {
-            const { data, error } = await supabase.from(tableName).select('*');
-            handleSupabaseError(error, `getAll from ${tableName}`);
-            return data as T[] || [];
+            await delay(100);
+            return manager.getAll();
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).insert(itemData).select().single();
-            handleSupabaseError(error, `create in ${tableName}`);
-            return data as T;
+            await delay(100);
+            return manager.create(itemData);
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).update(updates).eq('id', itemId).select().single();
-            handleSupabaseError(error, `update in ${tableName}`);
-            return data as T;
+            await delay(100);
+            const updated = manager.update(itemId, updates);
+            if (updated) {
+                return updated;
+            }
+            throw new Error('Item not found for update');
         },
         async delete(itemId: string): Promise<void> {
-            const { error } = await supabase.from(tableName).delete().eq('id', itemId);
-            handleSupabaseError(error, `delete in ${tableName}`);
+            await delay(100);
+            manager.delete(itemId);
         }
     };
 };
 
-// Custom user service to handle secure deletion via Edge Function
-const userService = {
-    ...createCrudService<User>('users'),
-    async delete(userId: string): Promise<void> {
-        const { error } = await supabase.functions.invoke('delete-user', {
-            body: { userId },
-        });
-
-        if (error) {
-            const errorBody = await (error as any).context?.json();
-            console.error(`Supabase Function error in delete user:`, errorBody?.error || error.message);
-            throw new Error(errorBody?.error || error.message);
-        }
-    }
-};
+// Lembretes manager (special case as it's a string array)
+let lembretes: string[] = [];
+try {
+    const stored = localStorage.getItem('db_lembretes');
+    lembretes = stored ? JSON.parse(stored) : mockLembretes;
+    if (!stored) localStorage.setItem('db_lembretes', JSON.stringify(lembretes));
+} catch(e) {
+    lembretes = mockLembretes;
+}
+const saveLembretes = () => localStorage.setItem('db_lembretes', JSON.stringify(lembretes));
 
 
 export const dataService = {
-    users: userService,
-    obras: createCrudService<Obra>('obras'),
-    funcionarios: createCrudService<Funcionario>('funcionarios'),
-    pontos: createCrudService<Ponto>('pontos'),
-    transacoes: createCrudService<TransacaoFinanceira>('transacoes'),
-    materiais: createCrudService<Material>('materiais'),
-    ferramentas: createCrudService<Ferramenta>('ferramentas'),
-    diarios: createCrudService<DiarioObra>('diarios'),
-    servicos: createCrudService<Servico>('servicos'),
-    movimentacoesAlmoxarifado: createCrudService<MovimentacaoAlmoxarifado>('movimentacoes_almoxarifado'),
-    documentos: createCrudService<Documento>('documentos'),
+    users: {
+        ...createCrudService(usersManager),
+        createSync: usersManager.create,
+        getAllSync: usersManager.getAll,
+    },
+    obras: createCrudService(obrasManager),
+    funcionarios: createCrudService(funcionariosManager),
+    pontos: createCrudService(pontosManager),
+    transacoes: createCrudService(transacoesManager),
+    materiais: createCrudService(materiaisManager),
+    ferramentas: createCrudService(ferramentasManager),
+    diarios: createCrudService(diariosManager),
+    servicos: createCrudService(servicosManager),
+    movimentacoesAlmoxarifado: createCrudService(movimentacoesManager),
+    documentos: createCrudService(documentosManager),
     
-    // Special functions for 'lembretes'
     async getLembretes(): Promise<string[]> {
-        // Assuming a table 'lembretes' with a column 'texto'
-        const { data, error } = await supabase.from('lembretes').select('texto');
-        handleSupabaseError(error, 'getLembretes');
-        return data ? data.map((item: { texto: string }) => item.texto) : [];
+        await delay(50);
+        return lembretes;
     },
     async updateLembretes(newLembretes: string[]): Promise<void> {
-        // Deletes all existing and inserts new ones.
-        const { error: deleteError } = await supabase.from('lembretes').delete().not('id', 'is', null);
-        handleSupabaseError(deleteError, 'updateLembretes (delete)');
-        
-        if (newLembretes.length > 0) {
-            const rowsToInsert = newLembretes.map(texto => ({ texto }));
-            const { error: insertError } = await supabase.from('lembretes').insert(rowsToInsert);
-            handleSupabaseError(insertError, 'updateLembretes (insert)');
-        }
+        await delay(50);
+        lembretes = newLembretes;
+        saveLembretes();
     },
 };

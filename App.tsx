@@ -22,39 +22,26 @@ const App: React.FC = () => {
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Check for existing session on initial load
     useEffect(() => {
-        setLoading(true);
-        // Ouve as mudanças de estado de autenticação (login, logout)
-        const subscription = authService.onAuthStateChange(setCurrentUser);
-
-        // Verifica a sessão inicial quando o app carrega
-        authService.getSession().then(session => {
-            if (session) {
-                authService.getUserFromSession(session).then(user => {
-                    setCurrentUser(user);
-                    setLoading(false);
-                });
-            } else {
-                setLoading(false);
-            }
-        });
-
-        // Limpa a inscrição ao desmontar o componente
-        return () => {
-            subscription?.unsubscribe();
+        const checkSession = async () => {
+            const user = await authService.getCurrentUser();
+            setCurrentUser(user);
+            setLoading(false);
         };
+        checkSession();
     }, []);
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
-        await authService.login(email, password);
-        // O onAuthStateChange cuidará de atualizar o estado do usuário
+        const user = await authService.login(email, password);
+        setCurrentUser(user);
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
-        // O onAuthStateChange cuidará de limpar o estado do usuário
-        setCurrentPage('Dashboard'); // Redireciona para o login
+        setCurrentUser(null);
+        setCurrentPage('Dashboard'); // Will render login page
     };
 
     const navigateTo = (page: Page, obraId?: string) => {

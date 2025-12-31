@@ -2,8 +2,6 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from '../_shared/cors.ts';
 
-// FIX: Declare Deno to provide type information to the TypeScript compiler
-// for the Deno runtime environment used by Supabase Edge Functions.
 declare const Deno: any;
 
 serve(async (req) => {
@@ -31,7 +29,7 @@ serve(async (req) => {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      user_metadata: { name, role, obra_ids: obraIds || [] },
+      user_metadata: { name, role, username, obra_ids: obraIds || [] },
       email_confirm: true, // Auto-confirm user for simplicity
     });
 
@@ -43,33 +41,14 @@ serve(async (req) => {
       });
     }
 
-    const userId = authData.user.id;
+    // The handle_new_user trigger in schema.sql will automatically create the profile
+    // in the public.users table, so no manual insertion is needed here.
 
-    // 2. Create the user profile in the public.users table
-    // The handle_new_user trigger should do this automatically, but doing it manually
-    // here ensures all data is present immediately.
-    const { error: profileError } = await supabaseAdmin.from('users').update({
-        name,
-        username,
-        role,
-        obra_ids: obraIds || null,
-        email
-    }).eq('id', userId);
-    
-    if (profileError) {
-        // If the profile creation fails, we should ideally delete the auth user to avoid orphans.
-        await supabaseAdmin.auth.admin.deleteUser(userId);
-        console.error('Supabase profile error:', profileError.message);
-        return new Response(JSON.stringify({ error: `Erro ao criar perfil: ${profileError.message}` }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
-        });
-    }
-
-    return new Response(JSON.stringify({ message: "Usuário criado com sucesso!" }), {
+    return new Response(JSON.stringify({ user: authData.user }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
+
   } catch (error) {
     console.error('Internal function error:', error.message);
     return new Response(JSON.stringify({ error: error.message }), {
