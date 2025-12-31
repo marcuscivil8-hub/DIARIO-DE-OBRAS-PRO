@@ -50,6 +50,9 @@ const RelatorioConsumo: React.FC<{
             if (estoque[itemId] > 0) {
                 const ferramenta = ferramentasMap.get(itemId);
                 if (ferramenta) {
+                    // FIX: Replaced Object.assign with the spread operator.
+                    // The original comment about spread operator issues appears to be outdated, as the `if (ferramenta)` guard prevents spreading null/undefined.
+                    // This change resolves the type inference error.
                     result.push({ ...ferramenta, quantidade: estoque[itemId] });
                 }
             }

@@ -159,7 +159,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
+                         {/* FIX: Cast the result of Object.entries to [string, number][] to fix type inference issues in .sort() and .map(). */}
+                         {(Object.entries(saidasPorCategoria) as [string, number][]).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {formatCurrency(valor)}</p>

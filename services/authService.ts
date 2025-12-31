@@ -1,51 +1,28 @@
 import { User } from '../types';
-import { supabase } from './supabaseClient';
+import { mockUsers } from '../data/mockData';
 
 const SESSION_KEY = 'currentUser';
 
 export const authService = {
     async login(email: string, password: string): Promise<User> {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        // Simula uma busca no banco de dados local
+        const user = mockUsers.find(u => u.email === email && u.password === password);
 
-        if (authError) {
-            throw new Error(authError.message);
+        // Simula uma pequena latência de rede
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (!user) {
+            throw new Error('Credenciais inválidas. Verifique o email e a senha.');
         }
 
-        if (!authData.user) {
-            throw new Error('Usuário não encontrado.');
-        }
-
-        // After successful auth, get user profile from 'users' table
-        const { data: profileData, error: profileError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
-
-        if (profileError || !profileData) {
-            await supabase.auth.signOut(); // Sign out if profile doesn't exist
-            throw new Error(profileError?.message || 'Perfil de usuário não encontrado.');
-        }
+        // Remove a senha antes de salvar na sessão por segurança
+        const { password: _, ...userToStore } = user;
         
-        // Combine auth info (like email) with profile info (role, name)
-        const user: User = {
-            id: profileData.id,
-            name: profileData.name,
-            email: authData.user.email!,
-            username: profileData.username,
-            role: profileData.role,
-            obraIds: profileData.obraIds,
-        };
-
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
-        return user;
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(userToStore));
+        return userToStore as User;
     },
 
     async logout(): Promise<void> {
-        await supabase.auth.signOut();
         sessionStorage.removeItem(SESSION_KEY);
     },
 
