@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, Page } from './types';
 import Layout from './components/layout/Layout';
 import LoginPage from './components/pages/LoginPage';
@@ -23,34 +23,42 @@ const App: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const initialAuthCheckDone = useRef(false);
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setLoading(true);
+            // A tela de carregamento principal só deve aparecer na primeira vez.
+            // Atualizações de sessão (ao focar na aba) ocorrerão em segundo plano.
+            if (!initialAuthCheckDone.current) {
+                setLoading(true);
+            }
+
             if (session?.user) {
-                // Auth user exists, now fetch our custom profile
+                // Usuário autenticado, busca o perfil customizado.
                 const userProfile = await dataService.users.getById(session.user.id);
                 setCurrentUser(userProfile);
             } else {
                 setCurrentUser(null);
             }
+            
+            initialAuthCheckDone.current = true;
             setLoading(false);
         });
 
-        // Cleanup subscription on unmount
+        // Limpa a inscrição ao desmontar o componente.
         return () => subscription.unsubscribe();
     }, []);
 
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
         await authService.login(email, password);
-        // The onAuthStateChange listener will handle setting the user
+        // O listener onAuthStateChange irá cuidar de definir o usuário.
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
-        // The onAuthStateChange listener will handle clearing the user
+        // O listener onAuthStateChange irá cuidar de limpar o usuário.
         setCurrentPage('Dashboard'); 
     };
 
