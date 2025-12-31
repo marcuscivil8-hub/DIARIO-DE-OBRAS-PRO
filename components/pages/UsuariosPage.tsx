@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
 import { dataService } from '../../services/dataService';
+import { authService } from '../../services/authService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -59,7 +60,7 @@ const UsuariosPage: React.FC = () => {
                 name: user.name,
                 email: user.email,
                 username: user.username,
-                password: user.password, // Keep password for mock data
+                password: '', // Password should not be displayed, only set
                 role: user.role,
                 obraIds: user.obraIds || [],
             });
@@ -91,17 +92,24 @@ const UsuariosPage: React.FC = () => {
         
         try {
             if (editingUser) {
-                // UPDATE USER
+                // UPDATE USER PROFILE
                 const profileUpdate: Partial<User> = {
                     name: currentUserForm.name,
                     username: currentUserForm.username,
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
-                    password: currentUserForm.password,
                 };
+                 // Only include password if it's being changed
+                if (currentUserForm.password) {
+                   // This part is complex with Supabase and would typically involve another Edge Function to update auth user.
+                   // For now, we are focusing on profile updates. A real app would need a secure "update password" flow.
+                   console.warn("A atualização de senha deve ser implementada com uma função segura no backend.");
+                }
+
                 await dataService.users.update(editingUser.id, profileUpdate);
+
             } else {
-                // CREATE USER (Mock Data)
+                // CREATE USER via Edge Function for security
                 const newUserData: Omit<User, 'id'> = {
                     name: currentUserForm.name,
                     email: currentUserForm.email,
@@ -110,7 +118,8 @@ const UsuariosPage: React.FC = () => {
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
                 };
-                await dataService.users.create(newUserData);
+                // Use the secure auth service to create the user
+                await authService.createUser(newUserData);
             }
             
             setIsModalOpen(false);
@@ -132,6 +141,7 @@ const UsuariosPage: React.FC = () => {
         if (!userToDeleteId) return;
         setPageError(null);
         try {
+            // Use the data service which now calls the Edge Function
             await dataService.users.delete(userToDeleteId);
             await fetchData();
         } catch (error: any) {
@@ -198,9 +208,9 @@ const UsuariosPage: React.FC = () => {
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? 'Editar Usuário' : 'Novo Usuário'}>
                 <form onSubmit={e => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
                     <input type="text" placeholder="Nome Completo" value={currentUserForm.name} onChange={e => setCurrentUserForm({ ...currentUserForm, name: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
-                    <input type="email" placeholder="Email" value={currentUserForm.email} onChange={e => setCurrentUserForm({ ...currentUserForm, email: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
+                    <input type="email" placeholder="Email" disabled={!!editingUser} value={currentUserForm.email} onChange={e => setCurrentUserForm({ ...currentUserForm, email: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded disabled:bg-gray-200" required />
                     <input type="text" placeholder="Nome de usuário" value={currentUserForm.username} onChange={e => setCurrentUserForm({ ...currentUserForm, username: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" required />
-                    <input type="password" placeholder={"Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({ ...currentUserForm, password: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" />
+                    <input type="password" placeholder={editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} value={currentUserForm.password} onChange={e => setCurrentUserForm({ ...currentUserForm, password: (e.target as HTMLInputElement).value })} className="w-full p-2 border rounded" />
                     <select value={currentUserForm.role} onChange={e => setCurrentUserForm({ ...currentUserForm, role: (e.target as HTMLSelectElement).value as UserRole })} className="w-full p-2 border rounded">
                         {Object.values(UserRole).map(role => <option key={role} value={role}>{role}</option>)}
                     </select>

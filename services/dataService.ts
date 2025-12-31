@@ -32,8 +32,25 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
     };
 };
 
+// Custom user service to handle secure deletion via Edge Function
+const userService = {
+    ...createCrudService<User>('users'),
+    async delete(userId: string): Promise<void> {
+        const { error } = await supabase.functions.invoke('delete-user', {
+            body: { userId },
+        });
+
+        if (error) {
+            const errorBody = await (error as any).context?.json();
+            console.error(`Supabase Function error in delete user:`, errorBody?.error || error.message);
+            throw new Error(errorBody?.error || error.message);
+        }
+    }
+};
+
+
 export const dataService = {
-    users: createCrudService<User>('users'),
+    users: userService,
     obras: createCrudService<Obra>('obras'),
     funcionarios: createCrudService<Funcionario>('funcionarios'),
     pontos: createCrudService<Ponto>('pontos'),

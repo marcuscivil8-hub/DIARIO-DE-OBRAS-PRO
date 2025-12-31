@@ -36,6 +36,21 @@ export const authService = {
             console.error('Erro ao fazer logout:', error);
         }
     },
+    
+    // Invokes a Supabase Edge Function to securely create a new user
+    async createUser(userData: Omit<User, 'id'>): Promise<any> {
+        const { data, error } = await supabase.functions.invoke('create-user', {
+            body: userData,
+        });
+
+        if (error) {
+            // The function might return a specific error message in the response body
+            const errorBody = await (error as any).context?.json();
+            throw new Error(errorBody?.error || error.message);
+        }
+        
+        return data;
+    },
 
     async getSession(): Promise<Session | null> {
         const { data, error } = await supabase.auth.getSession();

@@ -50,9 +50,8 @@ const RelatorioConsumo: React.FC<{
             if (estoque[itemId] > 0) {
                 const ferramenta = ferramentasMap.get(itemId);
                 if (ferramenta) {
-                    // FIX: Use the spread operator to correctly combine the ferramenta object with the new 'quantidade' property.
-                    // This is more readable and type-safe than Object.assign in this context.
-                    result.push({ ...ferramenta, quantidade: estoque[itemId] });
+                    // FIX: Replaced object spread with Object.assign to avoid a potential TypeScript issue with spread on inferred types.
+                    result.push(Object.assign({}, ferramenta, { quantidade: estoque[itemId] }));
                 }
             }
         }
