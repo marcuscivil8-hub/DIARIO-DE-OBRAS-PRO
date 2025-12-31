@@ -1,5 +1,5 @@
-// FIX: Updated the Supabase functions type reference to a valid URL to resolve the type definition error.
-/// <reference types="https://esm.sh/@supabase/functions-js/v2" />
+// FIX: Corrected the Supabase functions type reference to point to the actual .d.ts file.
+/// <reference types="https://esm.sh/@supabase/functions-js@2/src/edge-runtime.d.ts" />
 // FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
 declare const Deno: any;
 
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro inesperado na função.';
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200, // Retorna 200 mesmo em caso de erro para enviar o corpo do erro.
+      status: 400, // FIX: Retorna 400 em caso de erro para o cliente tratar a falha.
     });
   }
 })
