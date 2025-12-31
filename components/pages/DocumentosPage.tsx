@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Obra, Documento, User, UserRole } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -9,16 +9,6 @@ import { ICONS } from '../../constants';
 interface DocumentosPageProps {
     user: User;
 }
-
-// Helper to convert a file blob to a base64 data URL
-const blobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-};
 
 const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -43,8 +33,8 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
         setLoading(true);
         try {
             const [docsData, obrasData] = await Promise.all([
-                apiService.documentos.getAll(),
-                apiService.obras.getAll()
+                dataService.documentos.getAll(),
+                dataService.obras.getAll()
             ]);
             
             const userObras = user.role === UserRole.Cliente 
@@ -90,7 +80,8 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
         }
 
         try {
-            const fileUrl = await blobToBase64(file);
+            const fileUrl = await dataService.uploadFile('documentos', file);
+            
             const newDoc: Omit<Documento, 'id'> = {
                 ...formData,
                 nome: file.name,
@@ -99,7 +90,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
                 dataUpload: new Date().toISOString().split('T')[0]
             };
 
-            await apiService.documentos.create(newDoc);
+            await dataService.documentos.create(newDoc);
             setIsModalOpen(false);
             await fetchData();
         } catch(error: any) {
@@ -115,14 +106,13 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
 
     const confirmDelete = async () => {
         if (!docToDelete) return;
-        await apiService.documentos.delete(docToDelete.id);
+        await dataService.documentos.delete(docToDelete.id);
         setIsConfirmModalOpen(false);
         setDocToDelete(null);
         await fetchData();
     };
     
     const handleDownload = (doc: Documento) => {
-        // For data URLs, this will open it in a new tab, where it can be saved.
         window.open(doc.url, '_blank');
     };
 

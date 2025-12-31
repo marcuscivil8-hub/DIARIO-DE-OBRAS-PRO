@@ -1,67 +1,82 @@
-import { User } from '../types';
-import { mockUsers } from '../data/mockData';
-import { apiService } from './apiService';
-
-const CURRENT_USER_KEY = 'diario-obra-user';
+import { User, UserRole } from '../types';
+import { supabase } from './supabaseClient';
+import { dataService } from './dataService';
 
 export const authService = {
-    async login(email: string, password: string): Promise<User> {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const user = mockUsers.find(u => u.email === email && u.password === password);
-                if (user) {
-                    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-                    resolve(user);
-                } else {
-                    reject(new Error('Email ou senha inválidos.'));
-                }
-            }, 500);
-        });
-    },
-
-    async logout(): Promise<void> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                localStorage.removeItem(CURRENT_USER_KEY);
-                resolve();
-            }, 200);
-        });
-    },
-
-    async createUser(userData: Omit<User, 'id'>): Promise<User> {
-         const existing = mockUsers.find(u => u.email === userData.email);
-         if (existing) {
-             throw new Error("Este email já está em uso.");
-         }
-        // In a real app, password would be hashed. Here we store it as-is.
-        const newUser = await apiService.users.create(userData);
-        return newUser;
-    },
-
-    async deleteUser(userId: string): Promise<void> {
-        await apiService.users.delete(userId);
-        // Also log out if the deleted user is the current one
-        const currentUser = await this.getCurrentUser();
-        if (currentUser && currentUser.id === userId) {
-            await this.logout();
+    async login(email: string, password: string): Promise<void> {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            console.error('Login error:', error.message);
+            if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                 throw new Error('Falha de rede. Verifique sua conexão ou a configuração CORS do seu projeto Supabase.');
+            }
+            if (error.message.includes('Invalid login credentials')) {
+                 throw new Error('Email ou senha inválidos.');
+            }
+            throw new Error(`Erro no login: ${error.message}`);
         }
     },
 
-    async getCurrentUser(): Promise<User | null> {
-         return new Promise((resolve) => {
-            setTimeout(() => {
-                try {
-                    const userJson = localStorage.getItem(CURRENT_USER_KEY);
-                    if (userJson) {
-                        resolve(JSON.parse(userJson));
-                    } else {
-                        resolve(null);
-                    }
-                } catch (error) {
-                    console.error("Could not parse user from localStorage", error);
-                    resolve(null);
+    async logout(): Promise<void> {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error('Logout error:', error.message);
+            throw new Error('Não foi possível fazer logout.');
+        }
+    },
+
+    async createUser(userData: Omit<User, 'id'>): Promise<void> {
+        if (!userData.password) {
+            throw new Error("A senha é obrigatória para criar um novo usuário.");
+        }
+
+        // O gatilho 'on_auth_user_created' no Supabase irá lidar com a criação do perfil do usuário na tabela 'public.users'.
+        // Passamos todos os dados do perfil do usuário no campo 'options.data', que o gatilho irá ler.
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: userData.email,
+            password: userData.password,
+            options: {
+                data: {
+                    name: userData.name,
+                    username: userData.username,
+                    role: userData.role,
+                    // Garante que obraIds seja um array, mesmo que esteja indefinido.
+                    obraIds: userData.role === UserRole.Cliente ? (userData.obraIds || []) : [],
                 }
-            }, 100);
+            }
         });
+
+        if (authError) {
+            console.error('Sign up error:', authError.message);
+            if (authError instanceof TypeError && authError.message === 'Failed to fetch') {
+                 throw new Error('Falha de rede. Verifique sua conexão ou a configuração CORS do seu projeto Supabase.');
+            }
+            if (authError.message.includes('Database error creating new user')) {
+                 throw new Error('Erro no banco de dados ao criar o perfil do usuário. Verifique se o trigger "handle_new_user" está configurado corretamente com o script SQL mais recente.');
+            }
+            if (authError.message.includes('unique constraint')) {
+                 throw new Error('Este email já está em uso.');
+            }
+            throw new Error(`Erro ao criar usuário: ${authError.message}`);
+        }
+        
+        if (!authData.user) {
+            throw new Error('Não foi possível criar o usuário na autenticação.');
+        }
+
+        // A segunda etapa de criação do perfil foi removida, pois agora é gerenciada atomicamente pelo gatilho do Supabase.
+    },
+    
+    async getCurrentUser(): Promise<User | null> {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+            console.error("Error getting session:", error.message);
+            return null;
+        }
+        if (session?.user) {
+             // Fetch the user profile from the 'users' table
+            return await dataService.users.getById(session.user.id);
+        }
+        return null;
     },
 };

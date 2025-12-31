@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Funcionario, Ponto, User, UserRole, PagamentoTipo, Obra } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
@@ -47,9 +47,9 @@ const FolhaPontoPage: React.FC<FolhaPontoPageProps> = ({ user }) => {
         setLoading(true);
         try {
             const [funcData, pontosData, obrasData] = await Promise.all([
-                apiService.funcionarios.getAll(),
-                apiService.pontos.getAll(),
-                apiService.obras.getAll()
+                dataService.funcionarios.getAll(),
+                dataService.pontos.getAll(),
+                dataService.obras.getAll()
             ]);
             setFuncionarios(funcData);
             setPontos(pontosData);
@@ -94,19 +94,19 @@ const FolhaPontoPage: React.FC<FolhaPontoPageProps> = ({ user }) => {
             if (!existingPonto) {
                 // Estado: Não existe -> Criar como 'presente'
                 const newPontoData: Omit<Ponto, 'id'> = { funcionarioId, obraId: selectedObraId, data, status: 'presente' };
-                const createdPonto = await apiService.pontos.create(newPontoData);
+                const createdPonto = await dataService.pontos.create(newPontoData);
                 setPontos(prevPontos => [...prevPontos, createdPonto]);
             } else if (existingPonto.status === 'presente') {
                 // Estado: 'presente' -> Atualizar para 'falta'
-                const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'falta' });
+                const updatedPonto = await dataService.pontos.update(existingPonto.id, { status: 'falta' });
                 setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
             } else if (existingPonto.status === 'falta') {
                 // Estado: 'falta' -> Atualizar para 'meio-dia'
-                const updatedPonto = await apiService.pontos.update(existingPonto.id, { status: 'meio-dia' });
+                const updatedPonto = await dataService.pontos.update(existingPonto.id, { status: 'meio-dia' });
                 setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
             } else if (existingPonto.status === 'meio-dia') {
                 // Estado: 'meio-dia' -> Deletar o registro
-                await apiService.pontos.delete(existingPonto.id);
+                await dataService.pontos.delete(existingPonto.id);
                 setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
             }
         } catch (error) {

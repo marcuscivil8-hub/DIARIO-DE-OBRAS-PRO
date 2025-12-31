@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import { authService } from '../../services/authService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -13,8 +13,7 @@ const UsuariosPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null);
+    
     const [formError, setFormError] = useState<string | null>(null); // State for modal errors
     const [pageError, setPageError] = useState<string | null>(null);
     
@@ -33,8 +32,8 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
-                apiService.users.getAll(),
-                apiService.obras.getAll()
+                dataService.users.getAll(),
+                dataService.obras.getAll()
             ]);
             setUsers(usersData);
             setObras(obrasData);
@@ -98,9 +97,13 @@ const UsuariosPage: React.FC = () => {
                     username: currentUserForm.username,
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
-                    password: currentUserForm.password || undefined, // Send password only if changed
                 };
-                await apiService.users.update(editingUser.id, profileUpdate);
+                
+                // NOTE: Supabase password updates require special handling and can't be done directly
+                // from a client with just anon key if RLS is on. This is a simplification.
+                // A server-side function would be needed for a secure implementation.
+                
+                await dataService.users.update(editingUser.id, profileUpdate);
 
             } else {
                 // CREATE USER
@@ -122,26 +125,6 @@ const UsuariosPage: React.FC = () => {
             const errorMessage = error.message || "Ocorreu um erro desconhecido.";
             console.error("Failed to save user:", errorMessage);
             setFormError(errorMessage);
-        }
-    };
-    
-    const triggerDeleteUser = (userId: string) => {
-        setUserToDeleteId(userId);
-        setIsConfirmModalOpen(true);
-    };
-
-    const confirmDeleteUser = async () => {
-        if (!userToDeleteId) return;
-        setPageError(null);
-        try {
-            await authService.deleteUser(userToDeleteId);
-            await fetchData();
-        } catch (error: any) {
-            setPageError(error.message || "Falha ao excluir usuário.");
-            console.error("Failed to delete user", error);
-        } finally {
-            setIsConfirmModalOpen(false);
-            setUserToDeleteId(null);
         }
     };
 
@@ -187,7 +170,7 @@ const UsuariosPage: React.FC = () => {
                                     <td className="p-4">
                                         <div className="flex space-x-2">
                                             <button onClick={() => handleOpenModal(user)} className="text-blue-600 hover:text-blue-800 p-1">{ICONS.edit}</button>
-                                            <button onClick={() => triggerDeleteUser(user.id)} className="text-red-600 hover:text-red-800 p-1">{ICONS.delete}</button>
+                                             <p className="text-sm text-gray-400">(Excluir no painel Supabase)</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -229,15 +212,6 @@ const UsuariosPage: React.FC = () => {
                     <Button type="submit" className="w-full">Salvar Usuário</Button>
                 </form>
             </Modal>
-
-            <ConfirmationModal
-                isOpen={isConfirmModalOpen}
-                onClose={() => setIsConfirmModalOpen(false)}
-                onConfirm={confirmDeleteUser}
-                title="Confirmar Exclusão"
-                message={<>Tem certeza que deseja excluir este usuário? Esta ação removerá o acesso e todos os dados associados permanentemente.</>}
-                confirmText="Excluir Usuário"
-            />
         </div>
     );
 };

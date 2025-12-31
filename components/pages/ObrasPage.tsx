@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Obra, User, UserRole, Page } from '../../types';
-import { apiService } from '../../services/apiService';
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -37,7 +37,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         setLoading(true);
         setPageError(null);
         try {
-            const data = await apiService.obras.getAll();
+            const data = await dataService.obras.getAll();
             setObras(data);
         } catch (error) {
             console.error("Failed to fetch obras", error);
@@ -66,9 +66,9 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     const handleSaveObra = async () => {
         try {
             if (editingObra) {
-                await apiService.obras.update(editingObra.id, currentObra);
+                await dataService.obras.update(editingObra.id, currentObra);
             } else {
-                await apiService.obras.create(currentObra);
+                await dataService.obras.create(currentObra);
             }
             setIsModalOpen(false);
             setEditingObra(null);
@@ -88,7 +88,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         if (!obraToDeleteId) return;
         setPageError(null);
         try {
-            await apiService.obras.delete(obraToDeleteId);
+            await dataService.obras.delete(obraToDeleteId);
         } catch (error) {
             console.error("Failed to delete obra", error);
             setPageError("Falha ao excluir a obra. Tente novamente.");
