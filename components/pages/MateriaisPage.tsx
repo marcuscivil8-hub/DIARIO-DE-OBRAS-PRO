@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Material, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
@@ -37,9 +37,9 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         setLoading(true);
         try {
             const [matData, obrasData, movData] = await Promise.all([
-                dataService.materiais.getAll(),
-                dataService.obras.getAll(),
-                dataService.movimentacoesAlmoxarifado.getAll(),
+                apiService.materiais.getAll(),
+                apiService.obras.getAll(),
+                apiService.movimentacoesAlmoxarifado.getAll(),
             ]);
             
             const activeObras = obrasData.filter(o => o.status === 'Ativa');
@@ -102,7 +102,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
                 descricao: `Registro de ${modalAction} na obra`
             };
 
-            await dataService.movimentacoesAlmoxarifado.create(newMov);
+            await apiService.movimentacoesAlmoxarifado.create(newMov);
             setIsActionModalOpen(false);
             await fetchData();
         } catch (error: any) {
@@ -128,7 +128,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         if (!editingMaterial) return;
         setModalError(null);
         try {
-            await dataService.materiais.update(editingMaterial.id, materialFormData);
+            await apiService.materiais.update(editingMaterial.id, materialFormData);
             setIsEditModalOpen(false);
             await fetchData();
         } catch (error: any) {

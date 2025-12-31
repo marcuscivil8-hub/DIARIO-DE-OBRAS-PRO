@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Funcionario, Obra, User, PagamentoTipo, UserRole } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -27,8 +27,8 @@ const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ u
         setLoading(true);
         try {
             const [funcData, obrasData] = await Promise.all([
-                dataService.funcionarios.getAll(),
-                dataService.obras.getAll()
+                apiService.funcionarios.getAll(),
+                apiService.obras.getAll()
             ]);
             setFuncionarios(funcData);
             setObras(obrasData.filter(o => o.status === 'Ativa'));
@@ -56,9 +56,9 @@ const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ u
 
     const handleSaveFuncionario = async () => {
         if (editingFuncionario) {
-            await dataService.funcionarios.update(editingFuncionario.id, currentFuncionario);
+            await apiService.funcionarios.update(editingFuncionario.id, currentFuncionario);
         } else {
-            await dataService.funcionarios.create(currentFuncionario);
+            await apiService.funcionarios.create(currentFuncionario);
         }
         setIsModalOpen(false);
         await fetchData();
@@ -71,7 +71,7 @@ const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ u
 
     const confirmDeactivateFuncionario = async () => {
         if (!funcionarioToDeactivate) return;
-        await dataService.funcionarios.update(funcionarioToDeactivate.id, { ativo: !funcionarioToDeactivate.ativo });
+        await apiService.funcionarios.update(funcionarioToDeactivate.id, { ativo: !funcionarioToDeactivate.ativo });
         setIsConfirmModalOpen(false);
         setFuncionarioToDeactivate(null);
         await fetchData();

@@ -15,16 +15,18 @@ import UsuariosPage from './components/pages/UsuariosPage';
 import AlmoxarifadoPage from './components/pages/AlmoxarifadoPage';
 import DocumentosPage from './components/pages/DocumentosPage';
 import { authService } from './services/authService';
+import useLocalStorage from './hooks/useLocalStorage';
 
 const App: React.FC = () => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [currentUser, setCurrentUser] = useLocalStorage<User | null>('currentUser', null);
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Check for existing session on initial load
     useEffect(() => {
+        // Simula o carregamento inicial para verificar a sessão do usuário
         const checkSession = async () => {
+            setLoading(true);
             const user = await authService.getCurrentUser();
             setCurrentUser(user);
             setLoading(false);
@@ -41,7 +43,7 @@ const App: React.FC = () => {
     const handleLogout = async () => {
         await authService.logout();
         setCurrentUser(null);
-        setCurrentPage('Dashboard'); // Will render login page
+        setCurrentPage('Dashboard'); 
     };
 
     const navigateTo = (page: Page, obraId?: string) => {

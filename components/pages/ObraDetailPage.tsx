@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Obra, DiarioObra, Clima, User, UserRole, Page, Servico, StatusServico, TransacaoFinanceira, TransacaoTipo, CategoriaSaida, Documento } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -60,7 +60,7 @@ const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
     useEffect(() => {
         const fetchDocumentos = async () => {
             setLoading(true);
-            const allDocs = await dataService.documentos.getAll();
+            const allDocs = await apiService.documentos.getAll();
             setDocumentos(allDocs.filter(d => d.obraId === obraId));
             setLoading(false);
         };
@@ -110,7 +110,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
 
     const fetchTransacoes = useCallback(async () => {
         setLoading(true);
-        const all = await dataService.transacoes.getAll();
+        const all = await apiService.transacoes.getAll();
         let obraTransacoes = all.filter(t => t.obraId === obraId);
 
         if (user.role === UserRole.Encarregado) {
@@ -146,9 +146,9 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
     const handleSave = async () => {
         const dataToSave = { ...currentTransacao, obraId };
         if (editingTransacao) {
-            await dataService.transacoes.update(editingTransacao.id, dataToSave);
+            await apiService.transacoes.update(editingTransacao.id, dataToSave);
         } else {
-            await dataService.transacoes.create(dataToSave);
+            await apiService.transacoes.create(dataToSave);
         }
         setIsModalOpen(false);
         await fetchTransacoes();
@@ -161,7 +161,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
 
     const confirmDelete = async () => {
         if (transacaoToDeleteId) {
-            await dataService.transacoes.delete(transacaoToDeleteId);
+            await apiService.transacoes.delete(transacaoToDeleteId);
             await fetchTransacoes();
         }
         setIsConfirmDeleteOpen(false);
@@ -269,7 +269,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
 
     const fetchServicos = useCallback(async () => {
         setLoading(true);
-        const allServicos = await dataService.servicos.getAll();
+        const allServicos = await apiService.servicos.getAll();
         const obraServicos = allServicos
             .filter(s => s.obraId === obraId)
             .sort((a,b) => new Date(a.dataInicioPrevista).getTime() - new Date(b.dataInicioPrevista).getTime());
@@ -309,9 +309,9 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
 
     const handleSaveServico = async () => {
         if (editingServico) {
-            await dataService.servicos.update(editingServico.id, currentServico);
+            await apiService.servicos.update(editingServico.id, currentServico);
         } else {
-            await dataService.servicos.create({ ...currentServico, obraId });
+            await apiService.servicos.create({ ...currentServico, obraId });
         }
         setIsModalOpen(false);
         await fetchServicos();
@@ -328,7 +328,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
         if (newStatus === 'Concluído') {
             updatedServico.dataFimReal = new Date().toISOString().split('T')[0];
         }
-        await dataService.servicos.update(servicoId, updatedServico);
+        await apiService.servicos.update(servicoId, updatedServico);
         await fetchServicos();
     };
 
@@ -339,7 +339,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
 
     const confirmDeleteServico = async () => {
         if (servicoToDeleteId) {
-            await dataService.servicos.delete(servicoToDeleteId);
+            await apiService.servicos.delete(servicoToDeleteId);
             await fetchServicos();
         }
         setIsConfirmDeleteOpen(false);
@@ -453,8 +453,8 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setLoading(true);
         try {
             const [allObras, allDiarios] = await Promise.all([
-                 dataService.obras.getAll(),
-                 dataService.diarios.getAll()
+                 apiService.obras.getAll(),
+                 apiService.diarios.getAll()
             ]);
             setObra(allObras.find(o => o.id === obraId) || null);
             setDiarios(allDiarios.filter(d => d.obraId === obraId).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()));
@@ -495,10 +495,10 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
             const updatedFotos = diarioToUpdate.fotos.filter(foto => foto.url !== url);
             // AUTO-DELETE LOGIC: if no photos left and no text, delete the whole entry
             if (updatedFotos.length === 0 && diarioToUpdate.observacoes.trim() === '') {
-                await dataService.diarios.delete(diarioId);
+                await apiService.diarios.delete(diarioId);
             } else {
                 // Otherwise, just update the photos array
-                await dataService.diarios.update(diarioId, { fotos: updatedFotos });
+                await apiService.diarios.update(diarioId, { fotos: updatedFotos });
             }
             await fetchPageData(); // Refresh data from server
         }
@@ -522,7 +522,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
             fotos: photoData,
         };
 
-        await dataService.diarios.create(diarioToAdd);
+        await apiService.diarios.create(diarioToAdd);
         setIsModalOpen(false);
         setNewDiario({ data: '', clima: Clima.Ensolarado, observacoes: '' });
         setPhotos([]);
@@ -546,10 +546,10 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         try {
             // AUTO-DELETE LOGIC: if text is cleared and no photos exist, delete the entry
             if (updatedData.observacoes.trim() === '' && editingDiario.fotos.length === 0) {
-                await dataService.diarios.delete(editingDiario.id);
+                await apiService.diarios.delete(editingDiario.id);
             } else {
                 // Otherwise, just update the entry
-                await dataService.diarios.update(editingDiario.id, updatedData);
+                await apiService.diarios.update(editingDiario.id, updatedData);
             }
         } catch (error) {
             console.error("Failed to update or delete diary entry", error);

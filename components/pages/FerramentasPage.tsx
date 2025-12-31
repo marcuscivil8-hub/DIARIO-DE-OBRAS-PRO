@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ferramenta, StatusFerramenta, User, UserRole, MovimentacaoTipo, Obra, MovimentacaoAlmoxarifado } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -50,9 +50,9 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         setLoading(true);
         try {
             const [ferramentasData, obrasData, movData] = await Promise.all([
-                dataService.ferramentas.getAll(),
-                dataService.obras.getAll(),
-                dataService.movimentacoesAlmoxarifado.getAll(),
+                apiService.ferramentas.getAll(),
+                apiService.obras.getAll(),
+                apiService.movimentacoesAlmoxarifado.getAll(),
             ]);
             
             const activeObras = obrasData.filter(o => o.status === 'Ativa');
@@ -116,7 +116,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         try {
             if (editingFerramenta) {
                 const { quantidadeInicial, ...updateData } = currentFerramenta;
-                await dataService.ferramentas.update(editingFerramenta.id, updateData);
+                await apiService.ferramentas.update(editingFerramenta.id, updateData);
 
                 if (stockAdjustment !== 0) {
                     const movData: Omit<MovimentacaoAlmoxarifado, 'id'> = {
@@ -127,14 +127,14 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                         data: new Date().toISOString().split('T')[0],
                         descricao: 'Ajuste manual de estoque'
                     };
-                    await dataService.movimentacoesAlmoxarifado.create(movData);
+                    await apiService.movimentacoesAlmoxarifado.create(movData);
                 }
             } else {
                 const { quantidadeInicial, ...createData } = currentFerramenta;
-                const newTool = await dataService.ferramentas.create(createData);
+                const newTool = await apiService.ferramentas.create(createData);
 
                 if(quantidadeInicial > 0) {
-                     await dataService.movimentacoesAlmoxarifado.create({
+                     await apiService.movimentacoesAlmoxarifado.create({
                         itemId: newTool.id,
                         itemType: 'ferramenta',
                         tipoMovimentacao: MovimentacaoTipo.Entrada,
@@ -160,7 +160,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const confirmDeleteFerramenta = async () => {
         if (!ferramentaToDeleteId) return;
         try {
-            await dataService.ferramentas.delete(ferramentaToDeleteId);
+            await apiService.ferramentas.delete(ferramentaToDeleteId);
             await fetchData();
         } catch(error: any) {
             console.error("Failed to delete tool:", error);
@@ -199,7 +199,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                 descricao: `Devolução da obra`
             };
 
-            await dataService.movimentacoesAlmoxarifado.create(newMov);
+            await apiService.movimentacoesAlmoxarifado.create(newMov);
             setIsActionModalOpen(false);
             await fetchData();
         } catch (error: any) {

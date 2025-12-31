@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole, Obra } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import { authService } from '../../services/authService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -33,8 +33,8 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         try {
             const [usersData, obrasData] = await Promise.all([
-                dataService.users.getAll(),
-                dataService.obras.getAll()
+                apiService.users.getAll(),
+                apiService.obras.getAll()
             ]);
             setUsers(usersData);
             setObras(obrasData);
@@ -98,18 +98,12 @@ const UsuariosPage: React.FC = () => {
                     username: currentUserForm.username,
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
+                    password: currentUserForm.password || undefined, // Send password only if changed
                 };
-                 // Only include password if it's being changed
-                if (currentUserForm.password) {
-                   // This part is complex with Supabase and would typically involve another Edge Function to update auth user.
-                   // For now, we are focusing on profile updates. A real app would need a secure "update password" flow.
-                   console.warn("A atualização de senha deve ser implementada com uma função segura no backend.");
-                }
-
-                await dataService.users.update(editingUser.id, profileUpdate);
+                await apiService.users.update(editingUser.id, profileUpdate);
 
             } else {
-                // CREATE USER via Edge Function for security
+                // CREATE USER
                 const newUserData: Omit<User, 'id'> = {
                     name: currentUserForm.name,
                     email: currentUserForm.email,
@@ -118,7 +112,6 @@ const UsuariosPage: React.FC = () => {
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
                 };
-                // Use the secure auth service to create the user
                 await authService.createUser(newUserData);
             }
             
@@ -141,8 +134,7 @@ const UsuariosPage: React.FC = () => {
         if (!userToDeleteId) return;
         setPageError(null);
         try {
-            // Use the data service which now calls the Edge Function
-            await dataService.users.delete(userToDeleteId);
+            await authService.deleteUser(userToDeleteId);
             await fetchData();
         } catch (error: any) {
             setPageError(error.message || "Falha ao excluir usuário.");

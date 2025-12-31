@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo, Page } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -41,11 +41,11 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         setLoading(true);
         try {
             const [matData, ferData, movData, obrData, funcData] = await Promise.all([
-                dataService.materiais.getAll(),
-                dataService.ferramentas.getAll(),
-                dataService.movimentacoesAlmoxarifado.getAll(),
-                dataService.obras.getAll(),
-                dataService.funcionarios.getAll()
+                apiService.materiais.getAll(),
+                apiService.ferramentas.getAll(),
+                apiService.movimentacoesAlmoxarifado.getAll(),
+                apiService.obras.getAll(),
+                apiService.funcionarios.getAll()
             ]);
             setMateriais(matData);
             setFerramentas(ferData);
@@ -120,7 +120,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                     descricao: movementFormData.descricao
                 })
             };
-            await dataService.movimentacoesAlmoxarifado.create(newMov);
+            await apiService.movimentacoesAlmoxarifado.create(newMov);
             
             setIsMovementModalOpen(false);
             await fetchData();
@@ -146,9 +146,9 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         setModalError(null);
         try {
             if (editingMaterial) {
-                await dataService.materiais.update(editingMaterial.id, materialFormData);
+                await apiService.materiais.update(editingMaterial.id, materialFormData);
             } else {
-                await dataService.materiais.create(materialFormData);
+                await apiService.materiais.create(materialFormData);
             }
             setIsMaterialModalOpen(false);
             await fetchData();
@@ -167,9 +167,9 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
         if (!itemToDelete) return;
         try {
             if (itemToDelete.type === 'material') {
-                await dataService.materiais.delete(itemToDelete.id);
+                await apiService.materiais.delete(itemToDelete.id);
             } else {
-                await dataService.ferramentas.delete(itemToDelete.id);
+                await apiService.ferramentas.delete(itemToDelete.id);
             }
             await fetchData();
         } catch (error: any) {

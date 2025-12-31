@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Obra, Documento, User, UserRole } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -43,8 +43,8 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
         setLoading(true);
         try {
             const [docsData, obrasData] = await Promise.all([
-                dataService.documentos.getAll(),
-                dataService.obras.getAll()
+                apiService.documentos.getAll(),
+                apiService.obras.getAll()
             ]);
             
             const userObras = user.role === UserRole.Cliente 
@@ -99,7 +99,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
                 dataUpload: new Date().toISOString().split('T')[0]
             };
 
-            await dataService.documentos.create(newDoc);
+            await apiService.documentos.create(newDoc);
             setIsModalOpen(false);
             await fetchData();
         } catch(error: any) {
@@ -115,7 +115,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
 
     const confirmDelete = async () => {
         if (!docToDelete) return;
-        await dataService.documentos.delete(docToDelete.id);
+        await apiService.documentos.delete(docToDelete.id);
         setIsConfirmModalOpen(false);
         setDocToDelete(null);
         await fetchData();

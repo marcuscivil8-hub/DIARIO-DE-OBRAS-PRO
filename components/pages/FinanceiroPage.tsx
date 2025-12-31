@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
@@ -24,12 +24,12 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             setLoading(true);
             try {
                 const [transacoesData, obrasData, pontosData, funcionariosData, movsData, materiaisData] = await Promise.all([
-                    dataService.transacoes.getAll(),
-                    dataService.obras.getAll(),
-                    dataService.pontos.getAll(),
-                    dataService.funcionarios.getAll(),
-                    dataService.movimentacoesAlmoxarifado.getAll(),
-                    dataService.materiais.getAll(),
+                    apiService.transacoes.getAll(),
+                    apiService.obras.getAll(),
+                    apiService.pontos.getAll(),
+                    apiService.funcionarios.getAll(),
+                    apiService.movimentacoesAlmoxarifado.getAll(),
+                    apiService.materiais.getAll(),
                 ]);
                 setTransacoes(transacoesData);
                 setObras(obrasData);
@@ -144,14 +144,11 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
-                                    /* FIX: The 'percent' value could be undefined if data is malformed, causing an arithmetic error.
-                                       Coalescing to 0 ensures the multiplication is always valid. */
-                                    label={({ name, percent }: { name: string, percent: number }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
+                                    label={({ name, percent }: { name: string, percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                {/* FIX: Changed Tooltip formatter to safely handle 'unknown' value type and use toLocaleString for consistent formatting. */}
                                 <Tooltip formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                                 <Legend />
                             </PieChart>
@@ -160,7 +157,8 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
+                         {/* FIX: Use index access in sort to help TypeScript's type inference. */}
+                         {Object.entries(saidasPorCategoria).sort((a, b) => b[1] - a[1]).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>

@@ -1,47 +1,67 @@
 import { User } from '../types';
-import { dataService } from './dataService';
+import { mockUsers } from '../data/mockData';
+import { apiService } from './apiService';
 
-const SESSION_KEY = 'diario_obra_user_session';
+const CURRENT_USER_KEY = 'diario-obra-user';
 
 export const authService = {
     async login(email: string, password: string): Promise<User> {
-        await new Promise(res => setTimeout(res, 500)); // Simulate network delay
-        
-        const users = dataService.users.getAllSync();
-        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-        
-        // Plain text password check for mock environment
-        if (user && user.password === password) {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-            return user;
-        } else {
-            throw new Error('Invalid login credentials');
-        }
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                const user = mockUsers.find(u => u.email === email && u.password === password);
+                if (user) {
+                    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+                    resolve(user);
+                } else {
+                    reject(new Error('Email ou senha inválidos.'));
+                }
+            }, 500);
+        });
     },
 
     async logout(): Promise<void> {
-        localStorage.removeItem(SESSION_KEY);
-        await new Promise(res => setTimeout(res, 200));
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                localStorage.removeItem(CURRENT_USER_KEY);
+                resolve();
+            }, 200);
+        });
     },
-    
+
     async createUser(userData: Omit<User, 'id'>): Promise<User> {
-        await new Promise(res => setTimeout(res, 500));
-        const users = dataService.users.getAllSync();
-        if (users.some(u => u.email.toLowerCase() === userData.email.toLowerCase())) {
-            throw new Error('Já existe um usuário com este email.');
-        }
-        // Use the synchronous create from the manager to add the user
-        const newUser = dataService.users.createSync(userData);
+         const existing = mockUsers.find(u => u.email === userData.email);
+         if (existing) {
+             throw new Error("Este email já está em uso.");
+         }
+        // In a real app, password would be hashed. Here we store it as-is.
+        const newUser = await apiService.users.create(userData);
         return newUser;
     },
 
-    async getCurrentUser(): Promise<User | null> {
-        try {
-            const userJson = localStorage.getItem(SESSION_KEY);
-            return userJson ? JSON.parse(userJson) : null;
-        } catch (error) {
-            console.error("Failed to parse user session", error);
-            return null;
+    async deleteUser(userId: string): Promise<void> {
+        await apiService.users.delete(userId);
+        // Also log out if the deleted user is the current one
+        const currentUser = await this.getCurrentUser();
+        if (currentUser && currentUser.id === userId) {
+            await this.logout();
         }
+    },
+
+    async getCurrentUser(): Promise<User | null> {
+         return new Promise((resolve) => {
+            setTimeout(() => {
+                try {
+                    const userJson = localStorage.getItem(CURRENT_USER_KEY);
+                    if (userJson) {
+                        resolve(JSON.parse(userJson));
+                    } else {
+                        resolve(null);
+                    }
+                } catch (error) {
+                    console.error("Could not parse user from localStorage", error);
+                    resolve(null);
+                }
+            }, 100);
+        });
     },
 };

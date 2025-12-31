@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Obra, User, UserRole, Page } from '../../types';
-import { dataService } from '../../services/dataService';
+import { apiService } from '../../services/apiService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
@@ -37,7 +37,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         setLoading(true);
         setPageError(null);
         try {
-            const data = await dataService.obras.getAll();
+            const data = await apiService.obras.getAll();
             setObras(data);
         } catch (error) {
             console.error("Failed to fetch obras", error);
@@ -66,9 +66,9 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     const handleSaveObra = async () => {
         try {
             if (editingObra) {
-                await dataService.obras.update(editingObra.id, currentObra);
+                await apiService.obras.update(editingObra.id, currentObra);
             } else {
-                await dataService.obras.create(currentObra);
+                await apiService.obras.create(currentObra);
             }
             setIsModalOpen(false);
             setEditingObra(null);
@@ -88,7 +88,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         if (!obraToDeleteId) return;
         setPageError(null);
         try {
-            await dataService.obras.delete(obraToDeleteId);
+            await apiService.obras.delete(obraToDeleteId);
         } catch (error) {
             console.error("Failed to delete obra", error);
             setPageError("Falha ao excluir a obra. Tente novamente.");
@@ -175,7 +175,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={confirmDeleteObra}
                 title="Confirmar Exclusão"
-                message={<>Tem certeza que deseja excluir esta obra? Todos os dados associados (diários, finanças, etc.) também serão removidos se a cascata estiver configurada no backend.</>}
+                message={<>Tem certeza que deseja excluir esta obra? Todos os dados associados (diários, finanças, etc.) também serão removidos.</>}
                 confirmText="Excluir Obra"
             />
         </div>
