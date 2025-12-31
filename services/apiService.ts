@@ -1,14 +1,6 @@
 import { supabase } from './supabaseClient';
 import { User, Obra, Funcionario, Ponto, TransacaoFinanceira, Material, Ferramenta, DiarioObra, Servico, MovimentacaoAlmoxarifado, Documento } from '../types';
 
-const handleFunctionError = (error: any, context: string) => {
-    if (error) {
-        console.error(`Error in Edge Function ${context}:`, error);
-        const errorMessage = error.context?.error || error.message;
-        throw new Error(errorMessage);
-    }
-}
-
 const handleSupabaseError = (error: any, context: string) => {
     if (error) {
         console.error(`Error in ${context}:`, error.message);
@@ -205,12 +197,30 @@ export const apiService = {
         },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', { body: userData });
-            handleFunctionError(error, 'createUser');
+
+            if (error) {
+                console.error('Error invoking createUser function:', error);
+                throw error;
+            }
+            
+            if (data.error) {
+                console.error('Application error from createUser function:', data.error);
+                throw new Error(data.error);
+            }
             return data;
         },
         async deleteUser(userId: string): Promise<any> {
             const { data, error } = await supabase.functions.invoke('delete-user', { body: { user_id: userId } });
-            handleFunctionError(error, 'deleteUser');
+            
+            if (error) {
+                console.error('Error invoking deleteUser function:', error);
+                throw error;
+            }
+            
+            if (data.error) {
+                console.error('Application error from deleteUser function:', data.error);
+                throw new Error(data.error);
+            }
             return data;
         }
     },

@@ -36,12 +36,32 @@ const RelatorioConsumo: React.FC<{
     }, [obra.id, movimentacoes, materiais]);
 
     const ferramentasNaObra = useMemo(() => {
-        // @ts-ignore
-        return ferramentas.filter(f => f.obraId === obra.id);
-    }, [obra.id, ferramentas]);
+        const estoque: Record<string, number> = {};
+        const movsDaObra = movimentacoes.filter(m => m.obraId === obra.id && m.itemType === 'ferramenta');
+
+        movsDaObra.forEach(mov => {
+            let change = 0;
+            if (mov.tipoMovimentacao === MovimentacaoTipo.Saida) change = mov.quantidade;
+            if (mov.tipoMovimentacao === MovimentacaoTipo.Retorno) change = -mov.quantidade;
+            estoque[mov.itemId] = (estoque[mov.itemId] || 0) + change;
+        });
+
+        const ferramentasMap = new Map(ferramentas.map(f => [f.id, f]));
+        const result: (Ferramenta & { quantidade: number })[] = [];
+        
+        for (const itemId in estoque) {
+            if (estoque[itemId] > 0) {
+                const ferramenta = ferramentasMap.get(itemId);
+                if (ferramenta) {
+                    result.push({ ...ferramenta, quantidade: estoque[itemId] });
+                }
+            }
+        }
+        return result;
+    }, [obra.id, movimentacoes, ferramentas]);
 
     const custoTotalMateriais = materiaisUsados.reduce((sum, item) => sum + item.valorTotal, 0);
-    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item) => sum + (item.valor || 0), 0);
+    const custoTotalFerramentas = ferramentasNaObra.reduce((sum, item) => sum + ((item.valor || 0) * item.quantidade), 0);
 
     return (
         <div className="p-8 bg-white text-black font-sans">
@@ -90,16 +110,16 @@ const RelatorioConsumo: React.FC<{
                         <thead className="bg-gray-200">
                             <tr>
                                 <th className="p-2 border text-left text-brand-blue font-bold">Ferramenta</th>
-                                <th className="p-2 border text-left text-brand-blue font-bold">Código</th>
-                                <th className="p-2 border text-right text-brand-blue font-bold">Valor</th>
+                                <th className="p-2 border text-left text-brand-blue font-bold">Qtd</th>
+                                <th className="p-2 border text-right text-brand-blue font-bold">Valor Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             {ferramentasNaObra.map(item => (
                                 <tr key={item.id} className="text-gray-900">
-                                    <td className="p-2 border">{item.nome}</td>
-                                    <td className="p-2 border">{item.codigo}</td>
-                                    <td className="p-2 border text-right">R$ {item.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</td>
+                                    <td className="p-2 border">{item.nome} ({item.codigo})</td>
+                                    <td className="p-2 border text-center">{item.quantidade}</td>
+                                    <td className="p-2 border text-right">R$ {((item.valor || 0) * item.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                 </tr>
                             ))}
                         </tbody>
