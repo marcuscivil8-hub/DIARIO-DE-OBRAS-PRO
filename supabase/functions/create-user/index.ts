@@ -1,5 +1,5 @@
-// FIX: Updated Supabase functions type reference to a version-agnostic URL to resolve type definition error.
-/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+// FIX: Updated the Supabase functions type reference to a valid URL to resolve the type definition error.
+/// <reference types="https://esm.sh/@supabase/functions-js/v2" />
 // FIX: Added Deno global type declaration to resolve TypeScript errors in non-Deno environments.
 declare const Deno: any;
 
