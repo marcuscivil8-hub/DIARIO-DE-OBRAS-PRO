@@ -28,11 +28,11 @@ const formatDate = (date: Date) => {
 };
 // --- End Date Helper Functions ---
 
-interface FuncionariosPageProps {
+interface FolhaPontoPageProps {
     user: User;
 }
 
-const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
+const FolhaPontoPage: React.FC<FolhaPontoPageProps> = ({ user }) => {
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
     const [pontos, setPontos] = useState<Ponto[]>([]);
     const [obras, setObras] = useState<Obra[]>([]);
@@ -237,4 +237,4 @@ const FuncionariosPage: React.FC<FuncionariosPageProps> = ({ user }) => {
     );
 };
 
-export default FuncionariosPage;
+export default FolhaPontoPage;

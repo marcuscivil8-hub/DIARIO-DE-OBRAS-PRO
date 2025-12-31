@@ -50,7 +50,7 @@ const RelatorioConsumo: React.FC<{
             if (estoque[itemId] > 0) {
                 const ferramenta = ferramentasMap.get(itemId);
                 if (ferramenta) {
-                    // FIX: Replaced Object.assign with spread syntax for better type inference.
+                    // FIX: Replaced Object.assign with spread syntax for better type inference and readability.
                     result.push({ ...ferramenta, quantidade: estoque[itemId] });
                 }
             }

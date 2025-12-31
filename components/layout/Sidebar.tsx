@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { User, UserRole, Page } from '../../types';
 import { ICONS } from '../../constants';
@@ -32,8 +31,8 @@ const Sidebar: React.FC<SidebarProps> = ({ user, navigateTo, onLogout, isOpen, s
     ];
 
     const userLinks: NavItem[] = [
-        { icon: ICONS.usuarios, label: 'Funcionários', page: 'CadastroFuncionarios' },
-        { icon: ICONS.folhaPonto, label: 'Folha de Pontos', page: 'Funcionarios' },
+        { icon: ICONS.usuarios, label: 'Funcionários', page: 'GerenciarFuncionarios' },
+        { icon: ICONS.folhaPonto, label: 'Folha de Pontos', page: 'FolhaPonto' },
         { icon: ICONS.materiais, label: 'Materiais', page: 'Materiais' },
         { icon: ICONS.ferramentas, label: 'Ferramentas', page: 'Ferramentas' },
         { icon: ICONS.almoxarifado, label: 'Almoxarifado', page: 'Almoxarifado' },

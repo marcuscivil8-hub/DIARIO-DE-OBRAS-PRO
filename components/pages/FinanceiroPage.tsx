@@ -108,8 +108,6 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
 
     if (loading) return <div className="text-center p-8">Carregando dados financeiros...</div>;
 
-    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value);
-
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-brand-blue">Controle Financeiro</h2>
@@ -127,15 +125,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <div className={`grid grid-cols-1 ${user.role === UserRole.Admin ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-6`}>
                 {user.role === UserRole.Admin && (
                     <Card title="Entradas" className="text-green-600">
-                        <p className="text-3xl font-bold">R$ {formatCurrency(totalEntradas)}</p>
+                        <p className="text-3xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
                 <Card title="Saídas (Transações + Ponto + Uso de Material)" className="text-red-600">
-                    <p className="text-3xl font-bold">R$ {formatCurrency(totalSaidas)}</p>
+                    <p className="text-3xl font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </Card>
                 {user.role === UserRole.Admin && (
                     <Card title="Balanço" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                        <p className="text-3xl font-bold">R$ {formatCurrency(balanco)}</p>
+                        <p className="text-3xl font-bold">R$ {balanco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
             </div>
@@ -146,12 +144,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
-                                    label={({ name, percent }: { name: string, percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                    /* FIX: The 'percent' value could be undefined if data is malformed, causing an arithmetic error.
+                                       Coalescing to 0 ensures the multiplication is always valid. */
+                                    label={({ name, percent }: { name: string, percent: number }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(value: number) => `R$ ${formatCurrency(value)}`} />
+                                {/* FIX: Changed Tooltip formatter to safely handle 'unknown' value type and use toLocaleString for consistent formatting. */}
+                                <Tooltip formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
@@ -159,11 +160,10 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento de Saídas" className="lg:col-span-2">
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {/* FIX: Cast the result of Object.entries to [string, number][] to fix type inference issues in .sort() and .map(). */}
-                         {(Object.entries(saidasPorCategoria) as [string, number][]).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
+                         {Object.entries(saidasPorCategoria).sort(([, a_val], [, b_val]) => b_val - a_val).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between text-gray-700">
                                 <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {formatCurrency(valor)}</p>
+                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </li>
                          ))}
                     </ul>

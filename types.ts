@@ -1,4 +1,3 @@
-
 export enum UserRole {
     Admin = 'Admin',
     Encarregado = 'Encarregado',
@@ -15,7 +14,7 @@ export interface User {
     obraIds?: string[]; // For clients, to link them to specific projects
 }
 
-export type Page = 'Dashboard' | 'Obras' | 'ObraDetail' | 'Funcionarios' | 'Financeiro' | 'Materiais' | 'Ferramentas' | 'Relatorios' | 'Usuarios' | 'Almoxarifado' | 'CadastroFuncionarios' | 'Documentos';
+export type Page = 'Dashboard' | 'Obras' | 'ObraDetail' | 'GerenciarFuncionarios' | 'FolhaPonto' | 'Financeiro' | 'Materiais' | 'Ferramentas' | 'Relatorios' | 'Usuarios' | 'Almoxarifado' | 'Documentos';
 
 export interface Obra {
     id: string;

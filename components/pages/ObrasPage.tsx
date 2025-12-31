@@ -18,6 +18,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     const [editingObra, setEditingObra] = useState<Obra | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [obraToDeleteId, setObraToDeleteId] = useState<string | null>(null);
+    const [pageError, setPageError] = useState<string | null>(null);
     
     const emptyObra: Omit<Obra, 'id'> = {
         name: '',
@@ -34,11 +35,13 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     
     const fetchObras = useCallback(async () => {
         setLoading(true);
+        setPageError(null);
         try {
             const data = await dataService.obras.getAll();
             setObras(data);
         } catch (error) {
             console.error("Failed to fetch obras", error);
+            setPageError("Não foi possível carregar as obras.");
         } finally {
             setLoading(false);
         }
@@ -83,10 +86,12 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
 
     const confirmDeleteObra = async () => {
         if (!obraToDeleteId) return;
+        setPageError(null);
         try {
             await dataService.obras.delete(obraToDeleteId);
         } catch (error) {
             console.error("Failed to delete obra", error);
+            setPageError("Falha ao excluir a obra. Tente novamente.");
         } finally {
             setIsConfirmModalOpen(false);
             setObraToDeleteId(null);
@@ -111,6 +116,8 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
                     </Button>
                 )}
             </div>
+            
+            {pageError && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">{pageError}</p>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userObras.map((obra) => (

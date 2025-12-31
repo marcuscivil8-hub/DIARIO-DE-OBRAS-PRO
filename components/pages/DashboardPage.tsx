@@ -275,7 +275,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
                         <p className="font-semibold mt-2 text-brand-blue">Ver Obras</p>
                     </button>
                     {user.role !== UserRole.Cliente && (
-                        <button onClick={() => navigateTo('CadastroFuncionarios')} className="p-4 bg-brand-light-gray rounded-lg text-center hover:bg-gray-200 transition">
+                        <button onClick={() => navigateTo('GerenciarFuncionarios')} className="p-4 bg-brand-light-gray rounded-lg text-center hover:bg-gray-200 transition">
                             <span className="text-3xl">👷</span>
                             <p className="font-semibold mt-2 text-brand-blue">Funcionários</p>
                         </button>

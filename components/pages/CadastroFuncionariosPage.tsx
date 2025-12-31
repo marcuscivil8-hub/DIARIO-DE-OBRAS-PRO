@@ -6,11 +6,11 @@ import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
 
-interface CadastroFuncionariosPageProps {
+interface GerenciarFuncionariosPageProps {
     user: User;
 }
 
-const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ user }) => {
+const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ user }) => {
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
     const [obras, setObras] = useState<Obra[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,7 +92,7 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <h2 className="text-2xl font-bold text-brand-blue">Funcionários</h2>
+                <h2 className="text-2xl font-bold text-brand-blue">Gerenciar Funcionários</h2>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center space-x-2">
                         <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Obra:</label>
@@ -184,4 +184,4 @@ const CadastroFuncionariosPage: React.FC<CadastroFuncionariosPageProps> = ({ use
     );
 };
 
-export default CadastroFuncionariosPage;
+export default GerenciarFuncionariosPage;

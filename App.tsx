@@ -5,8 +5,8 @@ import LoginPage from './components/pages/LoginPage';
 import DashboardPage from './components/pages/DashboardPage';
 import ObrasPage from './components/pages/ObrasPage';
 import ObraDetailPage from './components/pages/ObraDetailPage';
-import FuncionariosPage from './components/pages/FuncionariosPage';
-import CadastroFuncionariosPage from './components/pages/CadastroFuncionariosPage';
+import FolhaPontoPage from './components/pages/FuncionariosPage';
+import GerenciarFuncionariosPage from './components/pages/CadastroFuncionariosPage';
 import FinanceiroPage from './components/pages/FinanceiroPage';
 import MateriaisPage from './components/pages/MateriaisPage';
 import FerramentasPage from './components/pages/FerramentasPage';
@@ -67,10 +67,10 @@ const App: React.FC = () => {
                 return <ObrasPage user={currentUser} navigateTo={navigateTo} />;
             case 'ObraDetail':
                  return selectedObraId ? <ObraDetailPage user={currentUser} obraId={selectedObraId} navigateTo={navigateTo} /> : <ObrasPage user={currentUser} navigateTo={navigateTo} />;
-            case 'CadastroFuncionarios':
-                return <CadastroFuncionariosPage user={currentUser} />;
-            case 'Funcionarios':
-                return <FuncionariosPage user={currentUser} />;
+            case 'GerenciarFuncionarios':
+                return <GerenciarFuncionariosPage user={currentUser} />;
+            case 'FolhaPonto':
+                return <FolhaPontoPage user={currentUser} />;
             case 'Financeiro':
                 return (currentUser.role === UserRole.Admin || currentUser.role === UserRole.Encarregado) ? <FinanceiroPage user={currentUser} /> : <DashboardPage user={currentUser} navigateTo={navigateTo} />;
             case 'Almoxarifado':
