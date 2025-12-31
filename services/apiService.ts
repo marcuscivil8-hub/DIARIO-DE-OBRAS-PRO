@@ -9,7 +9,8 @@ const handleSupabaseError = (error: any, context: string) => {
 };
 
 // Mapeia nomes de campos JS (camelCase) para nomes de colunas do banco (snake_case)
-const toSnakeCase = (data: Record<string, any>) => {
+const toSnakeCase = (data: Record<string, any> | null | undefined): Record<string, any> | null => {
+    if (!data) return null;
     const snakeCaseData: Record<string, any> = {};
     for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
@@ -21,7 +22,7 @@ const toSnakeCase = (data: Record<string, any>) => {
 };
 
 // Mapeia nomes de colunas do banco (snake_case) para nomes de campos JS (camelCase)
-const toCamelCase = <T>(data: Record<string, any>): T => {
+const toCamelCase = <T>(data: Record<string, any> | null | undefined): T => {
     if (!data) return data as T;
     const camelCaseData: Record<string, any> = {};
     for (const key in data) {
@@ -39,7 +40,8 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
         async getAll(): Promise<T[]> {
             const { data, error } = await supabase.from(tableName).select('*');
             handleSupabaseError(error, `getAll ${tableName}`);
-            return data ? data.map(item => toCamelCase<T>(item)) : [];
+            if (!data) return [];
+            return Array.isArray(data) ? data.map(item => toCamelCase<T>(item)) : [];
         },
         async create(itemData: Omit<T, 'id'>): Promise<T> {
             const { data, error } = await supabase.from(tableName).insert(toSnakeCase(itemData)).select().single();
@@ -193,7 +195,8 @@ export const apiService = {
         async getAll(): Promise<User[]> {
             const { data, error } = await supabase.rpc('get_users_with_email');
             handleSupabaseError(error, 'getAll users via RPC');
-            return data ? data.map((item: any) => toCamelCase<User>(item)) : [];
+            if (!data) return [];
+            return Array.isArray(data) ? data.map((item: any) => toCamelCase<User>(item)) : [];
         },
         async createUser(userData: Omit<User, 'id'>): Promise<any> {
             const { data, error } = await supabase.functions.invoke('create-user', { body: userData });

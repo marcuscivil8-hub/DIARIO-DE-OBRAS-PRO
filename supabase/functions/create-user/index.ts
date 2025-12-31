@@ -1,5 +1,5 @@
-// FIX: Reverted the types URL to unpkg.com as esm.sh was causing resolution issues, which should fix the Deno type errors.
-/// <reference types="https://unpkg.com/@supabase/functions-js/src/edge-runtime.d.ts" />
+// FIX: Using a version-pinned unpkg URL for Supabase function types to ensure stability and resolve Deno namespace errors.
+/// <reference types="https://unpkg.com/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
