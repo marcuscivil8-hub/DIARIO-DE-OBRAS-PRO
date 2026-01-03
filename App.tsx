@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, UserRole, Page } from './types';
 import Layout from './components/layout/Layout';
 import LoginPage from './components/pages/LoginPage';
@@ -23,25 +23,19 @@ const App: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const isMounted = useRef(true);
 
     useEffect(() => {
-        isMounted.current = true;
-        
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user && isMounted.current) {
+            if (session?.user) {
                 const userProfile = await dataService.users.getById(session.user.id);
                 setCurrentUser(userProfile);
             } else {
                 setCurrentUser(null);
             }
-            if (isMounted.current) {
-                setLoading(false);
-            }
+            setLoading(false);
         });
 
         return () => {
-            isMounted.current = false;
             subscription.unsubscribe();
         };
     }, []);
