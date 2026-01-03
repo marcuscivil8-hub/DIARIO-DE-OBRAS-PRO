@@ -97,20 +97,23 @@ const UsuariosPage: React.FC = () => {
         setIsSaving(true);
         try {
             if (editingUser) {
-                // UPDATE USER PROFILE
+                const updatePromises = [];
+
+                // 1. Update user profile in public.users table
                 const profileUpdate: Partial<User> = {
                     name: currentUserForm.name,
                     username: currentUserForm.username,
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
                 };
-                
-                // NOTE: Supabase password updates require special handling and can't be done directly
-                // from a client with just anon key if RLS is on. This is a simplification.
-                // A server-side function would be needed for a secure implementation.
-                
-                await dataService.users.update(editingUser.id, profileUpdate);
+                updatePromises.push(dataService.users.update(editingUser.id, profileUpdate));
 
+                // 2. Update password in auth.users if a new one is provided
+                if (currentUserForm.password) {
+                    updatePromises.push(authService.updateUserPassword(editingUser.id, currentUserForm.password));
+                }
+
+                await Promise.all(updatePromises);
             } else {
                 // CREATE USER
                 const newUserData: Omit<User, 'id'> = {

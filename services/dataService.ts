@@ -30,9 +30,12 @@ const createCrudService = <T extends { id: string }>(tableName: string) => {
             return data as T;
         },
         async update(itemId: string, updates: Partial<T>): Promise<T> {
-            const { data, error } = await supabase.from(tableName).update(updates).eq('id', itemId).select().single();
+            const { data, error } = await supabase.from(tableName).update(updates).eq('id', itemId).select();
             handleSupabaseError(error, `atualização em ${tableName}`);
-            return data as T;
+            if (!data || data.length === 0) {
+                throw new Error(`A atualização em ${tableName} não retornou o registro. Verifique se o item com id ${itemId} existe e se as permissões (RLS) estão corretas.`);
+            }
+            return data[0] as T;
         },
         async delete(itemId: string): Promise<void> {
             const { error } = await supabase.from(tableName).delete().eq('id', itemId);

@@ -91,6 +91,25 @@ export const authService = {
         }
     },
     
+    async updateUserPassword(userId: string, password: string): Promise<void> {
+        const { error } = await supabase.functions.invoke('update-user', {
+            body: { userId, password },
+        });
+
+        if (error) {
+            console.error('Error updating user password function:', error);
+            if (error.context && typeof error.context.json === 'function') {
+                try {
+                    const errorBody = await error.context.json();
+                    throw new Error(errorBody.error || 'Falha ao invocar a função de atualização de senha.');
+                } catch (e) {
+                    throw new Error(error.message || 'Falha ao atualizar senha. Resposta da função inválida.');
+                }
+            }
+            throw new Error(error.message || 'Falha ao atualizar a senha do usuário.');
+        }
+    },
+
     async getCurrentUser(): Promise<User | null> {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
