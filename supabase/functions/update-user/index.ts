@@ -3,10 +3,10 @@
 //
 // Start typing below!
 
+declare var Deno: any;
+
 import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
-
-declare var Deno: any;
 
 console.log('Update user function booting up!');
 
