@@ -59,36 +59,33 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!supabaseInitialized) return;
 
-        setLoading(true);
+        setLoading(true); // Keep the app in a loading state until the initial session is determined.
         const client = getSupabaseClient();
         
-        const checkUser = async () => {
+        // onAuthStateChange fires immediately with the current session, so it handles the initial check.
+        const { data: { subscription } } = client.auth.onAuthStateChange(async (_event, session) => {
             try {
-                const user = await authService.getCurrentUser();
-                setCurrentUser(user);
+                if (session?.user) {
+                    // If there's a user session, fetch their profile from the 'users' table.
+                    const userProfile = await dataService.users.getById(session.user.id);
+                    setCurrentUser(userProfile);
+                } else {
+                    // If there's no session, ensure the current user is null.
+                    setCurrentUser(null);
+                }
             } catch (err: any) {
-                console.error("Error fetching current user:", err.message);
+                // If fetching the profile fails, the stored credentials might be stale or invalid.
+                console.error("Auth state change error:", err.message);
                 clearCredentialsFromStorage();
-                setSupabaseConfigError("Falha ao autenticar com as credenciais fornecidas. Verifique-as e tente novamente.");
-                setSupabaseInitialized(false); // Go back to setup page
+                setSupabaseConfigError("Falha ao buscar o perfil do usuário. Verifique suas credenciais e tente novamente.");
+                setSupabaseInitialized(false); // Force re-configuration.
             } finally {
+                // This is the single point of truth for ending the initial auth loading state.
                 setLoading(false);
             }
-        };
-
-        checkUser();
-
-        const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
-            setLoading(true);
-            if (session?.user) {
-                const userProfile = await dataService.users.getById(session.user.id);
-                setCurrentUser(userProfile);
-            } else {
-                setCurrentUser(null);
-            }
-            setLoading(false);
         });
 
+        // Cleanup the subscription when the component unmounts.
         return () => {
             subscription?.unsubscribe();
         };
