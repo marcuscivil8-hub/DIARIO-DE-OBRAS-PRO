@@ -100,7 +100,17 @@ export const dataService = {
     transacoes: createCrudService<TransacaoFinanceira>('transacoes_financeiras'),
     materiais: createCrudService<Material>('materiais'),
     ferramentas: createCrudService<Ferramenta>('ferramentas'),
-    diarios: createCrudService<DiarioObra>('diarios_obra'),
+    diarios: {
+        ...createCrudService<DiarioObra>('diarios_obra'),
+        async getByObraId(obraId: string): Promise<DiarioObra[]> {
+            const { data, error } = await supabase
+                .from('diarios_obra')
+                .select('*')
+                .eq('obraId', obraId);
+            handleSupabaseError(error, `busca de diarios por obraId`);
+            return (data as DiarioObra[]) || [];
+        }
+    },
     servicos: createCrudService<Servico>('servicos'),
     movimentacoesAlmoxarifado: createCrudService<MovimentacaoAlmoxarifado>('movimentacoes_almoxarifado'),
     documentos: createCrudService<Documento>('documentos'),

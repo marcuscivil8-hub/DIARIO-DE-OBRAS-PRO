@@ -443,12 +443,12 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const fetchPageData = useCallback(async () => {
         setLoading(true);
         try {
-            const [obraData, allDiarios] = await Promise.all([
+            const [obraData, diariosData] = await Promise.all([
                  dataService.obras.getById(obraId),
-                 dataService.diarios.getAll()
+                 dataService.diarios.getByObraId(obraId)
             ]);
             setObra(obraData);
-            setDiarios(allDiarios.filter(d => d.obraId === obraId).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()));
+            setDiarios(diariosData.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()));
         } catch (error) {
             console.error("Failed to fetch obra details", error);
         } finally {
