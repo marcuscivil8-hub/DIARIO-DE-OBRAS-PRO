@@ -127,15 +127,15 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <div className={`grid grid-cols-1 ${user.role === UserRole.Admin ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-6`}>
                 {user.role === UserRole.Admin && (
                     <Card title="Entradas" className="text-green-600">
-                        <p className="text-3xl font-bold">R$ {(totalEntradas as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-3xl font-bold">R$ {Number(totalEntradas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
                 <Card title="Custo Total (Consolidado)" className="text-red-600">
-                    <p className="text-3xl font-bold">R$ {(totalSaidas as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-3xl font-bold">R$ {Number(totalSaidas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </Card>
                 {user.role === UserRole.Admin && (
                     <Card title="Balanço (Entradas - Saídas)" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                        <p className="text-3xl font-bold">R$ {(balanco as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-3xl font-bold">R$ {Number(balanco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
             </div>
@@ -160,7 +160,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(value: any) => `R$ ${(value as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                                <Tooltip formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
@@ -168,11 +168,10 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
                 </Card>
                 <Card title="Detalhamento das Saídas" className="lg:col-span-2">
                     <ul className="space-y-3 max-h-96 overflow-y-auto">
-                         {/* FIX: Use explicit casting to any for b[1] and a[1] to avoid arithmetic operation type errors on line 170 */}
-                         {Object.entries(saidasPorCategoria).sort((a, b) => (b[1] as any) - (a[1] as any)).map(([categoria, valor]) => (
+                         {Object.entries(saidasPorCategoria).sort((a, b) => Number(b[1]) - Number(a[1])).map(([categoria, valor]) => (
                             <li key={categoria} className="flex justify-between items-center text-gray-700 border-b pb-2">
                                 <p className="font-medium text-brand-blue">{categoria}</p>
-                                <p className="font-bold">R$ {(valor as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                <p className="font-bold">R$ {Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </li>
                          ))}
                     </ul>

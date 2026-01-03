@@ -28,30 +28,15 @@ const App: React.FC = () => {
     useEffect(() => {
         isMounted.current = true;
         
-        // Check initial session quickly
-        const initAuth = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user && isMounted.current) {
-                    const userProfile = await dataService.users.getById(session.user.id);
-                    setCurrentUser(userProfile);
-                }
-            } catch (e) {
-                console.error("Auth init error", e);
-            } finally {
-                if (isMounted.current) setLoading(false);
-            }
-        };
-
-        initAuth();
-
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
+            if (session?.user && isMounted.current) {
                 const userProfile = await dataService.users.getById(session.user.id);
                 setCurrentUser(userProfile);
-            } else if (event === 'SIGNED_OUT') {
+            } else {
                 setCurrentUser(null);
-                setCurrentPage('Dashboard');
+            }
+            if (isMounted.current) {
+                setLoading(false);
             }
         });
 
@@ -64,11 +49,13 @@ const App: React.FC = () => {
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
         await authService.login(email, password);
+        // The onAuthStateChange listener will handle the user state update
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
+        setCurrentPage('Dashboard'); // Navigate to a safe page after logout
     };
 
     const navigateTo = (page: Page, obraId?: string) => {
