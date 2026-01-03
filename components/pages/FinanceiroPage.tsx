@@ -1,51 +1,17 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
-import { dataService } from '../../services/dataService';
+import React, { useState, useMemo } from 'react';
+import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, User, UserRole, MovimentacaoTipo, Material } from '../../types';
 import Card from '../ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useData } from '../../contexts/DataContext';
 
 interface FinanceiroPageProps {
     user: User;
 }
 
 const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
-    const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [pontos, setPontos] = useState<Ponto[]>([]);
-    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
-    const [materiais, setMateriais] = useState<Material[]>([]);
-    const [loading, setLoading] = useState(true);
-    
+    const { transacoes, obras, pontos, funcionarios, movimentacoes, materiais, loading } = useData();
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const [transacoesData, obrasData, pontosData, funcionariosData, movsData, materiaisData] = await Promise.all([
-                    dataService.transacoes.getAll(),
-                    dataService.obras.getAll(),
-                    dataService.pontos.getAll(),
-                    dataService.funcionarios.getAll(),
-                    dataService.movimentacoesAlmoxarifado.getAll(),
-                    dataService.materiais.getAll(),
-                ]);
-                setTransacoes(transacoesData);
-                setObras(obrasData);
-                setPontos(pontosData);
-                setFuncionarios(funcionariosData);
-                setMovimentacoes(movsData);
-                setMateriais(materiaisData);
-            } catch (error) {
-                console.error("Failed to fetch financial data", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
 
     const { totalEntradas, totalSaidas, balanco, saidasPorCategoria, pieData } = useMemo(() => {
         const isAllObras = selectedObraId === 'all';
@@ -70,12 +36,12 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         }, 0);
 
         const materiaisMap = new Map<string, Material>(materiais.map((m: Material) => [m.id, m]));
-        const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => 
+        const movimentosUso = movimentacoes.filter(m => 
             m.itemType === 'material' && 
             m.tipoMovimentacao === MovimentacaoTipo.Uso &&
             (isAllObras || m.obraId === selectedObraId)
         );
-        const custoMateriais = movimentosUso.reduce((total: number, mov: MovimentacaoAlmoxarifado) => {
+        const custoMateriais = movimentosUso.reduce((total: number, mov) => {
             const material = materiaisMap.get(mov.itemId);
             if (material && typeof material.valor === 'number') {
                 return total + (material.valor * mov.quantidade);

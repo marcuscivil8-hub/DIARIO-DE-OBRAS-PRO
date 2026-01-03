@@ -114,6 +114,11 @@ export const dataService = {
     ferramentas: createCrudService<Ferramenta>('ferramentas'),
     diarios: {
         ...createCrudService<DiarioObra>('diarios_obra'),
+        async getAll(): Promise<DiarioObra[]> {
+             const { data, error } = await supabase.from('diarios_obra').select('*');
+            handleSupabaseError(error, `busca em diarios_obra`);
+            return data as DiarioObra[] || [];
+        },
         async getByObraId(obraId: string): Promise<DiarioObra[]> {
             const { data, error } = await supabase
                 .from('diarios_obra')

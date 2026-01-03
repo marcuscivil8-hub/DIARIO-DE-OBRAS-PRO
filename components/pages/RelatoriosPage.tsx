@@ -1,10 +1,10 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Obra, DiarioObra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta, Documento, MovimentacaoTipo } from '../../types';
-import { dataService } from '../../services/dataService';
+import { Obra, TransacaoFinanceira, TransacaoTipo, Ponto, Funcionario, PagamentoTipo, MovimentacaoAlmoxarifado, Material, Ferramenta, MovimentacaoTipo } from '../../types';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import { useData } from '../../contexts/DataContext';
 
 // --- Relatórios Individuais ---
 
@@ -13,7 +13,7 @@ const RelatorioConsumo: React.FC<{
     movimentacoes: MovimentacaoAlmoxarifado[],
     materiais: Material[],
     ferramentas: Ferramenta[]
-}> = ({ obra, movimentacoes, materiais, ferramentas }) => {
+}> = ({ obra, movimentacoes, materiais }) => {
     const materiaisUsados = useMemo(() => {
         const consumo: Record<string, { nome: string, unidade: string, quantidade: number, valorTotal: number }> = {};
         const movimentosUso = movimentacoes.filter((m) => m.obraId === obra.id && m.itemType === 'material' && m.tipoMovimentacao === MovimentacaoTipo.Uso);
@@ -134,47 +134,11 @@ const RelatorioFinanceiro: React.FC<{ obra: Obra | null, transacoes: TransacaoFi
 // --- Página Principal de Relatórios ---
 
 const RelatoriosPage: React.FC = () => {
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
-    const [pontos, setPontos] = useState<Ponto[]>([]);
-    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
-    const [materiais, setMateriais] = useState<Material[]>([]);
-    const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { obras, transacoes, pontos, funcionarios, movimentacoes, materiais, ferramentas, loading } = useData();
     
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
     const [reportType, setReportType] = useState<string>('consumo');
     const reportRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const fetchAllData = async () => {
-            setLoading(true);
-            try {
-                const [obrasData, transData, pontosData, funcsData, movsData, matsData, ferrsData] = await Promise.all([
-                    dataService.obras.getAll(),
-                    dataService.transacoes.getAll(),
-                    dataService.pontos.getAll(),
-                    dataService.funcionarios.getAll(),
-                    dataService.movimentacoesAlmoxarifado.getAll(),
-                    dataService.materiais.getAll(),
-                    dataService.ferramentas.getAll()
-                ]);
-                setObras(obrasData);
-                setTransacoes(transData);
-                setPontos(pontosData);
-                setFuncionarios(funcsData);
-                setMovimentacoes(movsData);
-                setMateriais(matsData);
-                setFerramentas(ferrsData);
-            } catch (error) {
-                console.error("Erro ao carregar dados dos relatórios", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchAllData();
-    }, []);
 
     const dataFiltrada = useMemo(() => {
         const isAll = selectedObraId === 'all';

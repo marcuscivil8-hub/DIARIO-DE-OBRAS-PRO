@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Page } from './types';
 import Layout from './components/layout/Layout';
@@ -17,6 +18,7 @@ import DocumentosPage from './components/pages/DocumentosPage';
 import { authService } from './services/authService';
 import { supabase } from './services/supabaseClient';
 import { dataService } from './services/dataService';
+import { DataProvider } from './contexts/DataContext';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -25,6 +27,13 @@ const App: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const checkUser = async () => {
+            const user = await authService.getCurrentUser();
+            setCurrentUser(user);
+            setLoading(false);
+        };
+        checkUser();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
                 const userProfile = await dataService.users.getById(session.user.id);
@@ -43,13 +52,13 @@ const App: React.FC = () => {
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
         await authService.login(email, password);
-        // The onAuthStateChange listener will handle the user state update
+        // O onAuthStateChange listener irá lidar com a atualização do estado do usuário e o recarregamento dos dados
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
-        setCurrentPage('Dashboard'); // Navigate to a safe page after logout
+        setCurrentPage('Dashboard'); // Navega para uma página segura após o logout
     };
 
     const navigateTo = (page: Page, obraId?: string) => {
@@ -102,9 +111,11 @@ const App: React.FC = () => {
     };
 
     return (
-        <Layout user={currentUser} navigateTo={navigateTo} onLogout={handleLogout} currentPage={currentPage}>
-            {renderPage()}
-        </Layout>
+        <DataProvider>
+            <Layout user={currentUser} navigateTo={navigateTo} onLogout={handleLogout} currentPage={currentPage}>
+                {renderPage()}
+            </Layout>
+        </DataProvider>
     );
 };
 

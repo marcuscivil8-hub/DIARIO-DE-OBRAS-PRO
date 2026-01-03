@@ -7,6 +7,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 
 // --- Relatório Fotográfico Component (para PDF do Cliente) ---
@@ -45,18 +46,8 @@ const RelatorioFotografico: React.FC<{ obra: Obra, diarios: DiarioObra[] }> = ({
 
 // --- Sub-componente Documentos ---
 const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
-    const [documentos, setDocumentos] = useState<Documento[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchDocumentos = async () => {
-            setLoading(true);
-            const docs = await dataService.documentos.getByObraId(obraId);
-            setDocumentos(docs);
-            setLoading(false);
-        };
-        fetchDocumentos();
-    }, [obraId]);
+    const { documentos: allDocumentos, loading } = useData();
+    const documentos = allDocumentos.filter(d => d.obraId === obraId);
 
     const handleDownload = (doc: Documento) => {
         window.open(doc.url, '_blank');
@@ -88,8 +79,8 @@ const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
 
 // --- Sub-componente Financeiro ---
 const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ obraId, user }) => {
-    const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { transacoes: allTransacoes, loading, refetchData } = useData();
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTransacao, setEditingTransacao] = useState<TransacaoFinanceira | null>(null);
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -99,19 +90,13 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
         descricao: '', valor: 0, tipoTransacao: TransacaoTipo.Saida, categoria: CategoriaSaida.Outros, data: new Date().toISOString().split('T')[0]
     });
 
-    const fetchTransacoes = useCallback(async () => {
-        setLoading(true);
-        let obraTransacoes = await dataService.transacoes.getByObraId(obraId);
-
-        if (user.role === UserRole.Encarregado) {
-            obraTransacoes = obraTransacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida);
-        }
-
-        setTransacoes(obraTransacoes.sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime()));
-        setLoading(false);
-    }, [obraId, user.role]);
-
-    useEffect(() => { fetchTransacoes(); }, [fetchTransacoes]);
+    let transacoes = allTransacoes
+        .filter(t => t.obraId === obraId)
+        .sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+        
+    if (user.role === UserRole.Encarregado) {
+        transacoes = transacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida);
+    }
 
     const handleOpenModal = (transacao: TransacaoFinanceira | null = null) => {
         if (transacao) {
@@ -141,7 +126,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
             await dataService.transacoes.create(dataToSave);
         }
         setIsModalOpen(false);
-        await fetchTransacoes();
+        await refetchData();
     };
     
     const triggerDelete = (id: string) => {
@@ -152,7 +137,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
     const confirmDelete = async () => {
         if (transacaoToDeleteId) {
             await dataService.transacoes.delete(transacaoToDeleteId);
-            await fetchTransacoes();
+            await refetchData();
         }
         setIsConfirmDeleteOpen(false);
         setTransacaoToDeleteId(null);
@@ -242,8 +227,11 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
 
 // --- Sub-componente para Acompanhamento de Serviços ---
 const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obraId, user }) => {
-    const [servicos, setServicos] = useState<Servico[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { servicos: allServicos, loading, refetchData } = useData();
+    const servicos = allServicos
+        .filter(s => s.obraId === obraId)
+        .sort((a,b) => new Date(a.dataInicioPrevista).getTime() - new Date(b.dataInicioPrevista).getTime());
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingServico, setEditingServico] = useState<Servico | null>(null);
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -256,19 +244,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
         status: 'Não Iniciado',
     };
     const [currentServico, setCurrentServico] = useState(emptyServico);
-
-    const fetchServicos = useCallback(async () => {
-        setLoading(true);
-        const obraServicos = (await dataService.servicos.getByObraId(obraId))
-            .sort((a,b) => new Date(a.dataInicioPrevista).getTime() - new Date(b.dataInicioPrevista).getTime());
-        setServicos(obraServicos);
-        setLoading(false);
-    }, [obraId]);
-
-    useEffect(() => {
-        fetchServicos();
-    }, [fetchServicos]);
-
+    
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
 
     const getStatusInfo = (servico: Servico): { text: string; className: string } => {
@@ -302,7 +278,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
             await dataService.servicos.create({ ...currentServico, obraId });
         }
         setIsModalOpen(false);
-        await fetchServicos();
+        await refetchData();
     };
 
     const handleStatusChange = async (servicoId: string, newStatus: StatusServico) => {
@@ -317,7 +293,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
             updatedServico.dataFimReal = new Date().toISOString().split('T')[0];
         }
         await dataService.servicos.update(servicoId, updatedServico);
-        await fetchServicos();
+        await refetchData();
     };
 
     const triggerDeleteServico = (id: string) => {
@@ -328,7 +304,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
     const confirmDeleteServico = async () => {
         if (servicoToDeleteId) {
             await dataService.servicos.delete(servicoToDeleteId);
-            await fetchServicos();
+            await refetchData();
         }
         setIsConfirmDeleteOpen(false);
         setServicoToDeleteId(null);
@@ -414,9 +390,12 @@ interface ObraDetailPageProps {
 }
 
 const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateTo }) => {
-    const [obra, setObra] = useState<Obra | null>(null);
-    const [diarios, setDiarios] = useState<DiarioObra[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { obras, diarios: allDiarios, loading, refetchData } = useData();
+    const obra = obras.find(o => o.id === obraId);
+    const diarios = allDiarios
+        .filter(d => d.obraId === obraId)
+        .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
     const [pdfLoading, setPdfLoading] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
 
@@ -436,27 +415,6 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingDiario, setEditingDiario] = useState<DiarioObra | null>(null);
     const [currentDiarioEdit, setCurrentDiarioEdit] = useState({ clima: Clima.Ensolarado, observacoes: '' });
-
-    const fetchPageData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [obraData, diariosData] = await Promise.all([
-                 dataService.obras.getById(obraId),
-                 dataService.diarios.getByObraId(obraId)
-            ]);
-            setObra(obraData);
-            setDiarios(diariosData.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()));
-        } catch (error) {
-            console.error("Failed to fetch obra details", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [obraId]);
-
-    useEffect(() => {
-        fetchPageData();
-    }, [fetchPageData]);
-
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -481,14 +439,12 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         const diarioToUpdate = diarios.find(d => d.id === diarioId);
         if (diarioToUpdate) {
             const updatedFotos = diarioToUpdate.fotos.filter(foto => foto.url !== url);
-            // AUTO-DELETE LOGIC: if no photos left and no text, delete the whole entry
             if (updatedFotos.length === 0 && diarioToUpdate.observacoes.trim() === '') {
                 await dataService.diarios.delete(diarioId);
             } else {
-                // Otherwise, just update the photos array
                 await dataService.diarios.update(diarioId, { fotos: updatedFotos });
             }
-            await fetchPageData(); // Refresh data from server
+            await refetchData();
         }
         
         setIsConfirmModalOpen(false);
@@ -514,7 +470,7 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         setIsModalOpen(false);
         setNewDiario({ data: '', clima: Clima.Ensolarado, observacoes: '' });
         setPhotos([]);
-        await fetchPageData();
+        await refetchData();
     };
 
     const handleOpenEditModal = (diario: DiarioObra) => {
@@ -532,20 +488,17 @@ const ObraDetailPage: React.FC<ObraDetailPageProps> = ({ obraId, user, navigateT
         };
     
         try {
-            // AUTO-DELETE LOGIC: if text is cleared and no photos exist, delete the entry
             if (updatedData.observacoes.trim() === '' && editingDiario.fotos.length === 0) {
                 await dataService.diarios.delete(editingDiario.id);
             } else {
-                // Otherwise, just update the entry
                 await dataService.diarios.update(editingDiario.id, updatedData);
             }
         } catch (error) {
             console.error("Failed to update or delete diary entry", error);
-            // Optionally, set an error state to show in the UI
         } finally {
             setIsEditModalOpen(false);
             setEditingDiario(null);
-            await fetchPageData(); // Refresh data from server
+            await refetchData();
         }
     };
     

@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Material, User, UserRole, Obra, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Material, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 interface MateriaisPageProps {
     user: User;
 }
 
 const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
-    const [materiais, setMateriais] = useState<Material[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedObraId, setSelectedObraId] = useState<string>('');
+    const { materiais, obras: allObras, movimentacoes, loading, refetchData } = useData();
+    const obras = allObras.filter(o => o.status === 'Ativa');
+    
+    const [selectedObraId, setSelectedObraId] = useState<string>(obras[0]?.id || '');
     
     // Modal for Usage/Return
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -32,35 +32,6 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
 
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
-
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [matData, obrasData, movData] = await Promise.all([
-                dataService.materiais.getAll(),
-                dataService.obras.getAll(),
-                dataService.movimentacoesAlmoxarifado.getAll(),
-            ]);
-            
-            const activeObras = obrasData.filter(o => o.status === 'Ativa');
-            setMateriais(matData.sort((a,b) => a.nome.localeCompare(b.nome)));
-            setObras(activeObras);
-            setMovimentacoes(movData);
-            
-            if (activeObras.length > 0 && !selectedObraId) {
-                setSelectedObraId(activeObras[0].id);
-            }
-            
-        } catch (error) {
-            console.error("Failed to fetch materiais data", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedObraId]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
 
     const estoquePorObra = useMemo(() => {
         if (!selectedObraId) return {};
@@ -104,7 +75,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
 
             await dataService.movimentacoesAlmoxarifado.create(newMov);
             setIsActionModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to save action:", error);
             setModalError(error.message || `Não foi possível registrar a ação.`);
@@ -130,7 +101,7 @@ const MateriaisPage: React.FC<MateriaisPageProps> = ({ user }) => {
         try {
             await dataService.materiais.update(editingMaterial.id, materialFormData);
             setIsEditModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to save material:", error);
             setModalError(error.message || "Ocorreu um erro ao salvar o material.");

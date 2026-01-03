@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Obra, User, UserRole, Page } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 interface ObrasPageProps {
     user: User;
@@ -12,8 +13,8 @@ interface ObrasPageProps {
 }
 
 const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { obras, loading, refetchData } = useData();
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingObra, setEditingObra] = useState<Obra | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -32,25 +33,6 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
     };
 
     const [currentObra, setCurrentObra] = useState<Omit<Obra, 'id'>>(emptyObra);
-    
-    const fetchObras = useCallback(async () => {
-        setLoading(true);
-        setPageError(null);
-        try {
-            const data = await dataService.obras.getAll();
-            setObras(data);
-        } catch (error) {
-            console.error("Failed to fetch obras", error);
-            setPageError("Não foi possível carregar as obras.");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchObras();
-    }, [fetchObras]);
-
 
     const handleOpenModal = (obra: Obra | null = null) => {
         if (obra) {
@@ -73,7 +55,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
             setIsModalOpen(false);
             setEditingObra(null);
             setCurrentObra(emptyObra);
-            await fetchObras(); // Refresh data
+            await refetchData();
         } catch (error) {
             console.error("Failed to save obra", error);
         }
@@ -95,7 +77,7 @@ const ObrasPage: React.FC<ObrasPageProps> = ({ user, navigateTo }) => {
         } finally {
             setIsConfirmModalOpen(false);
             setObraToDeleteId(null);
-            await fetchObras();
+            await refetchData();
         }
     };
 

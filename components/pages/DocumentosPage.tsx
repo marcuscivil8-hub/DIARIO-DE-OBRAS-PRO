@@ -1,20 +1,26 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Obra, Documento, User, UserRole } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 interface DocumentosPageProps {
     user: User;
 }
 
 const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
-    const [documentos, setDocumentos] = useState<Documento[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedObraId, setSelectedObraId] = useState<string>('');
+    const { documentos, obras: allObras, loading, refetchData } = useData();
+    
+    const obras = useMemo(() => {
+        return user.role === UserRole.Cliente 
+            ? allObras.filter(obra => user.obraIds?.includes(obra.id)) 
+            : allObras;
+    }, [allObras, user]);
+    
+    const [selectedObraId, setSelectedObraId] = useState<string>(obras[0]?.id || '');
     
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,35 +35,6 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
     const [formData, setFormData] = useState(initialFormState);
     const [file, setFile] = useState<File | null>(null);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [docsData, obrasData] = await Promise.all([
-                dataService.documentos.getAll(),
-                dataService.obras.getAll()
-            ]);
-            
-            const userObras = user.role === UserRole.Cliente 
-                ? obrasData.filter(obra => user.obraIds?.includes(obra.id)) 
-                : obrasData;
-            
-            setObras(userObras);
-            setDocumentos(docsData);
-            
-            if (userObras.length > 0 && !selectedObraId) {
-                setSelectedObraId(userObras[0].id);
-            }
-        } catch (error) {
-            console.error("Failed to fetch documents data", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [user.role, user.obraIds, selectedObraId]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-    
     const filteredDocuments = useMemo(() => {
         if (!selectedObraId) return [];
         return documentos
@@ -92,7 +69,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
 
             await dataService.documentos.create(newDoc);
             setIsModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch(error: any) {
             console.error(error);
             setModalError(`Falha no upload do documento: ${error.message}`);
@@ -109,7 +86,7 @@ const DocumentosPage: React.FC<DocumentosPageProps> = ({ user }) => {
         await dataService.documentos.delete(docToDelete.id);
         setIsConfirmModalOpen(false);
         setDocToDelete(null);
-        await fetchData();
+        await refetchData();
     };
     
     const handleDownload = (doc: Documento) => {

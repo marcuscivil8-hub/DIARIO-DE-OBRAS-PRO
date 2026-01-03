@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { User, UserRole, Obra } from '../../types';
-import { dataService } from '../../services/dataService';
+import React, { useState } from 'react';
+import { User, UserRole } from '../../types';
 import { authService } from '../../services/authService';
+// FIX: Import dataService to manage user profile data.
+import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 const UsuariosPage: React.FC = () => {
-    const [users, setUsers] = useState<User[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { users, obras, loading, refetchData } = useData();
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isSaving, setIsSaving] = useState(false); // For modal save state
@@ -32,31 +33,8 @@ const UsuariosPage: React.FC = () => {
     };
     const [currentUserForm, setCurrentUserForm] = useState(initialNewUserState);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        setPageError(null);
-        try {
-            const [usersData, obrasData] = await Promise.all([
-                dataService.users.getAll(),
-                dataService.obras.getAll()
-            ]);
-            setUsers(usersData);
-            setObras(obrasData);
-        } catch (error: any) {
-            setPageError(error.message || "Falha ao carregar dados dos usuários.");
-            console.error("Failed to fetch data for user management", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-
     const handleOpenModal = (user: User | null = null) => {
-        setFormError(null); // Reset error on modal open
+        setFormError(null);
         setPageError(null);
         if (user) {
             setEditingUser(user);
@@ -97,38 +75,25 @@ const UsuariosPage: React.FC = () => {
         setIsSaving(true);
         try {
             if (editingUser) {
-                const updatePromises = [];
-
-                // 1. Update user profile in public.users table
-                const profileUpdate: Partial<User> = {
+                // UPDATE USER
+                const updateData = {
                     name: currentUserForm.name,
                     username: currentUserForm.username,
                     role: currentUserForm.role,
                     obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
                 };
-                updatePromises.push(dataService.users.update(editingUser.id, profileUpdate));
+                await dataService.users.update(editingUser.id, updateData);
 
-                // 2. Update password in auth.users if a new one is provided
                 if (currentUserForm.password) {
-                    updatePromises.push(authService.updateUserPassword(editingUser.id, currentUserForm.password));
+                    await authService.updateUserPassword(editingUser.id, currentUserForm.password);
                 }
-
-                await Promise.all(updatePromises);
             } else {
                 // CREATE USER
-                const newUserData: Omit<User, 'id'> = {
-                    name: currentUserForm.name,
-                    email: currentUserForm.email,
-                    username: currentUserForm.username,
-                    password: currentUserForm.password,
-                    role: currentUserForm.role,
-                    obraIds: currentUserForm.role === UserRole.Cliente ? currentUserForm.obraIds : [],
-                };
-                await authService.createUser(newUserData);
+                await authService.createUser(currentUserForm);
             }
             
             setIsModalOpen(false);
-            await fetchData();
+            await refetchData();
 
         } catch (error: any) {
             const errorMessage = error.message || "Ocorreu um erro desconhecido.";
@@ -157,7 +122,7 @@ const UsuariosPage: React.FC = () => {
         setPageError(null);
         try {
             await authService.deleteUser(userToDelete.id);
-            await fetchData(); // Refresh data
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to delete user:", error);
             setPageError(error.message || "Falha ao excluir o usuário. Tente novamente.");

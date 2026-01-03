@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Funcionario, Ponto, User, UserRole, PagamentoTipo, Obra } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Funcionario, Ponto, User, PagamentoTipo, Obra } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import { useData } from '../../contexts/DataContext';
 
 // --- Date Helper Functions for Week ---
 const getWeekPeriod = (date: Date) => {
@@ -33,37 +34,12 @@ interface FolhaPontoPageProps {
 }
 
 const FolhaPontoPage: React.FC<FolhaPontoPageProps> = ({ user }) => {
-    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-    const [pontos, setPontos] = useState<Ponto[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { funcionarios, pontos, obras, loading, refetchData } = useData();
+
     const [selectedObraId, setSelectedObraId] = useState<string>('all');
     const [pontoError, setPontoError] = useState<string | null>(null);
     const [updatingPontoKey, setUpdatingPontoKey] = useState<string | null>(null);
-    
     const [currentDate, setCurrentDate] = useState(new Date());
-
-    const fetchAllData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [funcData, pontosData, obrasData] = await Promise.all([
-                dataService.funcionarios.getAll(),
-                dataService.pontos.getAll(),
-                dataService.obras.getAll()
-            ]);
-            setFuncionarios(funcData);
-            setPontos(pontosData);
-            setObras(obrasData);
-        } catch (error) {
-            console.error("Failed to fetch data", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchAllData();
-    }, [fetchAllData]);
 
     const { startDate, endDate } = getWeekPeriod(currentDate);
     const weekDays = [];
@@ -76,46 +52,35 @@ const FolhaPontoPage: React.FC<FolhaPontoPageProps> = ({ user }) => {
     
     const handlePontoClick = async (funcionarioId: string, data: string) => {
         const key = `${funcionarioId}-${data}`;
-        // 1. Trava a célula clicada para evitar cliques múltiplos que podem causar inconsistência de dados.
         if (updatingPontoKey === key) return;
         setUpdatingPontoKey(key);
         setPontoError(null);
 
         if (selectedObraId === 'all') {
             setPontoError('Por favor, selecione uma obra específica para registrar o ponto.');
-            setUpdatingPontoKey(null); // Libera a trava
+            setUpdatingPontoKey(null);
             return;
         }
     
         const existingPonto = pontos.find(p => p.funcionarioId === funcionarioId && p.data === data && p.obraId === selectedObraId);
     
         try {
-            // 2. Lógica de transição de estado: a cada clique, o status avança no ciclo.
             if (!existingPonto) {
-                // Estado: Não existe -> Criar como 'presente'
                 const newPontoData: Omit<Ponto, 'id'> = { funcionarioId, obraId: selectedObraId, data, status: 'presente' };
-                const createdPonto = await dataService.pontos.create(newPontoData);
-                setPontos(prevPontos => [...prevPontos, createdPonto]);
+                await dataService.pontos.create(newPontoData);
             } else if (existingPonto.status === 'presente') {
-                // Estado: 'presente' -> Atualizar para 'falta'
-                const updatedPonto = await dataService.pontos.update(existingPonto.id, { status: 'falta' });
-                setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                await dataService.pontos.update(existingPonto.id, { status: 'falta' });
             } else if (existingPonto.status === 'falta') {
-                // Estado: 'falta' -> Atualizar para 'meio-dia'
-                const updatedPonto = await dataService.pontos.update(existingPonto.id, { status: 'meio-dia' });
-                setPontos(prevPontos => prevPontos.map(p => p.id === existingPonto.id ? updatedPonto : p));
+                await dataService.pontos.update(existingPonto.id, { status: 'meio-dia' });
             } else if (existingPonto.status === 'meio-dia') {
-                // Estado: 'meio-dia' -> Deletar o registro
                 await dataService.pontos.delete(existingPonto.id);
-                setPontos(prevPontos => prevPontos.filter(p => p.id !== existingPonto.id));
             }
+            await refetchData();
         } catch (error) {
             console.error("Falha ao atualizar o ponto:", error);
             setPontoError("Não foi possível salvar a alteração. A página será recarregada para garantir a consistência dos dados.");
-            // Força a recarga da página em caso de erro para re-sincronizar o estado.
             setTimeout(() => window.location.reload(), 2500);
         } finally {
-            // 3. Libera a trava da célula, permitindo novos cliques.
             setUpdatingPontoKey(null);
         }
     };

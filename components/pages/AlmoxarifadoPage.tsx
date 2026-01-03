@@ -1,22 +1,20 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Material, Ferramenta, MovimentacaoAlmoxarifado, Obra, Funcionario, MovimentacaoTipo, Page } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Material, Ferramenta, MovimentacaoAlmoxarifado, Page, MovimentacaoTipo } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 interface AlmoxarifadoPageProps {
     navigateTo: (page: Page) => void;
 }
 
 const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
-    const [materiais, setMateriais] = useState<Material[]>([]);
-    const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
-    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { materiais, ferramentas, movimentacoes, obras: allObras, funcionarios: allFuncionarios, loading, refetchData } = useData();
+    const obras = allObras.filter(o => o.status === 'Ativa');
+    const funcionarios = allFuncionarios.filter(f => f.ativo);
 
     // State for modals
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
@@ -36,33 +34,6 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
     const emptyNewMaterial: Omit<Material, 'id'> = { nome: '', unidade: '', estoqueMinimo: 0, fornecedor: '', valor: 0 };
     const [materialFormData, setMaterialFormData] = useState(emptyNewMaterial);
     
-
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [matData, ferData, movData, obrData, funcData] = await Promise.all([
-                dataService.materiais.getAll(),
-                dataService.ferramentas.getAll(),
-                dataService.movimentacoesAlmoxarifado.getAll(),
-                dataService.obras.getAll(),
-                dataService.funcionarios.getAll()
-            ]);
-            setMateriais(matData);
-            setFerramentas(ferData);
-            setMovimentacoes(movData);
-            setObras(obrData.filter(o => o.status === 'Ativa'));
-            setFuncionarios(funcData.filter(f => f.ativo));
-        } catch (error: any) {
-            console.error("Failed to fetch almoxarifado data", error);
-            setPageError(error.message || "Não foi possível carregar os dados do almoxarifado.");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
 
     const calculateStock = (itemType: 'material' | 'ferramenta') => {
         const estoque: Record<string, number> = {};
@@ -123,7 +94,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             await dataService.movimentacoesAlmoxarifado.create(newMov);
             
             setIsMovementModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to save movement:", error);
             setModalError(error.message || "Ocorreu um erro desconhecido.");
@@ -151,7 +122,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
                 await dataService.materiais.create(materialFormData);
             }
             setIsMaterialModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to save material:", error);
             setModalError(error.message || "Ocorreu um erro desconhecido.");
@@ -171,7 +142,7 @@ const AlmoxarifadoPage: React.FC<AlmoxarifadoPageProps> = ({ navigateTo }) => {
             } else {
                 await dataService.ferramentas.delete(itemToDelete.id);
             }
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to delete item:", error);
             setPageError(error.message || "Não foi possível excluir o item.");

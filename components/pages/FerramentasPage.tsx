@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Ferramenta, StatusFerramenta, User, UserRole, MovimentacaoTipo, Obra, MovimentacaoAlmoxarifado } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Ferramenta, StatusFerramenta, User, UserRole, MovimentacaoTipo, MovimentacaoAlmoxarifado } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 interface FerramentasPageProps {
     user: User;
 }
 
 const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
-    const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedObraId, setSelectedObraId] = useState<string>('');
+    const { ferramentas, obras: allObras, movimentacoes, loading, refetchData } = useData();
+    const obras = allObras.filter(o => o.status === 'Ativa');
+    
+    const [selectedObraId, setSelectedObraId] = useState<string>(obras[0]?.id || '');
     
     // Modal states for catalog editing
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,35 +45,6 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
     const [currentFerramenta, setCurrentFerramenta] = useState(emptyFerramenta);
 
     const canEdit = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
-
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [ferramentasData, obrasData, movData] = await Promise.all([
-                dataService.ferramentas.getAll(),
-                dataService.obras.getAll(),
-                dataService.movimentacoesAlmoxarifado.getAll(),
-            ]);
-            
-            const activeObras = obrasData.filter(o => o.status === 'Ativa');
-            setFerramentas(ferramentasData.sort((a,b) => a.nome.localeCompare(b.nome)));
-            setObras(activeObras);
-            setMovimentacoes(movData);
-
-            if (activeObras.length > 0 && !selectedObraId) {
-                setSelectedObraId(activeObras[0].id);
-            }
-        } catch (error: any) {
-            console.error("Failed to fetch data", error);
-            setPageError(error.message || "Não foi possível carregar os dados.");
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedObraId]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
 
     const estoquePorObra = useMemo(() => {
         if (!selectedObraId) return {};
@@ -145,7 +116,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
                 }
             }
             setIsModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to save tool:", error);
             setModalError(error.message || "Ocorreu um erro ao salvar a ferramenta.");
@@ -161,7 +132,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
         if (!ferramentaToDeleteId) return;
         try {
             await dataService.ferramentas.delete(ferramentaToDeleteId);
-            await fetchData();
+            await refetchData();
         } catch(error: any) {
             console.error("Failed to delete tool:", error);
             setPageError(error.message || "Não foi possível excluir a ferramenta.");
@@ -201,7 +172,7 @@ const FerramentasPage: React.FC<FerramentasPageProps> = ({ user }) => {
 
             await dataService.movimentacoesAlmoxarifado.create(newMov);
             setIsActionModalOpen(false);
-            await fetchData();
+            await refetchData();
         } catch (error: any) {
             console.error("Failed to save action:", error);
             setModalError(error.message || `Não foi possível registrar a devolução.`);

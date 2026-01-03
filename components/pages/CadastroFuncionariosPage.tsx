@@ -1,19 +1,20 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Funcionario, Obra, User, PagamentoTipo, UserRole } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Funcionario, User, PagamentoTipo, UserRole } from '../../types';
 import { dataService } from '../../services/dataService';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal, { ConfirmationModal } from '../ui/Modal';
 import { ICONS } from '../../constants';
+import { useData } from '../../contexts/DataContext';
 
 interface GerenciarFuncionariosPageProps {
     user: User;
 }
 
 const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ user }) => {
-    const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-    const [obras, setObras] = useState<Obra[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { funcionarios, obras: allObras, loading, refetchData } = useData();
+    const obras = allObras.filter(o => o.status === 'Ativa');
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFuncionario, setEditingFuncionario] = useState<Funcionario | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -22,26 +23,6 @@ const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ u
 
     const emptyFuncionario: Omit<Funcionario, 'id'> = { name: '', funcao: '', tipoPagamento: PagamentoTipo.Diaria, valor: 0, ativo: true, telefone: '', obraId: null };
     const [currentFuncionario, setCurrentFuncionario] = useState(emptyFuncionario);
-
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [funcData, obrasData] = await Promise.all([
-                dataService.funcionarios.getAll(),
-                dataService.obras.getAll()
-            ]);
-            setFuncionarios(funcData);
-            setObras(obrasData.filter(o => o.status === 'Ativa'));
-        } catch (error) {
-            console.error("Failed to fetch data", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
 
     const handleOpenModal = (func: Funcionario | null = null) => {
         if (func) {
@@ -61,7 +42,7 @@ const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ u
             await dataService.funcionarios.create(currentFuncionario);
         }
         setIsModalOpen(false);
-        await fetchData();
+        await refetchData();
     };
 
     const triggerDeactivateFuncionario = (func: Funcionario) => {
@@ -74,7 +55,7 @@ const GerenciarFuncionariosPage: React.FC<GerenciarFuncionariosPageProps> = ({ u
         await dataService.funcionarios.update(funcionarioToDeactivate.id, { ativo: !funcionarioToDeactivate.ativo });
         setIsConfirmModalOpen(false);
         setFuncionarioToDeactivate(null);
-        await fetchData();
+        await refetchData();
     };
 
     const visibleFuncionarios = useMemo(() =>
