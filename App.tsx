@@ -1,24 +1,28 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, UserRole, Page } from './types';
 import Layout from './components/layout/Layout';
 import LoginPage from './components/pages/LoginPage';
-import DashboardPage from './components/pages/DashboardPage';
-import ObrasPage from './components/pages/ObrasPage';
-import ObraDetailPage from './components/pages/ObraDetailPage';
-import FolhaPontoPage from './components/pages/FuncionariosPage';
-import GerenciarFuncionariosPage from './components/pages/CadastroFuncionariosPage';
-import FinanceiroPage from './components/pages/FinanceiroPage';
-import MateriaisPage from './components/pages/MateriaisPage';
-import FerramentasPage from './components/pages/FerramentasPage';
-import RelatoriosPage from './components/pages/RelatoriosPage';
-import UsuariosPage from './components/pages/UsuariosPage';
-import AlmoxarifadoPage from './components/pages/AlmoxarifadoPage';
-import DocumentosPage from './components/pages/DocumentosPage';
 import { authService } from './services/authService';
 import { supabase } from './services/supabaseClient';
 import { dataService } from './services/dataService';
 import { DataProvider } from './contexts/DataContext';
+import PageLoader from './components/ui/PageLoader';
+
+// Lazy-load pages to split the code and improve initial load time
+const DashboardPage = lazy(() => import('./components/pages/DashboardPage'));
+const ObrasPage = lazy(() => import('./components/pages/ObrasPage'));
+const ObraDetailPage = lazy(() => import('./components/pages/ObraDetailPage'));
+const FolhaPontoPage = lazy(() => import('./components/pages/FuncionariosPage'));
+const GerenciarFuncionariosPage = lazy(() => import('./components/pages/CadastroFuncionariosPage'));
+const FinanceiroPage = lazy(() => import('./components/pages/FinanceiroPage'));
+const MateriaisPage = lazy(() => import('./components/pages/MateriaisPage'));
+const FerramentasPage = lazy(() => import('./components/pages/FerramentasPage'));
+const RelatoriosPage = lazy(() => import('./components/pages/RelatoriosPage'));
+const UsuariosPage = lazy(() => import('./components/pages/UsuariosPage'));
+const AlmoxarifadoPage = lazy(() => import('./components/pages/AlmoxarifadoPage'));
+const DocumentosPage = lazy(() => import('./components/pages/DocumentosPage'));
+
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -113,7 +117,9 @@ const App: React.FC = () => {
     return (
         <DataProvider>
             <Layout user={currentUser} navigateTo={navigateTo} onLogout={handleLogout} currentPage={currentPage}>
-                {renderPage()}
+                <Suspense fallback={<PageLoader />}>
+                    {renderPage()}
+                </Suspense>
             </Layout>
         </DataProvider>
     );
