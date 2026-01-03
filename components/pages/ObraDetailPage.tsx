@@ -51,8 +51,8 @@ const AcompanhamentoDocumentos: React.FC<{ obraId: string }> = ({ obraId }) => {
     useEffect(() => {
         const fetchDocumentos = async () => {
             setLoading(true);
-            const allDocs = await dataService.documentos.getAll();
-            setDocumentos(allDocs.filter(d => d.obraId === obraId));
+            const docs = await dataService.documentos.getByObraId(obraId);
+            setDocumentos(docs);
             setLoading(false);
         };
         fetchDocumentos();
@@ -101,8 +101,7 @@ const AcompanhamentoFinanceiro: React.FC<{ obraId: string; user: User }> = ({ ob
 
     const fetchTransacoes = useCallback(async () => {
         setLoading(true);
-        const all = await dataService.transacoes.getAll();
-        let obraTransacoes = all.filter(t => t.obraId === obraId);
+        let obraTransacoes = await dataService.transacoes.getByObraId(obraId);
 
         if (user.role === UserRole.Encarregado) {
             obraTransacoes = obraTransacoes.filter(t => t.tipoTransacao === TransacaoTipo.Saida);
@@ -260,9 +259,7 @@ const AcompanhamentoServicos: React.FC<{ obraId: string; user: User }> = ({ obra
 
     const fetchServicos = useCallback(async () => {
         setLoading(true);
-        const allServicos = await dataService.servicos.getAll();
-        const obraServicos = allServicos
-            .filter(s => s.obraId === obraId)
+        const obraServicos = (await dataService.servicos.getByObraId(obraId))
             .sort((a,b) => new Date(a.dataInicioPrevista).getTime() - new Date(b.dataInicioPrevista).getTime());
         setServicos(obraServicos);
         setLoading(false);

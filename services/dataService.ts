@@ -93,11 +93,20 @@ export const dataService = {
             return data;
         }
     },
-    // FIX: Specify generic types for createCrudService to ensure correct type inference throughout the app.
     obras: createCrudService<Obra>('obras'),
     funcionarios: createCrudService<Funcionario>('funcionarios'),
     pontos: createCrudService<Ponto>('pontos'),
-    transacoes: createCrudService<TransacaoFinanceira>('transacoes_financeiras'),
+    transacoes: {
+        ...createCrudService<TransacaoFinanceira>('transacoes_financeiras'),
+        async getByObraId(obraId: string): Promise<TransacaoFinanceira[]> {
+            const { data, error } = await supabase
+                .from('transacoes_financeiras')
+                .select('*')
+                .eq('obraId', obraId);
+            handleSupabaseError(error, `busca de transações por obraId`);
+            return (data as TransacaoFinanceira[]) || [];
+        }
+    },
     materiais: createCrudService<Material>('materiais'),
     ferramentas: createCrudService<Ferramenta>('ferramentas'),
     diarios: {
@@ -111,9 +120,29 @@ export const dataService = {
             return (data as DiarioObra[]) || [];
         }
     },
-    servicos: createCrudService<Servico>('servicos'),
+    servicos: {
+        ...createCrudService<Servico>('servicos'),
+        async getByObraId(obraId: string): Promise<Servico[]> {
+            const { data, error } = await supabase
+                .from('servicos')
+                .select('*')
+                .eq('obraId', obraId);
+            handleSupabaseError(error, `busca de serviços por obraId`);
+            return (data as Servico[]) || [];
+        }
+    },
     movimentacoesAlmoxarifado: createCrudService<MovimentacaoAlmoxarifado>('movimentacoes_almoxarifado'),
-    documentos: createCrudService<Documento>('documentos'),
+    documentos: {
+        ...createCrudService<Documento>('documentos'),
+        async getByObraId(obraId: string): Promise<Documento[]> {
+            const { data, error } = await supabase
+                .from('documentos')
+                .select('*')
+                .eq('obraId', obraId);
+            handleSupabaseError(error, `busca de documentos por obraId`);
+            return (data as Documento[]) || [];
+        }
+    },
     ...lembretesService,
     uploadFile,
 };
