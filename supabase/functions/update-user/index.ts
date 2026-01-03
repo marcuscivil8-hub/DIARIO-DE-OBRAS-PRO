@@ -1,16 +1,18 @@
+// FIX: Add an ambient declaration for the Deno global object to resolve TypeScript errors.
+declare var Deno: any;
+
 // Follow this setup guide to integrate the Deno language server with your editor:
 // https://deno.land/manual/getting_started/setup_your_environment
 //
 // Start typing below!
-
-declare var Deno: any;
 
 import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
 
 console.log('Update user function booting up!');
 
-Deno.serve(async (req: any) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
