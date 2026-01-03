@@ -4,9 +4,10 @@ import Card from '../ui/Card';
 
 interface LoginPageProps {
     onLogin: (email: string, password: string) => Promise<void>;
+    onReconfigure: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onReconfigure }) => {
     const [email, setEmail] = useState('admin@diariodeobra.pro');
     const [password, setPassword] = useState('password');
     const [error, setError] = useState('');
@@ -69,6 +70,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <Button type="submit" className="w-full !py-4 text-lg" disabled={loading}>
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
+                    
+                    <div className="text-center text-sm text-brand-gray pt-4 border-t">
+                        <p>Problemas para entrar?</p>
+                        <button type="button" onClick={onReconfigure} className="font-semibold text-brand-blue hover:underline">
+                            Reconfigurar conexão com o banco de dados
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>

@@ -1,10 +1,10 @@
 import { User, UserRole } from '../types';
-import { supabase } from './supabaseClient';
+import { getSupabaseClient } from './supabaseClient';
 import { dataService } from './dataService';
 
 export const authService = {
     async login(email: string, password: string): Promise<void> {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await getSupabaseClient().auth.signInWithPassword({ email, password });
         if (error) {
             console.error('Login error:', error.message);
             if (error instanceof TypeError && error.message === 'Failed to fetch') {
@@ -18,7 +18,7 @@ export const authService = {
     },
 
     async logout(): Promise<void> {
-        const { error } = await supabase.auth.signOut();
+        const { error } = await getSupabaseClient().auth.signOut();
         if (error) {
             console.error('Logout error:', error.message);
             throw new Error('Não foi possível fazer logout.');
@@ -32,7 +32,7 @@ export const authService = {
 
         // O gatilho 'on_auth_user_created' no Supabase irá lidar com a criação do perfil do usuário na tabela 'public.users'.
         // Passamos todos os dados do perfil do usuário no campo 'options.data', que o gatilho irá ler.
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await getSupabaseClient().auth.signUp({
             email: userData.email,
             password: userData.password,
             options: {
@@ -68,7 +68,7 @@ export const authService = {
     },
 
     async deleteUser(userId: string): Promise<void> {
-        const { error } = await supabase.functions.invoke('delete-user', {
+        const { error } = await getSupabaseClient().functions.invoke('delete-user', {
             body: { userId },
         });
 
@@ -93,7 +93,7 @@ export const authService = {
     },
     
     async updateUserPassword(userId: string, password: string): Promise<void> {
-        const { error } = await supabase.functions.invoke('update-user', {
+        const { error } = await getSupabaseClient().functions.invoke('update-user', {
             body: { userId, password },
         });
 
@@ -118,7 +118,7 @@ export const authService = {
     },
 
     async getCurrentUser(): Promise<User | null> {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await getSupabaseClient().auth.getSession();
         if (error) {
             console.error("Error getting session:", error.message);
             return null;

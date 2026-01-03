@@ -4,10 +4,14 @@ import { User, UserRole, Page } from './types';
 import Layout from './components/layout/Layout';
 import LoginPage from './components/pages/LoginPage';
 import { authService } from './services/authService';
-import { supabase } from './services/supabaseClient';
 import { dataService } from './services/dataService';
 import { DataProvider } from './contexts/DataContext';
 import PageLoader from './components/ui/PageLoader';
+
+// New imports for Supabase setup
+import { initializeSupabase, getCredentialsFromStorage, getSupabaseClient, clearCredentialsFromStorage } from './services/supabaseClient';
+import SupabaseSetupPage from './components/pages/SupabaseSetupPage';
+
 
 // Lazy-load pages to split the code and improve initial load time
 const DashboardPage = lazy(() => import('./components/pages/DashboardPage'));
@@ -25,20 +29,57 @@ const DocumentosPage = lazy(() => import('./components/pages/DocumentosPage'));
 
 
 const App: React.FC = () => {
+    const [supabaseInitialized, setSupabaseInitialized] = useState(false);
+    const [supabaseConfigError, setSupabaseConfigError] = useState<string | null>(null);
+    
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // App loading state
 
     useEffect(() => {
-        const checkUser = async () => {
-            const user = await authService.getCurrentUser();
-            setCurrentUser(user);
+        const { url, anonKey } = getCredentialsFromStorage();
+        if (url && anonKey) {
+            try {
+                initializeSupabase(url, anonKey);
+                setSupabaseInitialized(true);
+            } catch (err: any) {
+                console.error("Failed to init Supabase from localStorage:", err);
+                clearCredentialsFromStorage();
+                setSupabaseConfigError("As credenciais salvas são inválidas. Por favor, insira novamente.");
+                setSupabaseInitialized(false);
+                setLoading(false);
+            }
+        } else {
+            setSupabaseInitialized(false);
             setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!supabaseInitialized) return;
+
+        setLoading(true);
+        const client = getSupabaseClient();
+        
+        const checkUser = async () => {
+            try {
+                const user = await authService.getCurrentUser();
+                setCurrentUser(user);
+            } catch (err: any) {
+                console.error("Error fetching current user:", err.message);
+                clearCredentialsFromStorage();
+                setSupabaseConfigError("Falha ao autenticar com as credenciais fornecidas. Verifique-as e tente novamente.");
+                setSupabaseInitialized(false); // Go back to setup page
+            } finally {
+                setLoading(false);
+            }
         };
+
         checkUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
+            setLoading(true);
             if (session?.user) {
                 const userProfile = await dataService.users.getById(session.user.id);
                 setCurrentUser(userProfile);
@@ -49,26 +90,41 @@ const App: React.FC = () => {
         });
 
         return () => {
-            subscription.unsubscribe();
+            subscription?.unsubscribe();
         };
-    }, []);
+    }, [supabaseInitialized]);
 
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
         await authService.login(email, password);
-        // O onAuthStateChange listener irá lidar com a atualização do estado do usuário e o recarregamento dos dados
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
-        setCurrentPage('Dashboard'); // Navega para uma página segura após o logout
+        setCurrentPage('Dashboard'); 
     };
 
     const navigateTo = (page: Page, obraId?: string) => {
         setCurrentPage(page);
         setSelectedObraId(obraId || null);
     };
+
+    const handleSupabaseConfigured = () => {
+        setSupabaseConfigError(null);
+        setSupabaseInitialized(true);
+    };
+    
+    const handleReconfigureSupabase = () => {
+        clearCredentialsFromStorage();
+        setCurrentUser(null);
+        setSupabaseInitialized(false);
+    };
+
+    if (!supabaseInitialized) {
+        const { url, anonKey } = getCredentialsFromStorage();
+        return <SupabaseSetupPage onConfigured={handleSupabaseConfigured} initialUrl={url || ''} initialKey={anonKey || ''} error={supabaseConfigError || undefined} />;
+    }
 
     if (loading) {
         return (
@@ -80,7 +136,7 @@ const App: React.FC = () => {
     }
 
     if (!currentUser) {
-        return <LoginPage onLogin={handleLogin} />;
+        return <LoginPage onLogin={handleLogin} onReconfigure={handleReconfigureSupabase} />;
     }
 
     const renderPage = () => {
