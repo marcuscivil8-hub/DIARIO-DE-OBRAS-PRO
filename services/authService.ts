@@ -73,21 +73,22 @@ export const authService = {
         });
 
         if (error) {
-            console.error('Error deleting user function:', error);
-            // The FunctionsError from Supabase can have a 'context' property
-            // which might contain the raw response object. We check for it safely.
+            console.error(`Error invoking delete-user function:`, error.message);
+            
+            if (error.message.toLowerCase().includes('failed to fetch') || error.message.toLowerCase().includes('networkerror')) {
+                throw new Error('Falha de rede ao se comunicar com o servidor. Verifique sua conexão e a configuração CORS das Funções Edge no Supabase.');
+            }
+
             if (error.context && typeof error.context.json === 'function') {
                 try {
                     const errorBody = await error.context.json();
-                    // Assumes the function returns a JSON with an 'error' key on failure
-                    throw new Error(errorBody.error || 'Falha ao invocar a função de exclusão.');
+                    throw new Error(errorBody.error || `A função retornou um erro: ${error.message}`);
                 } catch (e) {
-                    // If JSON parsing fails, fall back to the main error message.
-                    throw new Error(error.message || 'Falha ao excluir usuário. Resposta da função inválida.');
+                    throw new Error(`A resposta do servidor foi inválida: ${error.message}`);
                 }
             }
-            // For network errors or other cases where 'context' is not available.
-            throw new Error(error.message || 'Falha ao excluir usuário.');
+            
+            throw new Error(error.message || 'Ocorreu um erro desconhecido ao executar a exclusão no servidor.');
         }
     },
     
@@ -97,16 +98,22 @@ export const authService = {
         });
 
         if (error) {
-            console.error('Error updating user password function:', error);
+            console.error('Error invoking update-user function:', error.message);
+
+            if (error.message.toLowerCase().includes('failed to fetch') || error.message.toLowerCase().includes('networkerror')) {
+                throw new Error('Falha de rede ao se comunicar com o servidor. Verifique sua conexão e a configuração CORS das Funções Edge no Supabase.');
+            }
+            
             if (error.context && typeof error.context.json === 'function') {
                 try {
                     const errorBody = await error.context.json();
-                    throw new Error(errorBody.error || 'Falha ao invocar a função de atualização de senha.');
+                    throw new Error(errorBody.error || `A função retornou um erro: ${error.message}`);
                 } catch (e) {
-                    throw new Error(error.message || 'Falha ao atualizar senha. Resposta da função inválida.');
+                    throw new Error(`A resposta do servidor foi inválida: ${error.message}`);
                 }
             }
-            throw new Error(error.message || 'Falha ao atualizar a senha do usuário.');
+            
+            throw new Error(error.message || 'Ocorreu um erro desconhecido ao atualizar a senha no servidor.');
         }
     },
 

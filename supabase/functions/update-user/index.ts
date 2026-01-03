@@ -7,7 +7,13 @@ declare var Deno: any;
 // Start typing below!
 
 import { createClient } from '@supabase/supabase-js'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// Self-contained CORS headers to eliminate potential import issues during deployment.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 console.log('Update user function booting up!');
 
