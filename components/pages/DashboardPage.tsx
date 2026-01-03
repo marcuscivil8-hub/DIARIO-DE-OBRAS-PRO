@@ -13,6 +13,7 @@ interface DashboardPageProps {
 }
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
+    // Data states
     const [obras, setObras] = useState<Obra[]>([]);
     const [servicos, setServicos] = useState<Servico[]>([]);
     const [materiais, setMateriais] = useState<Material[]>([]);
@@ -22,44 +23,76 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
     const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
     const [movimentacoes, setMovimentacoes] = useState<MovimentacaoAlmoxarifado[]>([]);
     const [lembretes, setLembretes] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    // Staged loading states for better UX
+    const [loading, setLoading] = useState({
+        kpis: true,
+        chart: true,
+        reminders: true,
+    });
     
     // State for admin editing reminders
     const [isLembreteModalOpen, setIsLembreteModalOpen] = useState(false);
     const [lembretesEdit, setLembretesEdit] = useState('');
 
+    // --- Staged Data Fetching for Performance ---
     useEffect(() => {
-        const fetchData = async () => {
+        // Fetch essential KPI data first for a fast initial render
+        const fetchKpiData = async () => {
             try {
-                setLoading(true);
-                const [obrasData, servicosData, materiaisData, transacoesData, pontosData, funcionariosData, movimentacoesData, lembretesData, ferramentasData] = await Promise.all([
+                const [obrasData, servicosData, materiaisData, pontosData, movimentacoesData, ferramentasData] = await Promise.all([
                     dataService.obras.getAll(),
                     dataService.servicos.getAll(),
                     dataService.materiais.getAll(),
-                    dataService.transacoes.getAll(),
                     dataService.pontos.getAll(),
-                    dataService.funcionarios.getAll(),
                     dataService.movimentacoesAlmoxarifado.getAll(),
-                    dataService.getLembretes(),
                     dataService.ferramentas.getAll(),
                 ]);
                 setObras(obrasData);
                 setServicos(servicosData);
                 setMateriais(materiaisData);
-                setTransacoes(transacoesData);
                 setPontos(pontosData);
-                setFuncionarios(funcionariosData);
                 setMovimentacoes(movimentacoesData);
-                setLembretes(lembretesData);
-                setLembretesEdit(lembretesData.join('\n'));
                 setFerramentas(ferramentasData);
-            } catch (error: any) {
-                console.error("Failed to fetch dashboard data:", error.message);
+            } catch (error) {
+                console.error("Failed to fetch KPI data:", error);
             } finally {
-                setLoading(false);
+                setLoading(prev => ({ ...prev, kpis: false }));
             }
         };
-        fetchData();
+
+        // Fetch secondary data (for chart) after KPIs are likely loaded
+        const fetchChartData = async () => {
+             try {
+                const [transacoesData, funcionariosData] = await Promise.all([
+                    dataService.transacoes.getAll(),
+                    dataService.funcionarios.getAll(),
+                ]);
+                setTransacoes(transacoesData);
+                setFuncionarios(funcionariosData);
+            } catch (error) {
+                console.error("Failed to fetch Chart data:", error);
+            } finally {
+                setLoading(prev => ({ ...prev, chart: false }));
+            }
+        };
+
+        // Fetch non-critical data last
+        const fetchReminderData = async () => {
+            try {
+                const lembretesData = await dataService.getLembretes();
+                setLembretes(lembretesData);
+                setLembretesEdit(lembretesData.join('\n'));
+            } catch (error) {
+                console.error("Failed to fetch Reminders data:", error);
+            } finally {
+                setLoading(prev => ({ ...prev, reminders: false }));
+            }
+        };
+
+        fetchKpiData();
+        fetchChartData();
+        fetchReminderData();
     }, []);
 
     const handleSaveLembretes = async () => {
@@ -170,10 +203,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
         return months;
     }, [transacoes, pontos, funcionarios]);
     
-    if (loading) {
-        return <div className="text-center p-8">Carregando dashboard...</div>;
-    }
-
+    const KpiCard: React.FC<{title: string; value: string | number; description: string; gradient: string; onClick?: () => void;}> = ({ title, value, description, gradient, onClick }) => (
+        <div 
+            className={`${onClick ? 'cursor-pointer transition-transform transform hover:scale-105' : ''}`}
+            onClick={onClick}
+            role={onClick ? 'button' : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onKeyDown={(e) => onClick && e.key === 'Enter' && onClick()}
+            aria-label={onClick ? `Ver ${title}`: undefined}
+        >
+            <Card className={`${gradient} text-white h-full`}>
+                <h3 className="text-lg font-semibold">{title}</h3>
+                <p className="text-5xl font-bold">{loading.kpis ? '...' : value}</p>
+                <p className="text-white/80">{description}</p>
+            </Card>
+        </div>
+    );
+    
     const canNavigateToAlmoxarifado = user.role === UserRole.Admin || user.role === UserRole.Encarregado;
 
     return (
@@ -181,42 +227,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             <h2 className="text-2xl font-bold text-brand-blue">Bem-vindo, {user.name}!</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="bg-gradient-to-br from-brand-blue to-blue-800 text-white h-full">
-                    <h3 className="text-lg font-semibold">Obras Ativas</h3>
-                    <p className="text-5xl font-bold">{activeObras}</p>
-                    <p className="text-white/80">de {userObras.length} no total</p>
-                </Card>
-                 <div 
-                    className="cursor-pointer transition-transform transform hover:scale-105" 
-                    onClick={() => navigateTo('Obras')}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && navigateTo('Obras')}
-                    aria-label="Ver serviços atrasados"
-                >
-                    <Card className="bg-gradient-to-br from-brand-yellow to-amber-500 text-brand-blue h-full">
-                        <h3 className="text-lg font-semibold">Serviços Atrasados</h3>
-                        <p className="text-5xl font-bold">{delayedServices}</p>
-                        <p className="text-black/70">Precisam de atenção</p>
-                    </Card>
-                </div>
-                 <div 
+                <KpiCard title="Obras Ativas" value={activeObras} description={`de ${userObras.length} no total`} gradient="bg-gradient-to-br from-brand-blue to-blue-800" />
+                <KpiCard title="Serviços Atrasados" value={delayedServices} description="Precisam de atenção" gradient="bg-gradient-to-br from-brand-yellow to-amber-500 !text-brand-blue" onClick={() => navigateTo('Obras')} />
+                
+                <div 
                     className={canNavigateToAlmoxarifado ? "cursor-pointer transition-transform transform hover:scale-105" : ""} 
                     onClick={() => canNavigateToAlmoxarifado && navigateTo('Almoxarifado')}
                     role={canNavigateToAlmoxarifado ? "button" : undefined}
-                    tabIndex={canNavigateToAlmoxarifado ? 0 : undefined}
-                    onKeyDown={(e) => canNavigateToAlmoxarifado && e.key === 'Enter' && navigateTo('Almoxarifado')}
-                    aria-label={canNavigateToAlmoxarifado ? "Ver alertas de estoque" : undefined}
                 >
                     <Card className="h-full">
                         <h3 className="text-lg font-semibold text-brand-blue">Alerta de Estoque</h3>
-                        <p className="text-5xl font-bold text-red-500">{lowStockItems}</p>
+                        <p className="text-5xl font-bold text-red-500">{loading.kpis ? '...' : lowStockItems}</p>
                         <p className="text-brand-gray">Itens com estoque baixo</p>
                     </Card>
                 </div>
                  <Card className="h-full">
                     <h3 className="text-lg font-semibold text-brand-blue">Funcionários Hoje</h3>
-                    <p className="text-5xl font-bold">{funcionariosHoje}</p>
+                    <p className="text-5xl font-bold">{loading.kpis ? '...' : funcionariosHoje}</p>
                     <p className="text-brand-gray">Presentes nas obras</p>
                 </Card>
             </div>
@@ -224,38 +251,48 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user, navigateTo }) => {
             {user.role === UserRole.Admin && (
                 <>
                     <Card title="Resumo Financeiro (Últimos 6 meses)">
-                        <div className="h-80">
-                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={financialSummaryData}>
-                                    <XAxis dataKey="name" stroke="#6b7280" />
-                                    <YAxis stroke="#6b7280" />
-                                    <Tooltip wrapperClassName="!bg-white !border !border-gray-300 !rounded-lg" formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} />
-                                    <Legend />
-                                    <Bar dataKey="Entradas" fill="#1e3a5f" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="Saídas" fill="#facc15" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        {loading.chart ? <div className="h-80 flex items-center justify-center">Carregando dados financeiros...</div> : (
+                            <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={financialSummaryData}>
+                                        <XAxis dataKey="name" stroke="#6b7280" />
+                                        <YAxis stroke="#6b7280" />
+                                        <Tooltip wrapperClassName="!bg-white !border !border-gray-300 !rounded-lg" formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} />
+                                        <Legend />
+                                        <Bar dataKey="Entradas" fill="#1e3a5f" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="Saídas" fill="#facc15" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </Card>
                     <Card title="Lembretes para Encarregados">
-                        <ul className="list-disc list-inside space-y-2 text-brand-gray mb-4">
-                            {lembretes.map((l, i) => <li key={i}>{l}</li>)}
-                        </ul>
-                        <div className="text-right">
-                             <Button onClick={() => setIsLembreteModalOpen(true)} variant="secondary" size="sm">Editar Lembretes</Button>
-                        </div>
+                        {loading.reminders ? <p>Carregando lembretes...</p> : (
+                            <>
+                                <ul className="list-disc list-inside space-y-2 text-brand-gray mb-4">
+                                    {lembretes.map((l, i) => <li key={i}>{l}</li>)}
+                                </ul>
+                                <div className="text-right">
+                                    <Button onClick={() => setIsLembreteModalOpen(true)} variant="secondary" size="sm">Editar Lembretes</Button>
+                                </div>
+                            </>
+                        )}
                     </Card>
                 </>
             )}
             
             {user.role === UserRole.Encarregado && (
                 <Card title="Lembretes e Inspiração">
-                    <ul className="list-disc list-inside space-y-2 text-brand-gray mb-4">
-                        {lembretes.map((l, i) => <li key={i}>{l}</li>)}
-                    </ul>
-                    <p className="text-center font-semibold text-brand-blue italic mt-6 p-4 bg-yellow-50 rounded-lg">
-                        "Você é incrível! Os desafios da vida colaboram para o nosso crescimento."
-                    </p>
+                    {loading.reminders ? <p>Carregando...</p> : (
+                        <>
+                            <ul className="list-disc list-inside space-y-2 text-brand-gray mb-4">
+                                {lembretes.map((l, i) => <li key={i}>{l}</li>)}
+                            </ul>
+                            <p className="text-center font-semibold text-brand-blue italic mt-6 p-4 bg-yellow-50 rounded-lg">
+                                "Você é incrível! Os desafios da vida colaboram para o nosso crescimento."
+                            </p>
+                        </>
+                    )}
                 </Card>
             )}
 

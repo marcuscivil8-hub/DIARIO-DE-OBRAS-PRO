@@ -23,61 +23,73 @@ const App: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
     const [selectedObraId, setSelectedObraId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const initialAuthCheckDone = useRef(false);
+    const isMounted = useRef(true);
 
     useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            // A tela de carregamento principal só deve aparecer na primeira vez.
-            // Atualizações de sessão (ao focar na aba) ocorrerão em segundo plano.
-            if (!initialAuthCheckDone.current) {
-                setLoading(true);
+        isMounted.current = true;
+        
+        // Check initial session quickly
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user && isMounted.current) {
+                    const userProfile = await dataService.users.getById(session.user.id);
+                    setCurrentUser(userProfile);
+                }
+            } catch (e) {
+                console.error("Auth init error", e);
+            } finally {
+                if (isMounted.current) setLoading(false);
             }
+        };
 
-            if (session?.user) {
-                // Usuário autenticado, busca o perfil customizado.
+        initAuth();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
                 const userProfile = await dataService.users.getById(session.user.id);
                 setCurrentUser(userProfile);
-            } else {
+            } else if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
+                setCurrentPage('Dashboard');
             }
-            
-            initialAuthCheckDone.current = true;
-            setLoading(false);
         });
 
-        // Limpa a inscrição ao desmontar o componente.
-        return () => subscription.unsubscribe();
+        return () => {
+            isMounted.current = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
         await authService.login(email, password);
-        // O listener onAuthStateChange irá cuidar de definir o usuário.
         setCurrentPage('Dashboard');
     };
 
     const handleLogout = async () => {
         await authService.logout();
-        // O listener onAuthStateChange irá cuidar de limpar o usuário.
-        setCurrentPage('Dashboard'); 
     };
 
     const navigateTo = (page: Page, obraId?: string) => {
         setCurrentPage(page);
-        if (obraId) {
-            setSelectedObraId(obraId);
-        } else {
-            setSelectedObraId(null);
-        }
+        setSelectedObraId(obraId || null);
     };
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-brand-blue text-white text-xl">Carregando Diário de Obra Pro...</div>;
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-brand-blue text-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-yellow mb-4"></div>
+                <p className="text-xl font-semibold">Carregando Engetch Pro...</p>
+            </div>
+        );
+    }
+
+    if (!currentUser) {
+        return <LoginPage onLogin={handleLogin} />;
     }
 
     const renderPage = () => {
-        if (!currentUser) return <LoginPage onLogin={handleLogin} />;
-        
         switch (currentPage) {
             case 'Dashboard':
                 return <DashboardPage user={currentUser} navigateTo={navigateTo} />;
@@ -107,10 +119,6 @@ const App: React.FC = () => {
                 return <DashboardPage user={currentUser} navigateTo={navigateTo} />;
         }
     };
-
-    if (!currentUser) {
-        return <LoginPage onLogin={handleLogin} />;
-    }
 
     return (
         <Layout user={currentUser} navigateTo={navigateTo} onLogout={handleLogout} currentPage={currentPage}>

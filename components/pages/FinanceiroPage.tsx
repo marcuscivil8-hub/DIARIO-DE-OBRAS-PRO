@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { TransacaoFinanceira, TransacaoTipo, Obra, Ponto, Funcionario, PagamentoTipo, CategoriaSaida, User, UserRole, MovimentacaoAlmoxarifado, MovimentacaoTipo, Material } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -58,20 +55,21 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             : transacoes.filter((t: TransacaoFinanceira) => t.obraId === selectedObraId);
 
         const totalEntradas = user.role === UserRole.Admin 
-            ? transacoesFiltradas.filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc: number, t: TransacaoFinanceira) => acc + t.valor, 0)
+            ? transacoesFiltradas.filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Entrada).reduce((acc: number, t: TransacaoFinanceira) => acc + (t.valor || 0), 0)
             : 0;
 
-        const pontosRelevantes = pontos.filter((p: Ponto) => p.status === 'presente' && (isAllObras || p.obraId === selectedObraId));
+        const pontosRelevantes = pontos.filter((p: Ponto) => p.status !== 'falta' && (isAllObras || p.obraId === selectedObraId));
         const custoMaoDeObra = pontosRelevantes.reduce((total: number, ponto: Ponto) => {
             const func = funcionarios.find((f) => f.id === ponto.funcionarioId);
             if (func && typeof func.valor === 'number' && func.valor > 0) {
-                const dailyCost = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
+                const baseDailyValue = func.tipoPagamento === PagamentoTipo.Diaria ? func.valor : (func.valor / 22);
+                const dailyCost = ponto.status === 'meio-dia' ? baseDailyValue / 2 : baseDailyValue;
                 return total + dailyCost;
             }
             return total;
         }, 0);
 
-        const materiaisMap: Map<string, Material> = new Map(materiais.map((m: Material) => [m.id, m]));
+        const materiaisMap = new Map<string, Material>(materiais.map((m: Material) => [m.id, m]));
         const movimentosUso = movimentacoes.filter((m: MovimentacaoAlmoxarifado) => 
             m.itemType === 'material' && 
             m.tipoMovimentacao === MovimentacaoTipo.Uso &&
@@ -88,16 +86,16 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
         const saidasConsolidadas: Record<string, number> = {};
 
         transacoesFiltradas
-            .filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Saida && t.categoria !== CategoriaSaida.FolhaPagamento && t.categoria !== CategoriaSaida.Material)
+            .filter((t: TransacaoFinanceira) => t.tipoTransacao === TransacaoTipo.Saida)
             .forEach((t: TransacaoFinanceira) => {
-                saidasConsolidadas[t.categoria] = (saidasConsolidadas[t.categoria] || 0) + t.valor;
+                saidasConsolidadas[t.categoria] = (saidasConsolidadas[t.categoria] || 0) + (t.valor || 0);
             });
 
         if (custoMaoDeObra > 0) {
-            saidasConsolidadas['Mão de Obra (Folha de Ponto)'] = custoMaoDeObra;
+            saidasConsolidadas['Mão de Obra (Folha de Ponto)'] = (saidasConsolidadas['Mão de Obra (Folha de Ponto)'] || 0) + custoMaoDeObra;
         }
         if (custoMateriais > 0) {
-            saidasConsolidadas[CategoriaSaida.Material] = (saidasConsolidadas[CategoriaSaida.Material] || 0) + custoMateriais;
+            saidasConsolidadas['Materiais (Uso Obra)'] = (saidasConsolidadas['Materiais (Uso Obra)'] || 0) + custoMateriais;
         }
 
         const totalSaidas = Object.values(saidasConsolidadas).reduce((sum, val) => sum + val, 0);
@@ -119,7 +117,7 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <Card>
                 <div className="flex items-center space-x-4">
                     <label htmlFor="obra-filter" className="font-semibold text-brand-blue">Filtrar por Obra:</label>
-                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId((e.target as HTMLSelectElement).value)} className="p-2 border rounded-lg">
+                    <select id="obra-filter" value={selectedObraId} onChange={e => setSelectedObraId(e.target.value)} className="p-2 border rounded-lg">
                         <option value="all">Todas as Obras</option>
                         {obras.map((obra: Obra) => <option key={obra.id} value={obra.id}>{obra.name}</option>)}
                     </select>
@@ -129,46 +127,52 @@ const FinanceiroPage: React.FC<FinanceiroPageProps> = ({ user }) => {
             <div className={`grid grid-cols-1 ${user.role === UserRole.Admin ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-6`}>
                 {user.role === UserRole.Admin && (
                     <Card title="Entradas" className="text-green-600">
-                        <p className="text-3xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-3xl font-bold">R$ {(totalEntradas as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
-                <Card title="Saídas (Transações + Ponto + Uso de Material)" className="text-red-600">
-                    <p className="text-3xl font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <Card title="Custo Total (Consolidado)" className="text-red-600">
+                    <p className="text-3xl font-bold">R$ {(totalSaidas as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </Card>
                 {user.role === UserRole.Admin && (
-                    <Card title="Balanço" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                        <p className="text-3xl font-bold">R$ {balanco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <Card title="Balanço (Entradas - Saídas)" className={balanco >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                        <p className="text-3xl font-bold">R$ {(balanco as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </Card>
                 )}
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                 <Card title="Despesas por Categoria" className="lg:col-span-3">
+                 <Card title="Distribuição de Custos" className="lg:col-span-3">
                     <div className="h-96">
                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false}
-                                    // FIX: The 'percent' property from recharts can be undefined.
-                                    // Using `(percent || 0)` ensures the operation is always performed on a number.
-                                    label={({ name, percent }: { name: string; percent?: number }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
+                                <Pie 
+                                    data={pieData} 
+                                    dataKey="value" 
+                                    nameKey="name" 
+                                    cx="50%" 
+                                    cy="50%" 
+                                    outerRadius={120} 
+                                    fill="#8884d8" 
+                                    labelLine={false}
+                                    label={({ name, percent }: any) => `${name} ${(Number(percent || 0) * 100).toFixed(0)}%`}
+                                >
                                     {pieData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                {/* FIX: The 'value' from the formatter can be inferred as 'any'. Explicitly typing it as a 'number'
-                                ensures the correct `toLocaleString` method with arguments is used, preventing a type error. */}
-                                <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                                <Tooltip formatter={(value: any) => `R$ ${(value as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
                 </Card>
-                <Card title="Detalhamento de Saídas" className="lg:col-span-2">
-                    <ul className="space-y-2 max-h-96 overflow-y-auto">
-                         {Object.entries(saidasPorCategoria).sort((a, b) => b[1] - a[1]).map(([categoria, valor]) => (
-                            <li key={categoria} className="flex justify-between text-gray-700">
-                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>{categoria}</p>
-                                <p className={categoria.includes('Mão de Obra') ? 'font-bold text-brand-blue' : ''}>R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <Card title="Detalhamento das Saídas" className="lg:col-span-2">
+                    <ul className="space-y-3 max-h-96 overflow-y-auto">
+                         {/* FIX: Use explicit casting to any for b[1] and a[1] to avoid arithmetic operation type errors on line 170 */}
+                         {Object.entries(saidasPorCategoria).sort((a, b) => (b[1] as any) - (a[1] as any)).map(([categoria, valor]) => (
+                            <li key={categoria} className="flex justify-between items-center text-gray-700 border-b pb-2">
+                                <p className="font-medium text-brand-blue">{categoria}</p>
+                                <p className="font-bold">R$ {(valor as any).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </li>
                          ))}
                     </ul>
