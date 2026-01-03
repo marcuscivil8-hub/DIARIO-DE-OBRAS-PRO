@@ -74,9 +74,20 @@ export const authService = {
 
         if (error) {
             console.error('Error deleting user function:', error);
-            // Tenta extrair a mensagem de erro específica da função.
-            const errorBody = await error.context?.json().catch(() => ({ error: 'Falha ao excluir usuário. Verifique os logs da função no Supabase.' }));
-            throw new Error(errorBody.error || 'Falha ao excluir usuário.');
+            // The FunctionsError from Supabase can have a 'context' property
+            // which might contain the raw response object. We check for it safely.
+            if (error.context && typeof error.context.json === 'function') {
+                try {
+                    const errorBody = await error.context.json();
+                    // Assumes the function returns a JSON with an 'error' key on failure
+                    throw new Error(errorBody.error || 'Falha ao invocar a função de exclusão.');
+                } catch (e) {
+                    // If JSON parsing fails, fall back to the main error message.
+                    throw new Error(error.message || 'Falha ao excluir usuário. Resposta da função inválida.');
+                }
+            }
+            // For network errors or other cases where 'context' is not available.
+            throw new Error(error.message || 'Falha ao excluir usuário.');
         }
     },
     
